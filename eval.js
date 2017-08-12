@@ -483,6 +483,68 @@ function macroexpand(form) {
   return form;
 }
 
+function RecursionPoint(args) {
+  this.args = listToArray(args);
+}
+
+function evalRecursionPoint(form) {
+  throw new RecursionPoint(cdr(form));
+}
+
+function evalLoop(form, env_) {
+  var binds = car(cdr(form));
+  var body  = cdr(cdr(form));
+  var scope = env(env_);
+  var ret   = Nil;
+  if (count(binds) % 2 !== 0) {
+    throw new Error('loop requires an even number of bindings');
+  }
+  // bind variables
+  var i = 1, x, y, rest, xs = binds;
+  while (i < count(binds)) {
+    rest = cdr(xs);
+    x    = car(xs);
+    y    = car(rest);
+    define(scope, x);
+    define(scope, x, evaluate(y, scope));
+    xs = cdr(rest);
+    i++;
+  }
+
+  while (true) {
+    try {
+      // evaluate body
+      var exp = car(body), exprs = cdr(body);
+      while (exp != null) {
+        ret   = evaluate(exp, scope);
+        exp   = car(exprs);
+        exprs = cdr(exprs);
+      }
+      break;
+    }
+    catch (e) {
+      if (e instanceof RecursionPoint) {
+        var binds_ = arrayToList(binds);
+        var names = [];
+        for (i = 0; i < binds_.length; i += 2) {
+          names.push(binds[i]);
+        }
+        if (names.length !== e.args.length) {
+          throw new Error('recur should supply the same number of arguments to rebind');
+        }
+        for (i = 0; i < names.length; i += 2) {
+          define(scope, names[i], evaluate(e.args[i], scope));
+        }
+        continue;
+      }
+      else {
+        throw e;
+      }
+    }
+  }
+  return ret;
+}
+
 var top = env();
 function evaluate(form_, env_) {
   var env   = env_ || top;
@@ -517,6 +579,12 @@ function evaluate(form_, env_) {
           break;
         case 'fn':
           ret = evalFunction(form, env);
+          break;
+        case 'loop':
+          ret = evalLoop(form, env);
+          break;
+        case 'recur':
+          ret = evalRecursionPoint(form, env);
           break;
         case 'defmacro':
           ret = evalMacroDefinition(form, env);
