@@ -625,6 +625,25 @@ function dropLast(l) {
   return reverse(cdr(reverse(l)));
 }
 
+function map(f, l) {
+  if (isNil(l)) {
+    return Nil;
+  }
+  else {
+    var a = isArray(l) ? a : listToArray(l);
+    var newA = [];
+    var i;
+    for (i = 0; i < a.length; i++) {
+      newA.push(apply(f, list(a[i])));
+    }
+    return newA;
+  }
+}
+
+function reduce(f) {
+  
+}
+
 function readJS(exp) {
   var i;
   if (isArray(exp)) {
@@ -733,12 +752,8 @@ define(top, "object?", isObject);
 define(top, "read-js", readJS);
 define(top, "read-json", readJSON);
 define(top, "reverse", reverse);
+define(top, "map", map);
 
-define(top, "=", eq);
-define(top, "<", function(a, b) { return a < b; });
-define(top, ">", function(a, b) { return a > b; });
-define(top, "<=", function(a, b) { return a <= b; });
-define(top, ">=", function(a, b) { return a >= b; });
 define(top, "identical?", function(a, b) { return a === b; });
 define(top, "equiv?", function(a, b) { return a == b; });
 
@@ -751,15 +766,22 @@ define(top, "bit-shift-left", function(a, b) { return a << b; });
 define(top, "bit-shift-right", function(a, b) { return a >> b; });
 define(top, "unsigned-bit-shift-right", function(a, b) { return a >>> b; });
 
-define(top, "inc", function(x) { return 1 + (1*x); });
-define(top, "dec", function(x) { return (1*x) - 1; });
+define(top, "=", eq);
+define(top, "<", function(a, b) { return a < b; });
+define(top, ">", function(a, b) { return a > b; });
+define(top, "<=", function(a, b) { return a <= b; });
+define(top, ">=", function(a, b) { return a >= b; });
 
-define(top, "+", function() {
+var add = function() {
   if (arguments.length === 0) {
-    return 0;
+    return add;
   }
   else if (arguments.length === 1) {
-    return arguments[0];
+    var x = arguments[0];
+    return function () {
+      var args = [].concat(x, Array.prototype.slice.call(arguments));
+      return add.apply(null, args);
+    };
   }
   else {
     var sum = 0;
@@ -769,14 +791,19 @@ define(top, "+", function() {
     }
     return sum;
   }
-});
+};
+define(top, "+", add);
 
-define(top, "-", function() {
+var sub = function() {
   if (arguments.length === 0) {
-    return 0;
+    return sub;
   }
   else if (arguments.length === 1) {
-    return -arguments[0];
+    var x = -arguments[0];
+    return function () {
+      var args = [].concat(x, Array.prototype.slice.call(arguments));
+      return sub.apply(null, args);
+    };
   }
   else {
     var sum = 0;
@@ -786,14 +813,19 @@ define(top, "-", function() {
     }
     return sum;
   }
-});
+};
+define(top, '-', sub);
 
-define(top, "*", function() {
+var mult = function() {
   if (arguments.length === 0) {
-    return 1;
+    return mult;
   }
   else if (arguments.length === 1) {
-    return arguments[0];
+    var x = arguments[0];
+    return function () {
+      var args = [].concat(x, Array.prototype.slice.call(arguments));
+      return mult.apply(null, args);
+    };
   }
   else {
     var sum = 1;
@@ -803,14 +835,19 @@ define(top, "*", function() {
     }
     return sum;
   }
-});
+};
+define(top, '*', mult);
 
-define(top, "/", function() {
+var div = function() {
   if (arguments.length === 0) {
-    return 1;
+    return div;
   }
   else if (arguments.length === 1) {
-    return arguments[0];
+    var x = arguments[0];
+    return function () {
+      var args = [].concat(x, Array.prototype.slice.call(arguments));
+      return div.apply(null, args);
+    };
   }
   else {
     var sum = 1;
@@ -820,7 +857,8 @@ define(top, "/", function() {
     }
     return sum;
   }
-});
+};
+define(top, '/', div);
 
 return {
   eval: evaluate,
