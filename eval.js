@@ -436,13 +436,13 @@ function pt(tag, val) {
 function evalApplication(form, env) {
   var fn   = evaluate(car(form), env);
   var args = cdr(form);
-  var x    = car(args);
-  var xs   = cdr(args);
+  var a    = car(args);
+  var as   = cdr(args);
   var args_ = Nil;
-  while (x) {
-    args_ = cons(evaluate(x, env), args_);
-    x  = car(xs);
-    xs = cdr(xs);
+  while (a) {
+    args_ = cons(evaluate(a, env), args_);
+    a  = car(as);
+    as = cdr(as);
   }
   return apply(fn, reverse(args_));
 }
@@ -475,9 +475,20 @@ function isTaggedValue(x) {
 function macroexpand(form) {
   if (isTaggedValue(form)) {
     var name = car(form);
-    var macro = MACROS[name];
-    if (macro != null) {
-      return macroexpand(apply(macro, cdr(form)));
+    if (name.startsWith('.-')) {
+      return list('.', car(cdr(form)), name.slice(1));
+    }
+    else if (name.startsWith('.')) {
+      return list('.', car(cdr(form)), cons(name.slice(1), cdr(cdr(form))));
+    }
+    else if (name.endsWith('.')) {
+      return cons('new', cons(name.replace(/\.$/, ''), cdr(form)));
+    }
+    else {
+      var macro = MACROS[name];
+      if (macro != null) {
+        return macroexpand(apply(macro, cdr(form)));
+      }
     }
   }
   return form;
@@ -545,6 +556,44 @@ function evalLoop(form, env_) {
   return ret;
 }
 
+function evalClassInstantiation(form, env) {
+  var ctr  = evaluate(car(cdr(form)), env);
+  var args = map(function(x) { return evaluate(x, env); }, cdr(cdr(form)));
+  return new (ctr.bind.apply(ctr, args));
+}
+
+function evalMemberAccess(form, env) {
+  var obj = evaluate(car(cdr(form)), env);
+  var member = car(cdr(cdr(form)));
+  var val;
+  if (isSymbol(member)) {
+    val = obj[member];
+    if (member.startsWith('-')) {
+      return obj[member.slice(1)];
+    }
+    else if (isJSFn(val)) {
+      return val.call(obj);
+    }
+    else {
+      return val;
+    }
+  }
+  else if (isCons(member)) {
+    var name = car(member);
+    val = obj[name];
+    if (name.startsWith('-')) {
+      return obj[name.slice(1)];
+    }
+    else if (isJSFn(val)) {
+      var args = map(function(x) { return evaluate(x, env); }, cdr(member));
+      return val.apply(obj, args);
+    }
+    else {
+      throw new Error(s('invalid member access: "', prnStr(form), '"'));
+    }
+  }
+}
+
 var top = env();
 function evaluate(form_, env_) {
   var env   = env_ || top;
@@ -585,6 +634,12 @@ function evaluate(form_, env_) {
           break;
         case 'recur':
           ret = evalRecursionPoint(form, env);
+          break;
+        case 'new':
+          ret = evalClassInstantiation(form, env);
+          break;
+        case '.':
+          ret = evalMemberAccess(form, env);
           break;
         case 'defmacro':
           ret = evalMacroDefinition(form, env);
@@ -646,7 +701,18 @@ function reduce(f) {
 
 function readJS(exp) {
   var i;
-  if (isArray(exp)) {
+  if (isSymbol(exp)) {
+    if (exp.startsWith(':') || exp.startsWith("'")) {
+      return list('quote', exp.slice(1));
+    }
+    else if (exp.startsWith('"') && exp.endsWith('"')) {
+      return list('quote', exp.slice(1).replace(/"$/, ''));
+    }
+    else {
+      return exp;
+    }
+  }
+  else if (isArray(exp)) {
     if (exp.length === 0) return Nil;
     var xs = Nil;
     var last = Nil, x;
@@ -859,6 +925,220 @@ var div = function() {
   }
 };
 define(top, '/', div);
+
+function symbolImporter(ns) {
+  return function(name) {
+    try {
+      var val = eval(name);
+      if (val != null) {
+        define(top, s(ns, '/', name), val);
+      }
+    }
+    catch (e) {
+      //console.error(e);
+    }
+  };
+}
+// import js stuff
+[
+  'Array',
+  'ArrayBuffer',
+  'AsyncFunction',
+  'Atomics',
+  'Boolean',
+  'DataView',
+  'Date',
+  'Error',
+  'EvalError',
+  'Float32Array',
+  'Float64Array',
+  'Function',
+  'Generator',
+  'GeneratorFunction',
+  'Infinity',
+  'Int32Array',
+  'Int64Array',
+  'Int8Array',
+  'InternalError',
+  'Intl',
+  'JSON',
+  'Map',
+  'Math',
+  'NaN',
+  'Number',
+  'Object',
+  'Promise',
+  'Proxy',
+  'RangeError',
+  'ReferenceError',
+  'Reflect',
+  'RegExp',
+  'Set',
+  'String',
+  'Symbol',
+  'SyntaxError',
+  'TypeError',
+  'TypedArray',
+  'URIError',
+  'Uint16Array',
+  'Uint32Array',
+  'Uint8Array',
+  'Uint8ClampedArray',
+  'WeakMap',
+  'WeakSet',
+  'decodeURI',
+  'decodeURIComponent',
+  'encodeURI',
+  'encodeURIComponent',
+  'eval',
+  'isFinite',
+  'isNaN',
+  'parseFloat',
+  'parseInt',
+  'uneval',
+  'SIMD',
+  'WebAssembly',
+  'window',
+  'document',
+  'location',
+  'localStorage',
+  'console',
+  'setInterval',
+  'setTimeout',
+  'clearInterval',
+  'clearTimeout'
+].forEach(symbolImporter('js'));
+
+
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  [
+    'Buffer',
+    '__dirname',
+    '__filename',
+    'clearImmediate',
+    'console',
+    'exports',
+    'global',
+    'process',
+    'setImmediate',
+  ].forEach(symbolImporter('js.node'));
+}
+
+[
+  'Attr',
+  'ByteString',
+  'CDATASection',
+  'CharacterData',
+  'ChildNode',
+  'CSSPrimitiveValue',
+  'CSSValue',
+  'CSSValueList',
+  'Comment',
+  'CustomEvent',
+  'Document',
+  'DocumentFragment',
+  'DocumentType',
+  'DOMError',
+  'DOMException',
+  'DOMImplmentation',
+  'DOMString',
+  'DOMTimeStamp',
+  'DOMStringList',
+  'DOMTokenList',
+  'Element',
+  'Event',
+  'EventTarget',
+  'MutationObserver',
+  'MutationRecord',
+  'Node',
+  'NodeFilter',
+  'NodeIterator',
+  'NodeList',
+  'ParentNode',
+  'ProcessingInstruction',
+  'Range',
+  'Text',
+  'TreeWalker',
+  'URL',
+  'Window',
+  'Worker',
+  'XMLDocument',
+  'HTMLAnchorElement',
+  'HTMLAreaElement',
+  'HTMLAudioElement',
+  'HTMLBaseElement',
+  'HTMLBodyElement',
+  'HTMLBREElement',
+  'HTMLButtonElement',
+  'HTMLCanvasElement',
+  'HTMLDataElement',
+  'HTMLDataListElement',
+  'HTMLDialogElement',
+  'HTMLDivElement',
+  'HTMLDListElement',
+  'HTMLEmbedElement',
+  'HTMLFieldSetElement',
+  'HTMLFontElement',
+  'HTMLFormElement',
+  'HTMLFrameSetElement',
+  'HTMLHeadElement',
+  'HTMLHtmlElement',
+  'HTMLHRElement',
+  'HTMLIFrameElement',
+  'HTMLImageElement',
+  'HTMLInputElement',
+  'HTMLKeygenElement',
+  'HTMLLabelElement',
+  'HTMLLIElement',
+  'HTMLLinkElement',
+  'HTMLMapElement',
+  'HTMLMediaElement',
+  'HTMLMetaElement',
+  'HTMLMeterElement',
+  'HTMLModElement',
+  'HTMLObjectElement',
+  'HTMLOListElement',
+  'HTMLOptGroupElement',
+  'HTMLOptionElement',
+  'HTMLOutputElement',
+  'HTMLParagraphElement',
+  'HTMLParamElement',
+  'HTMLPreElement',
+  'HTMLProgressElement',
+  'HTMLQuoteElement',
+  'HTMLScriptElement',
+  'HTMLSelectElement',
+  'HTMLSourceElement',
+  'HTMLSpanElement',
+  'HTMLStyleElement',
+  'HTMLTableElement',
+  'HTMLTableCaptionElement',
+  'HTMLTableCellElement',
+  'HTMLTableDataCellElement',
+  'HTMLTableHeaderCellElement',
+  'HTMLTableColElement',
+  'HTMLTableRowElement',
+  'HTMLTableSectionElement',
+  'HTMLTextAreaElement',
+  'HTMLTimeElement',
+  'HTMLTitleElement',
+  'HTMLTrackElement',
+  'HTMLUListElement',
+  'HTMLUnknownElement',
+  'HTMLVideoElement',
+  'CanvasRenderingContext2D',
+  'CanvasGradient',
+  'CanvasPattern',
+  'TextMetrics',
+  'ImageData',
+  'CanvasPixelArray',
+  'NotifyAudioAvailableEvent',
+  'HTMLFormControlsCollection',
+  'HTMLOptionsCollection',
+  'DOMStringMap',
+  'RadioNodeList',
+  'MediaError'
+].forEach(symbolImporter('js.dom'));
 
 return {
   eval: evaluate,
