@@ -50,10 +50,14 @@ function list() {
   if (arguments.length === 0) {
     return Nil;
   }
-  var i;
+  else if (arguments.length === 1) {
+    return cons(arguments[0], Nil);
+  }
+  var i, x;
   var xs = Nil;
-  for (i = arguments.length; i >= 0; i--) {
-    xs = cons(arguments[i], xs);
+  for (i = arguments.length - 1; i >= 0; i--) {
+    x = arguments[i];
+    xs = cons(x, xs);
   }
   return xs;
 }
@@ -294,7 +298,7 @@ function reverse(xs) {
     return Nil;
   }
   else {
-    var xs_ = xs, x = car(xs_), l = Nil;
+    var xs_ = cdr(xs), x = car(xs), l = Nil;
     while (x) {
       l   = cons(x, l);
       x   = car(xs_);
@@ -380,6 +384,7 @@ function listToArray(cons) {
   return a;
 }
 
+// add capture variables using pair notation
 function apply(x, args) {
   if (isJSFn(x)) {
     return x.apply(null, listToArray(args));
@@ -395,28 +400,23 @@ function apply(x, args) {
 
   if (isNil(body)) return Nil;
 
-  prn(names);
-  prn(args);
+  var namec = count(names);
+  var argc  = count(args);
+  if (namec !== argc) {
+    throw new Error(s('Wrong number of arguments, expected: ', namec, ', got: ', argc));
+  }
 
   // bind arguments
-  var i = 1,
-    nm = car(names),
+  var nm = car(names),
     ns = cdr(names),
     a  = car(args),
     as = cdr(args);
-  while (i < count(names)) {
-    prn(nm);
-    prn(a);
-    if (a == null) {
-      throw new Error(s('Wrong number of arguments, expected: ', count(names), ', got: ', i));
-    }
-    //p(nm, x);
-    define(env, nm, x);
+  while (nm != null) {
+    define(env, nm, a);
     nm = car(ns);
     ns = cdr(ns);
     a  = car(as);
     as = cdr(as);
-    i++;
   }
 
   // evaluate body
@@ -429,19 +429,21 @@ function apply(x, args) {
   return ret;
 }
 
+function pt(tag, val) {
+  p(s(tag, ': ', prnStr(val)));
+}
+
 function evalApplication(form, env) {
   var fn   = evaluate(car(form), env);
   var args = cdr(form);
   var x    = car(args);
   var xs   = cdr(args);
-  prn(args);
   var args_ = Nil;
   while (x) {
     args_ = cons(evaluate(x, env), args_);
     x  = car(xs);
     xs = cdr(xs);
   }
-  prn(args_);
   return apply(fn, reverse(args_));
 }
 
@@ -461,8 +463,8 @@ function evalMacroDefinition(form, env) {
     name   = car(rest),
     fnrest = cdr(rest);
   MACROS[name] = evalFunction(cons("fn", fnrest), env);
-  prn(MACROS[name]);
-  prn(apply(MACROS[name], list(1, 2)));
+  //prn(MACROS[name]);
+  //prn(apply(MACROS[name], list(1, 2)));
   return name;
 }
 
@@ -482,10 +484,11 @@ function macroexpand(form) {
 }
 
 var top = env();
-function evaluate(form, env_) {
+function evaluate(form_, env_) {
   var env   = env_ || top;
   var recur = true;
   var ret   = null;
+  var form  = macroexpand(form_);
   while (recur) {
     recur = false;
     if (form == null) {
@@ -546,25 +549,46 @@ function isObject(x) {
   return Object.prototype.toString.call(x) === '[object Object]';
 }
 
+function drop(n, l) {
+
+}
+
+function dropLast(l) {
+  return reverse(cdr(reverse(l)));
+}
+
 function readJS(exp) {
   var i;
   if (isArray(exp)) {
     if (exp.length === 0) return Nil;
-    var list = Nil;
+    var xs = Nil;
+    var last = Nil, x;
     for (i = exp.length; i >= 0; i--) {
-      list = cons(readJS(exp[i]), list);
+      // use & to read pairs
+      if (exp[i] === '&') {
+        if (exp.length === 2) return cons(Nil, readJS(last));
+        i--;
+        x = cons(last, readJS(exp[i]));
+        if (exp.length === 3) return x;
+        xs = dropLast(xs);
+      }
+      else {
+        x = readJS(exp[i]);
+      }
+      xs = cons(x, xs);
+      last = x;
     }
-    return list;
+    return xs;
   }
   else if (isJSFn(exp)) return exp;
   else if (isObject(exp)) {
-    var keys = obj.getOwnPropertyNames();
+    var keys = Object.getOwnPropertyNames(exp);
     if (keys.length === 0) return Nil;
     var l = Nil;
     for (i = 0; i < keys.length; i++) {
-      l = cons(cons(keys[i], readJS(obj[keys[i]])), l);
+      l = cons(cons(keys[i], readJS(exp[keys[i]])), l);
     }
-    return l;
+    return list('quote', l);
   }
   else {
     return exp;
@@ -739,10 +763,13 @@ return {
   arrayToList: arrayToList,
   listToArray: listToArray,
   objectToPairs: objectToPairs,
-  pair: pair
+  pair: pair,
+  list: list,
+  prn: prn,
+  prnStr: prnStr
 };
 }());
 
-if (module.exports !== void(0)) {
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
   module.exports = zera;
 }
