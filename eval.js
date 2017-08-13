@@ -1,7 +1,12 @@
 // jshint esversion: 5
 // jshint eqnull: true
+// jshind evil: true
+
 var zera = (function() {
 "use strict";
+
+var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
+var isBrowser = typeof window !== 'undefined';
 
 function cons(car, cdr) {
   if (cdr == null) {
@@ -225,6 +230,7 @@ function isEnv(x) {
 
 function lookup(env, name) {
   if (env == null) {
+    p('env null');
     return null;
   }
   else if (env.vars != null && env.vars[name] != null) {
@@ -240,6 +246,7 @@ function lookup(env, name) {
         if (scope.vars != null && scope.vars[name] != null) {
           return scope;
         }
+        scope = scope.parent;
       }
       return null;
     }
@@ -247,7 +254,7 @@ function lookup(env, name) {
 }
 
 function define(env, name, value) {
-  if (value) {
+  if (typeof value !== 'undefined') {
     env.vars[name] = value;
     return value;
   }
@@ -438,13 +445,10 @@ function evalApplication(form, env) {
   var args = cdr(form);
   var a    = car(args);
   var as   = cdr(args);
-  var args_ = Nil;
-  while (a) {
-    args_ = cons(evaluate(a, env), args_);
-    a  = car(as);
-    as = cdr(as);
-  }
-  return apply(fn, reverse(args_));
+  //pt('args', args);
+  var args_ = arrayToList(map(function(x) { return evaluate(x, env); }, args));
+  //pt('args_', reverse(args_));
+  return apply(fn, args_);
 }
 
 function evalFunction(form, env_) {
@@ -495,11 +499,18 @@ function macroexpand(form) {
 }
 
 function RecursionPoint(args) {
-  this.args = listToArray(args);
+  this.args = args;
 }
 
-function evalRecursionPoint(form) {
-  throw new RecursionPoint(cdr(form));
+function evalRecursionPoint(form, env) {
+  //pt('raw args', cdr(form));
+  var args = map(function(x) {
+    //pt('x', x);
+    var y = evaluate(x, env);
+    //pt('y', y);
+    return y;
+  }, cdr(form));
+  throw new RecursionPoint(args);
 }
 
 function evalLoop(form, env_) {
@@ -507,21 +518,26 @@ function evalLoop(form, env_) {
   var body  = cdr(cdr(form));
   var scope = env(env_);
   var ret   = Nil;
+
   if (count(binds) % 2 !== 0) {
     throw new Error('loop requires an even number of bindings');
   }
-  // bind variables
-  var i = 1, x, y, rest, xs = binds;
-  while (i < count(binds)) {
-    rest = cdr(xs);
-    x    = car(xs);
-    y    = car(rest);
-    define(scope, x);
-    define(scope, x, evaluate(y, scope));
-    xs = cdr(rest);
-    i++;
+
+  // bind variables & collect names
+  var i;
+  var binds_ = listToArray(binds);
+  var names = [], name, value, evaled;
+  for (i = 0; i < binds_.length; i += 2) {
+    name = binds_[i];
+    value = binds_[i+1];
+    names.push(name);
+    //pt(name, value);
+    define(scope, name);
+    evaled = evaluate(value, scope);
+    define(scope, name, evaled);
   }
 
+  loop:
   while (true) {
     try {
       // evaluate body
@@ -534,19 +550,16 @@ function evalLoop(form, env_) {
       break;
     }
     catch (e) {
+      //p(e.args);
       if (e instanceof RecursionPoint) {
-        var binds_ = arrayToList(binds);
-        var names = [];
-        for (i = 0; i < binds_.length; i += 2) {
-          names.push(binds[i]);
-        }
         if (names.length !== e.args.length) {
-          throw new Error('recur should supply the same number of arguments to rebind');
+          throw new Error(s('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
         }
         for (i = 0; i < names.length; i += 2) {
+          //console.log('rebinding: ', names, ' to ', e.args);
           define(scope, names[i], evaluate(e.args[i], scope));
         }
-        continue;
+        continue loop;
       }
       else {
         throw e;
@@ -558,8 +571,9 @@ function evalLoop(form, env_) {
 
 function evalClassInstantiation(form, env) {
   var ctr  = evaluate(car(cdr(form)), env);
+  if (!isJSFn(ctr)) throw new Error('class given is not a valid constructor');
   var args = map(function(x) { return evaluate(x, env); }, cdr(cdr(form)));
-  return new (ctr.bind.apply(ctr, args));
+  return new (ctr.bind.apply(ctr, [].concat(ctr, args)));
 }
 
 function evalMemberAccess(form, env) {
@@ -610,6 +624,7 @@ function evaluate(form_, env_) {
     }
     else if (isSymbol(form)) {
       ret = findVar(env, form);
+      //if (form === 'i') pt('evalVar i', ret);
     }
     else if (isCons(form)) {
       var tag = car(form);
@@ -695,10 +710,6 @@ function map(f, l) {
   }
 }
 
-function reduce(f) {
-  
-}
-
 function readJS(exp) {
   var i;
   if (isSymbol(exp)) {
@@ -760,32 +771,6 @@ function evalJSON(json) {
   return evaluate(readJSON(json));
 }
 
-/*
-ok(isNil(null),   '(nil? null)');
-ok(isNil(Nil),    '(nil? nil)');
-ok(!isNil(1),     '(nil? 1)');
-ok(isSymbol("x"), '(symbol? x)');
-
-is(true,  eq(1, 1),                         '(= 1 1)');
-is(false, eq(1, 2),                         '(= 1 2)');
-is(true,  eq("test", "test"),               '(= "test" "test")');
-is(true,  eq(list(1, 2, 3), list(1, 2, 3)), '(= (1 2 3) (1 2 3))');
-
-is(1,             evaluate(list("quote", 1)),           "'1");
-ok(eq(list(1, 2), evaluate(list("quote", list(1, 2)))), "'(1 2 3)");
-
-is(1, evaluate(list("def", "x", 1), top),  '(def x 1)');
-is(1, evaluate("x", top),                  '(= x 1)');
-is(2, evaluate(list("set!", "x", 2), top), '(set! x 2)');
-is(2, evaluate("x", top),                  '(= x 2)');
-is(2, evaluate(list("cond", 1, "x"), top), '(cond 1 x)');
-is(2, evaluate(list("cond", Nil, 1, "else", "x"), top), '(cond nil 1 else x)');
-ok(isPair(evaluate(list("fn", list(), 1))), '(pair? (fn () 1)');
-ok(isFn(evaluate(list("fn", list(), 1))),   '(fn? (fn () 1)');
-is(2, evaluate(list(list("fn", list(), "x")), top), '((fn () x))');
-is(2, evaluate(list(function(){ return 2; })), 'function() { return 2 }');
-*/
-
 // primitive functions
 define(top, "eval", evaluate);
 define(top, "apply", apply);
@@ -818,7 +803,6 @@ define(top, "object?", isObject);
 define(top, "read-js", readJS);
 define(top, "read-json", readJSON);
 define(top, "reverse", reverse);
-define(top, "map", map);
 
 define(top, "identical?", function(a, b) { return a === b; });
 define(top, "equiv?", function(a, b) { return a == b; });
@@ -833,20 +817,75 @@ define(top, "bit-shift-right", function(a, b) { return a >> b; });
 define(top, "unsigned-bit-shift-right", function(a, b) { return a >>> b; });
 
 define(top, "=", eq);
-define(top, "<", function(a, b) { return a < b; });
-define(top, ">", function(a, b) { return a > b; });
-define(top, "<=", function(a, b) { return a <= b; });
-define(top, ">=", function(a, b) { return a >= b; });
+
+var lt = function(a, b) {
+  if (arguments.length === 0) {
+    return lt;
+  }
+  else if (arguments.length === 1) {
+    return function (b) {
+      return a < b;
+    };
+  }
+  else {
+    return a < b;
+  }
+};
+define(top, '<', lt);
+
+var lteq = function(a, b) {
+  if (arguments.length === 0) {
+    return lteq;
+  }
+  else if (arguments.length === 1) {
+    return function (b) {
+      return a <= b;
+    };
+  }
+  else {
+    return a <= b;
+  }
+};
+define(top, '<=', lteq);
+
+var gt = function(a, b) {
+  if (arguments.length === 0) {
+    return gt;
+  }
+  else if (arguments.length === 1) {
+    return function (b) {
+      return a > b;
+    };
+  }
+  else {
+    return a > b;
+  }
+};
+define(top, '>', gt);
+
+var gteq = function(a, b) {
+  if (arguments.length === 0) {
+    return gteq;
+  }
+  else if (arguments.length === 1) {
+    return function (b) {
+      return a >= b;
+    };
+  }
+  else {
+    return a >= b;
+  }
+};
+define(top, '>=', gteq);
 
 var add = function() {
   if (arguments.length === 0) {
     return add;
   }
   else if (arguments.length === 1) {
-    var x = arguments[0];
-    return function () {
-      var args = [].concat(x, Array.prototype.slice.call(arguments));
-      return add.apply(null, args);
+    var x = 1*arguments[0];
+    return function() {
+      return add.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
   }
   else {
@@ -866,9 +905,8 @@ var sub = function() {
   }
   else if (arguments.length === 1) {
     var x = -arguments[0];
-    return function () {
-      var args = [].concat(x, Array.prototype.slice.call(arguments));
-      return sub.apply(null, args);
+    return function() {
+      return sub.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
   }
   else {
@@ -887,10 +925,9 @@ var mult = function() {
     return mult;
   }
   else if (arguments.length === 1) {
-    var x = arguments[0];
-    return function () {
-      var args = [].concat(x, Array.prototype.slice.call(arguments));
-      return mult.apply(null, args);
+    var x = 1*arguments[0];
+    return function() {
+      return mult.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
   }
   else {
@@ -909,10 +946,9 @@ var div = function() {
     return div;
   }
   else if (arguments.length === 1) {
-    var x = arguments[0];
-    return function () {
-      var args = [].concat(x, Array.prototype.slice.call(arguments));
-      return div.apply(null, args);
+    var x = 1*arguments[0];
+    return function() {
+      return div.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
   }
   else {
@@ -939,6 +975,9 @@ function symbolImporter(ns) {
     }
   };
 }
+
+define(top, '*platform*', 'js');
+
 // import js stuff
 [
   'Array',
@@ -1009,8 +1048,13 @@ function symbolImporter(ns) {
   'clearTimeout'
 ].forEach(symbolImporter('js'));
 
+if (isBrowser) {
+  define(top, '*platform*', 'js/browser');
+}
 
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+
+if (isNode) {
+  define(top, '*platform*', "js/node");
   [
     'Buffer',
     '__dirname',
@@ -1140,7 +1184,7 @@ if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
   'MediaError'
 ].forEach(symbolImporter('js.dom'));
 
-return {
+var api = {
   eval: evaluate,
   evalJS: evalJS,
   evalJSON: evalJSON,
@@ -1149,13 +1193,33 @@ return {
   arrayToList: arrayToList,
   listToArray: listToArray,
   objectToPairs: objectToPairs,
+  isFn: isFn,
+  isSymbol: isSymbol,
+  Nil: Nil,
+  isNil: isNil,
+  isPair: isPair,
   pair: pair,
   list: list,
   prn: prn,
-  prnStr: prnStr
+  prnStr: prnStr,
+  ok: ok,
+  is: is,
+  eq: eq
 };
+
+if (isNode) {
+  var fs = require('fs');
+  api.evalJSONFile = function(file) {
+    var ret = null;
+    JSON.parse(fs.readFileSync(file).toString()).forEach(function(line) {
+      ret = evalJS(line);
+    });
+    return ret;
+  };
+  module.exports = api;
+}
+
+return api;
+
 }());
 
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-  module.exports = zera;
-}

@@ -1,0 +1,20 @@
+[
+  ["def", "x", 1],
+
+  ["prn", "x"],
+
+  ["defmacro", "if",
+    ["pred", "conse"],
+    ["list", ":cond", "pred", "conse"]],
+
+  ["if", true,
+    ["prn", ":test"]],
+
+  ["def", "map",
+    ["fn", ["f", "l"],
+      ["loop", ["x", ["car", "l"], "xs", "nil"],
+        ["cond",
+          ["nil?", "l"], "nil",
+          "else",
+            ["cons", ["f", ["car", "l"]], ["map", "f", ["cdr", "l"]]]]]]],
+]
