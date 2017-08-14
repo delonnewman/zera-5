@@ -37,8 +37,8 @@ is(2, z.eval("x"),                  '(= x 2)');
 is(2, z.eval(list("cond", 1, "x")), '(cond 1 x)');
 is(2, z.eval(list("cond", Nil, 1, "else", "x")), '(cond nil 1 else x)');
 
-ok(isPair(z.eval(list("fn", list(), 1))), '(pair? (fn () 1)');
-ok(isFn(z.eval(list("fn", list(), 1))),   '(fn? (fn () 1)');
+ok(isPair(z.eval(list("fn", list(), 1))), '(pair? (fn () 1))');
+ok(isFn(z.eval(list("fn", list(), 1))),   '(fn? (fn () 1))');
 
 is(2, z.eval(list(list("fn", list(), "x"))), '((fn () x))');
 is(2, z.eval(list(function(){ return 2; })), 'function() { return 2 }');
@@ -55,13 +55,13 @@ is(1, z.eval(list("loop", list('i', 1), 'i')), '(loop (i 1) i)');
 
 var xs = z.eval(
   list('loop', list('xs', 'nil', 'i', 0),
-    list('p', 'i'),
-    list('p', 'xs'),
     list('cond',
       list('=', 'i', 10), 'xs',
       'else',
         list('recur', list('cons', 'i', 'xs'), list('+', 'i', 1)))));
 
-console.log(xs);
+ok(eq(xs, list(9, 8, 7, 6, 5, 4, 3, 2, 1, 0)), '(loop (xs nil, i 0) (cond (= i 10) xs else (recur (cons i xs) (+ i 1))))');
+
+is(3, z.eval(list(list('fn', list('x'), 'x'), 3)), '((fn (x) x) 3)');
 
 }());

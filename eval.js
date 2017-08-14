@@ -78,6 +78,54 @@ function list() {
   return xs;
 }
 
+function io(r, w) {
+  return {
+    read: r,
+    write: w
+  };
+}
+
+var stdout;
+if (isNode) {
+  stdout = io(
+    null,
+    function() { console.log(Array.prototype.slice(arguments).join('')); }
+  );
+}
+else {
+  stdout = io(
+    null,
+    function() { console.log(Array.prototype.slice(arguments).join('')); }
+  );
+}
+
+function isIO(x) {
+  return x != null && (x.read != null || x.write != null);
+}
+
+function print(x) {
+  var output, io = stdout;
+  if (isIO(x)) {
+    io = x;
+    output = Array.prototype.slice(arguments, 1).join('');
+  }
+  else {
+    output = Array.prototype.slice(arguments).join('');
+  }
+  p(io);
+  p(output);
+  p(arguments);
+  var writer = io.write;
+  if (writer == null) {
+    throw new Error('the IO object given is read only');
+  }
+  return writer.call(io, output);
+}
+
+function say() {
+  return print.apply(null, [].concat(arguments, "\n"));
+}
+
 function prnStr(x) {
   if (isNil(x)) return "()";
   else if (isNumber(x)) return s(x);
@@ -105,6 +153,12 @@ function prnStr(x) {
       }
       return s('(', buffer.join(' '), ')');
     }
+  }
+  else if (isArray(x)) {
+    if (x.length === 0) {
+      return '(array)';
+    }
+    return s('(array ', x.map(function(x) { return prnStr(x); }).join(' '), ')');
   }
   else {
     return "" + x;
@@ -144,9 +198,11 @@ function num(x) {
 }
 
 function arrayToList(a) {
+  if (a.length === 0) return Nil;
+  else if (a.length === 1) return cons(a[0], Nil);
   var i;
   var list = Nil;
-  for (i = a.length; i >= 0; i--) {
+  for (i = a.length - 1; i >= 0; i--) {
     list = cons(a[i], list);
   }
   return list;
@@ -417,13 +473,67 @@ function listToArray(cons) {
   return a;
 }
 
+function bindArguments(names, values) {
+  if (isPair(names)) {
+    if (isNil(car(names))) {
+      return  [[cdr(names), values]];
+    }
+    else {
+      return [
+        [car(names), car(values)],
+        [cdr(names), cdr(values)]
+      ];
+    }
+  }
+  else {
+    var i, binds = [];
+    var names_  = listToArray(names);
+    var values_ = listToArray(values);
+    for (i = 0; i < names_.length; i++) {
+      if (isPair(names_[i])) {
+        binds.push([car(names_[i]), values_[i]]);
+        binds.push([cdr(names_[i]), arrayToList(values_.slice(i + 1))]);
+      }
+      else {
+        binds.push([names_[i], values_[i]]);
+      }
+    }
+    return binds;
+  }
+}
+
+function calculateArity(args) {
+  if (isPair(args)) {
+    if (isNil(car(args))) return -1;
+    else {
+      return -2;
+    }
+  }
+  var args_ = listToArray(args);
+  var argc  = args_.length;
+  var i;
+  for (i = 0; i < argc; i++) {
+    if (isPair(args_[i])) {
+      return -1 * argc;
+    }
+  }
+  return argc;
+}
+
+/*
+prn(bindArguments(list('x'), list(1)));
+prn(bindArguments(list('x', 'y'), list(1, 2)));
+prn(bindArguments(cons('x', 'xs'), list(1, 2)));
+prn(bindArguments(list('x', cons('y', 'ys')), list(1, 2, 3, 4, 5)));
+*/
+
 // add capture variables using pair notation
 function apply(x, args) {
   if (isJSFn(x)) {
     return x.apply(null, listToArray(args));
   }
   if (!isFn(x)) {
-    throw new Error(s('Not a valid function: "', x, '"'));
+    throw new Error(s('Not a valid function: ', prnStr(x), ''));
   }
   var fn    = car(x);
   var env   = cdr(x);
@@ -433,25 +543,21 @@ function apply(x, args) {
 
   if (isNil(body)) return Nil;
 
-  var namec = count(names);
+  var namec = calculateArity(names);
   var argc  = count(args);
-  if (namec !== argc) {
-    prn(fn);
-    p(args);
+  if (namec < 0 && argc < (Math.abs(namec) - 1)) {
+    throw new Error(s('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
+  }
+  else if (namec > 0 && namec !== argc) {
     throw new Error(s('Wrong number of arguments, expected: ', namec, ', got: ', argc));
   }
 
   // bind arguments
-  var nm = car(names),
-    ns = cdr(names),
-    a  = car(args),
-    as = cdr(args);
-  while (nm != null) {
-    define(env, nm, a);
-    nm = car(ns);
-    ns = cdr(ns);
-    a  = car(as);
-    as = cdr(as);
+  var binds = bindArguments(names, args);
+  for (var i = 0; i < binds.length; i++) {
+    var name  = binds[i][0];
+    var value = binds[i][1];
+    define(env, name, value);
   }
 
   // evaluate body
@@ -473,14 +579,16 @@ function evalApplication(form, env) {
   var args = cdr(form);
   var a    = car(args);
   var as   = cdr(args);
-  //pt('args', args);
   var arr = map(function(x) { return evaluate(x, env); }, args);
+  if (isJSFn(fn)) {
+    return fn.apply(null, arr);
+  }
   var args_ = arrayToList(arr);
-  //pt('args_', reverse(args_));
   return apply(fn, args_);
 }
 
 function evalFunction(form, env_) {
+  //prn(form);
   var rest = cdr(form),
     names  = car(rest),
     body   = cdr(rest);
@@ -532,12 +640,8 @@ function RecursionPoint(args) {
 }
 
 function evalRecursionPoint(form, env) {
-  //pt('raw args', cdr(form));
   var args = map(function(x) {
-    //pt('x', x);
-    var y = evaluate(x, env);
-    //pt('y', y);
-    return y;
+    return evaluate(x, env);
   }, cdr(form));
   throw new RecursionPoint(args);
 }
@@ -560,7 +664,6 @@ function evalLoop(form, env_) {
     name = binds_[i];
     value = binds_[i+1];
     names.push(name);
-    //pt(name, value);
     define(scope, name);
     evaled = evaluate(value, scope);
     define(scope, name, evaled);
@@ -584,9 +687,8 @@ function evalLoop(form, env_) {
         if (names.length !== e.args.length) {
           throw new Error(s('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
         }
-        for (i = 0; i < names.length; i += 2) {
-          console.log('rebinding: ', names, ' to ', e.args);
-          define(scope, names[i], evaluate(e.args[i], scope));
+        for (i = 0; i < names.length; i++) {
+          define(scope, names[i], e.args[i]);
         }
         continue loop;
       }
@@ -754,15 +856,15 @@ function readJS(exp) {
   }
   else if (isArray(exp)) {
     if (exp.length === 0) return Nil;
-    if (exp.length === 1) return list(readJS(exp[0]));
+    if (exp.length === 1) return cons(readJS(exp[0]), Nil);
     var xs = Nil;
     var last = Nil, x;
-    for (i = exp.length; i >= 0; i--) {
+    for (i = exp.length - 1; i >= 0; i--) {
       // use & to read pairs
       if (exp[i] === '&') {
         if (exp.length === 2) return cons(Nil, readJS(last));
         i--;
-        x = cons(last, readJS(exp[i]));
+        x = cons(readJS(exp[i]), last);
         if (exp.length === 3) return x;
         xs = dropLast(xs);
       }
@@ -829,10 +931,18 @@ define(top, "ok", ok);
 define(top, "list->array", listToArray);
 define(top, "array->list", arrayToList);
 define(top, "array?", isArray);
+define(top, "array", function() { return Array.prototype.slice.call(arguments); });
 define(top, "object->pairs", objectToPairs);
 define(top, "object?", isObject);
 define(top, "read-js", readJS);
 define(top, "read-json", readJSON);
+
+define(top, "io", io);
+define(top, "io?", isIO);
+define(top, "stdout", stdout);
+define(top, "print", print);
+define(top, "say", say);
+
 define(top, "reverse", reverse);
 
 define(top, "identical?", function(a, b) { return a === b; });
