@@ -410,6 +410,8 @@ function apply(x, args) {
   var namec = count(names);
   var argc  = count(args);
   if (namec !== argc) {
+    prn(fn);
+    p(args);
     throw new Error(s('Wrong number of arguments, expected: ', namec, ', got: ', argc));
   }
 
@@ -446,7 +448,8 @@ function evalApplication(form, env) {
   var a    = car(args);
   var as   = cdr(args);
   //pt('args', args);
-  var args_ = arrayToList(map(function(x) { return evaluate(x, env); }, args));
+  var arr = map(function(x) { return evaluate(x, env); }, args);
+  var args_ = arrayToList(arr);
   //pt('args_', reverse(args_));
   return apply(fn, args_);
 }
@@ -725,6 +728,7 @@ function readJS(exp) {
   }
   else if (isArray(exp)) {
     if (exp.length === 0) return Nil;
+    if (exp.length === 1) return list(readJS(exp[0]));
     var xs = Nil;
     var last = Nil, x;
     for (i = exp.length; i >= 0; i--) {
