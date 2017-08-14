@@ -53,14 +53,15 @@ is(1, z.eval(list("loop", list('i', 1), 'i')), '(loop (i 1) i)');
 
 //z.eval(list('recur', 1));
 
-  /*
-z.eval(
-  list('loop', list('i', 0),
+var xs = z.eval(
+  list('loop', list('xs', 'nil', 'i', 0),
     list('p', 'i'),
+    list('p', 'xs'),
     list('cond',
-      list('=', 'i', 100000), Nil,
+      list('=', 'i', 10), 'xs',
       'else',
-        list('recur', list('+', 1, 'i')))));
-        */
+        list('recur', list('cons', 'i', 'xs'), list('+', 'i', 1)))));
+
+console.log(xs);
 
 }());

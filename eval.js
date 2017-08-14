@@ -13,7 +13,7 @@ function cons(car, cdr) {
     return {$car: car, $cdr: cdr, $count: 0};
   }
   else if (!isCons(cdr)) {
-    return {$car: car, $cdr: cdr, $count: 1};
+    return {$car: car, $cdr: cdr, $count: 1}; // make pair
   }
   else {
     return {$car: car, $cdr: cdr, $count: count(cdr) + 1};
@@ -21,7 +21,18 @@ function cons(car, cdr) {
 }
 
 function count(cons) {
-  return cons == null ? 0 : cons.$count;
+  if (cons == null) {
+    return 0;
+  }
+  else if (cons.$count != null) {
+    return cons.$count;
+  }
+  else if (cons.length != null) {
+    return cons.length;
+  }
+  else {
+    throw new Error(s("Don't know how to get the count of: ", prnStr(cons)));
+  }
 }
 
 function car(cons) {
@@ -116,6 +127,21 @@ function isSymbol(x) {
 var s = function() {
   return Array.prototype.slice.call(arguments).join('');
 };
+
+function num(x) {
+  var type = Object.prototype.toString.call(x);
+  if (type === '[object Number]') {
+    return x;
+  }
+  else if (type === '[object String]') {
+    var x_ = 1*x;
+    if (isNaN(x_)) throw new Error(s('Cannot convert: ', prnStr(x), ' to a number'));
+    return x_;
+  }
+  else {
+    throw new Error(s('Cannot convert: ', prnStr(x), ' to a number'));
+  }
+}
 
 function arrayToList(a) {
   var i;
@@ -559,7 +585,7 @@ function evalLoop(form, env_) {
           throw new Error(s('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
         }
         for (i = 0; i < names.length; i += 2) {
-          //console.log('rebinding: ', names, ' to ', e.args);
+          console.log('rebinding: ', names, ' to ', e.args);
           define(scope, names[i], evaluate(e.args[i], scope));
         }
         continue loop;
@@ -797,6 +823,7 @@ define(top, "boolean?", isBoolean);
 define(top, "symbol?", isSymbol);
 define(top, "s", s);
 define(top, "number?", isNumber);
+define(top, "num", num);
 define(top, "is", is);
 define(top, "ok", ok);
 define(top, "list->array", listToArray);
@@ -887,7 +914,7 @@ var add = function() {
     return add;
   }
   else if (arguments.length === 1) {
-    var x = 1*arguments[0];
+    var x = num(arguments[0]);
     return function() {
       return add.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
@@ -896,7 +923,7 @@ var add = function() {
     var sum = 0;
     var i;
     for (i = 0; i < arguments.length; i++) {
-      sum += (1*arguments[i]);
+      sum += num(arguments[i]);
     }
     return sum;
   }
@@ -908,7 +935,7 @@ var sub = function() {
     return sub;
   }
   else if (arguments.length === 1) {
-    var x = -arguments[0];
+    var x = -num(arguments[0]);
     return function() {
       return sub.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
@@ -917,7 +944,7 @@ var sub = function() {
     var sum = 0;
     var i;
     for (i = 0; i < arguments.length; i++) {
-      sum -= (1*arguments[i]);
+      sum -= num(arguments[i]);
     }
     return sum;
   }
@@ -929,7 +956,7 @@ var mult = function() {
     return mult;
   }
   else if (arguments.length === 1) {
-    var x = 1*arguments[0];
+    var x = num(arguments[0]);
     return function() {
       return mult.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
@@ -938,7 +965,7 @@ var mult = function() {
     var sum = 1;
     var i;
     for (i = 0; i < arguments.length; i++) {
-      sum *= arguments[i];
+      sum *= num(arguments[i]);
     }
     return sum;
   }
@@ -950,7 +977,7 @@ var div = function() {
     return div;
   }
   else if (arguments.length === 1) {
-    var x = 1*arguments[0];
+    var x = num(arguments[0]);
     return function() {
       return div.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
     };
@@ -959,7 +986,7 @@ var div = function() {
     var sum = 1;
     var i;
     for (i = 0; i < arguments.length; i++) {
-      sum /= arguments[i];
+      sum /= num(arguments[i]);
     }
     return sum;
   }
