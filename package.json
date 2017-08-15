@@ -1,0 +1,20 @@
+{
+  "name": "zera",
+  "version": "0.0.1",
+  "description": "",
+  "main": "zera.js",
+  "dependencies": {
+    "yargs": "^8.0.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://drnewman@bitbucket.org/thesheepishlions/5.git"
+  },
+  "author": "Delon Newman",
+  "license": "MIT",
+  "homepage": "https://bitbucket.org/thesheepishlions/5#readme"
+}

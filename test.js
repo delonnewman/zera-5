@@ -1,6 +1,6 @@
 var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
 if (isNode) {
-  var zera = require('./eval.js');
+  var zera = require('./zera.js');
 }
 
 var zera = zera || {};

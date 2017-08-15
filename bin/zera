@@ -3,7 +3,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const argv = require('yargs').argv;
-const z  = require(__dirname + '/../eval.js');
+const z  = require(__dirname + '/../zera.js');
 //const _  = require(__dirname + '/../dist/util.js');
 
 function currentModuleName() {
