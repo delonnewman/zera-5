@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+/* jshint esversion:6 */
+const fs = require('fs');
+const readline = require('readline');
+const argv = require('yargs').argv;
+const z  = require(__dirname + '/../eval.js');
+//const _  = require(__dirname + '/../dist/util.js');
+
+function currentModuleName() {
+  return z.NS_SCOPE.getName();
+}
+
+function interactive() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    removeHistoryDuplicates: true,
+    terminal: true
+  });
+  
+  /*z.globalEnv.define('*dir*', process.cwd());
+  z.globalEnv.define('*file*', null);
+  z.readJS(
+    ['do',
+      ['ns', 'user'],
+      ['say', ['str', '"Zera "', '*version*']],
+      ['say', '*platform-version*'],
+      ['say', ['str', '"Running in "', '*mode*', '" mode"']],
+      ['say', '"   Exit: Control+D or exit"'],
+      ['say', '"   Help: (doc function-name-here"'],
+      ['say', '"         (source function-name-here"']]);*/
+  //rl.setPrompt(_.str(currentModuleName(), "> "));
+  rl.setPrompt("> ");
+  rl.prompt();
+
+  rl.on('line', function(line) {
+    try {
+      var input = line.trim();
+      if (input === 'exit') {
+        console.log("Bye for now!");
+        process.exit(0);
+      }
+      else {
+        var res = z.evalString(input);
+        console.log(z.s("=> ", z.prnStr(res)));
+        rl.setPrompt("> ");
+      }
+    }
+    catch (e) {
+      console.error(e);
+    }
+    rl.prompt();
+  }).on('close', function() {
+    console.log("Bye for now!");
+    process.exit(0);
+  });
+  process.exitCode = 0;
+}
+
+if (argv.i || argv.interactive) {
+  interactive();
+}
+else if (process.argv.length >= 3) {
+  try {
+    //z.readJS(['ns', 'user']);
+    z.evalFile([process.cwd(), process.argv[2]].join('/'));
+    process.exitCode = 0;
+  }
+  catch (e) {
+    console.error(e);
+    process.exitCode = 1;
+  }
+}
+else {
+  var INTERATIVE = false;
+  setTimeout(() => {
+    interactive();
+    INTERACTIVE = true;
+  }, 500);
+  process.stdin.on('data', (chunk) => {
+    if (!INTERACTIVE) {
+      z.evalString(chunk.toString('utf8'));
+    }
+  });
+}
