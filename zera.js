@@ -191,12 +191,20 @@ var zera = (function() {
         return this.$zera$val;
     };
 
+    MapEntry.prototype.first = MapEntry.prototype.key;
+    MapEntry.prototype.next  = MapEntry.prototype.val;
+
+    MapEntry.prototype.rest = function() {
+        return list(this.val());
+    };
+
     MapEntry.prototype.toString = function() {
         return s('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
     };
     
     function ArrayMap(entries) {
         this.$zera$entries = entries;
+        this.$zera$valCache = {};
     }
 
     ArrayMap.prototype.toString = function() {
@@ -258,6 +266,10 @@ var zera = (function() {
                 return val;
             }
         }
+    };
+
+    ArrayMap.prototype.apply = function(x, args) {
+        return this.get(args[0]);
     };
 
     ArrayMap.prototype.assoc = function(pairs) {
@@ -845,6 +857,10 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object Function]';
     }
 
+    function isInvocable(x) {
+        return isJSFn(x.apply);
+    }
+
     function consToArray(cons) {
         var x = car(cons);
         var xs = cdr(cons);
@@ -912,7 +928,7 @@ var zera = (function() {
 
     // add capture variables using pair notation
     function apply(x, args) {
-        if (isJSFn(x)) {
+        if (isInvocable(x)) {
             return x.apply(null, consToArray(args));
         }
         if (!isFn(x)) {
@@ -964,7 +980,7 @@ var zera = (function() {
         var a = car(args);
         var as = cdr(args);
         var arr = mapA(function(x) { return evaluate(x, env); }, args);
-        if (isJSFn(fn)) {
+        if (isInvocable(fn)) {
             return fn.apply(null, arr);
         }
         var args_ = arrayToCons(arr);
@@ -1321,6 +1337,10 @@ var zera = (function() {
     define(top, "entries", entries);
     define(top, "get", get);
     define(top, "assoc", assoc);
+    define(top, "keys", keys);
+    define(top, "vals", vals);
+    define(top, "key", key);
+    define(top, "val", val);
     //define(top, "list?", isList);
     define(top, "cons", cons);
     define(top, "count", count);
