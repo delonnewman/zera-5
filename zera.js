@@ -38,21 +38,6 @@ var zera = (function() {
         }
     }
 
-    function count(cons) {
-        if (cons == null) {
-            return 0;
-        }
-        else if (cons.$count != null) {
-            return cons.$count;
-        }
-        else if (cons.length != null) {
-            return cons.length;
-        }
-        else {
-            throw new Error(s("Don't know how to get the count of: ", prnStr(cons)));
-        }
-    }
-
     // make a list out of conses
     function list() {
         if (arguments.length === 0) {
@@ -191,25 +176,239 @@ var zera = (function() {
         return a;
     }
 
+    // Map Interface
+    
+    function MapEntry(key, val) {
+        this.$zera$key = key;
+        this.$zera$val = val;
+    }
+
+    MapEntry.prototype.key = function() {
+        return this.$zera$key;
+    };
+
+    MapEntry.prototype.val = function() {
+        return this.$zera$val;
+    };
+
+    MapEntry.prototype.toString = function() {
+        return s('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
+    };
+    
+    function ArrayMap(entries) {
+        this.$zera$entries = entries;
+    }
+
+    ArrayMap.prototype.toString = function() {
+        var buff = [], i;
+        var entries = this.$zera$entries;
+        for (i = 0; i < entries.length; i += 2) {
+            buff.push(s(prnStr(entries[i]), ' ', prnStr(entries[i + 1])));
+        }
+        return s('{', buff.join(', '), '}');
+    };
+
+    ArrayMap.prototype.first = function() {
+        return new MapEntry(this.$zera$entries[0], this.$zera$entries[1]);
+    };
+
+    ArrayMap.prototype.rest = function() {
+        return cdr(this.entries());
+    };
+
+    ArrayMap.prototype.entries = function() {
+        var entries = this.$zera$entries;
+        var i;
+        var res = [];
+        for (i = 0; i < entries.length; i += 2) {
+            res.push(new MapEntry(entries[i], entries[i + 1]));
+        }
+        return list.apply(null, res);
+    };
+
+    ArrayMap.prototype.keys = function() {
+        var entries = this.$zera$entries;
+        var i;
+        var res = [];
+        for (i = 0; i < entries.length; i += 2) {
+            res.push(entries[i]);
+        }
+        return list.apply(null, res);
+    };
+
+    ArrayMap.prototype.vals = function() {
+        var entries = this.$zera$entries;
+        var i;
+        var res = [];
+        for (i = 0; i < entries.length; i += 2) {
+            res.push(entries[i + 1]);
+        }
+        return list.apply(null, res);
+    };
+
+    ArrayMap.prototype.get = function(key) {
+        if (this.$zera$valCache[key] != null) {
+            return this.$zera$valCache[key];
+        }
+        var val, i, entries = this.$zera$entries;
+        for (i = 0; i < entries.length; i += 2) {
+            if (entries[i] === key) {
+                val = entries[i + 1];
+                this.$zera$valCache[key] = val;
+                return val;
+            }
+        }
+    };
+
+    ArrayMap.prototype.assoc = function(pairs) {
+        var i;
+        if (pairs.length % 2 !== 0) throw new Error('key value pairs must be even to assoc');
+        var entries = Array.prototype.slice.call(this.$zera$entries);
+        for (i = 0; i < pairs.length; i += 2) {
+            entries.push(pairs[i]);
+            entries.push(pairs[i + 1]);
+        }
+        return new ArrayMap(entries);
+    };
+
+    ArrayMap.prototype.dissoc = function() {
+    };
+
+    function arrayMap() {
+        return new ArrayMap(Array.prototype.slice.call(arguments));
+    }
+
+    function entries(m) {
+        if (m.entries) return m.entries();
+        else {
+            throw new Error(s("Don't know how to get the entries of: ", prnStr(m)));
+        }
+    }
+
+    function get(m, key, alt) {
+        if (m.get) {
+            var val = m.get(key);
+            if (alt == null) {
+                return val ? val : null;
+            }
+            else {
+                return val ? val : alt;
+            }
+        }
+        else {
+            throw new Error(s("Don't know how to get from: ", prnStr(m)));
+        }
+    }
+
+    function assoc(m) {
+        var pairs = Array.prototype.slice.call(arguments, 1);
+        if (m.assoc) {
+            return m.assoc(pairs);
+        }
+        else {
+            throw new Error(s("Don't know how to get from: ", prnStr(m)));
+        }
+    }
+
+    function keys(m) {
+        if (m.keys) {
+            return m.keys();
+        }
+        else {
+            throw new Error(s("Don't know how to get keys from: ", prnStr(m)));
+        }
+    }
+
+    function vals(m) {
+        if (m.vals) {
+            return m.vals();
+        }
+        else {
+            throw new Error(s("Don't know how to get vals from: ", prnStr(m)));
+        }
+    }
+
+    function key(m) {
+        if (m.key) {
+            return m.key();
+        }
+        else {
+            throw new Error(s("Don't know how to get key from: ", prnStr(m)));
+        }
+    }
+
+    function val(m) {
+        if (m.val) {
+            return m.val();
+        }
+        else {
+            throw new Error(s("Don't know how to get val from: ", prnStr(m)));
+        }
+    }
+
+    // Collection interface
+    
+    function count(col) {
+        // nil
+        if (col == null) {
+            return 0;
+        }
+        // list
+        else if (col.$count != null) {
+            return col.$count;
+        }
+        // array-like
+        else if (col.length != null) {
+            return col.length;
+        }
+        else {
+            throw new Error(s("Don't know how to get the count of: ", prnStr(col)));
+        }
+    }
+
+    function conj(col) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        var xs = col == null ? Nil : col;
+        var i;
+        if (xs.conj) return xs.conj();
+        else if (isCons(xs)) {
+            for (i = 0; i < args.length; i++) {
+                xs = cons(args[i], xs);
+            }
+            return xs;
+        }
+        else if (isArrayLike(xs)) {
+            for (i = 0; i < args.length; i++) {
+                xs.push(args[i]);
+            }
+            return xs;
+        }
+        else {
+            throw new Error(s("Don't know how to conj: ", prnStr(xs)));
+        }
+    }
+
     function first(xs) {
-        if (xs.first) return xs.first();
+        if (xs == null) return null;
+        else if (xs.first) return xs.first();
         else if (isCons(xs)) return car(xs);
         else if (isArrayLike(xs)) {
             return xs[0];
         }
         else {
-            throw new Error('not a valid collection');
+            throw new Error(s("Don't know how to get the first element of: ", prnStr(xs)));
         }
     }
 
     function rest(xs) {
-        if (xs.rest) return xs.rest();
+        if (xs == null) return Nil;
+        else if (xs.rest) return xs.rest();
         else if (isCons(xs)) return cdr(xs);
         else if (isArrayLike(xs)) {
             return Array.prototype.slice.call(xs, 1);
         }
         else {
-            throw new Error('not valid collection');
+            throw new Error(s("Don't know how to get the rest of the elements of: ", prnStr(xs)));
         }
     }
 
@@ -249,7 +448,7 @@ var zera = (function() {
         }
         else if (arguments.length === 2) {
             return reverse(reduce(function(ys, x) {
-                return cons(apply(f, list(x)), ys);
+                return conj(ys, apply(f, list(x)));
             }, xs, Nil));
         }
         else {
@@ -267,7 +466,7 @@ var zera = (function() {
             return reverse(reduce(function(ys, x) {
                 var pred = apply(f, list(x));
                 if (pred != null && pred !== false) {
-                    return cons(x, ys);
+                    return conj(ys, x);
                 }
                 return ys;
             }, xs, Nil));
@@ -333,7 +532,7 @@ var zera = (function() {
         else if (isBoolean(x)) {
             return x ? "true" : "false";
         } else if (isSymbol(x)) {
-            return x;
+            return s('"', x, '"');
         } else if (isEnv(x)) {
             return 'env';
         } else if (isCons(x)) {
@@ -526,7 +725,7 @@ var zera = (function() {
     function define(env, name, value) {
         if (typeof value !== 'undefined') {
             env.vars[name] = value;
-            return value;
+            return null;
         } else {
             env.vars[name] = null;
             return null;
@@ -764,9 +963,7 @@ var zera = (function() {
         var args = cdr(form);
         var a = car(args);
         var as = cdr(args);
-        var arr = mapA(function(x) {
-            return evaluate(x, env);
-        }, args);
+        var arr = mapA(function(x) { return evaluate(x, env); }, args);
         if (isJSFn(fn)) {
             return fn.apply(null, arr);
         }
@@ -804,9 +1001,9 @@ var zera = (function() {
     function macroexpand(form) {
         if (isTaggedValue(form)) {
             var name = car(form);
-            if (name.startsWith('.-')) {
+            if (name != '.-' && name.startsWith('.-')) {
                 return list('.', car(cdr(form)), name.slice(1));
-            } else if (name.startsWith('.')) {
+            } else if (name != '.' && name.startsWith('.')) {
                 return list('.', car(cdr(form)), cons(name.slice(1), cdr(cdr(form))));
             } else if (name.endsWith('.')) {
                 return cons('new', cons(name.replace(/\.$/, ''), cdr(form)));
@@ -894,6 +1091,12 @@ var zera = (function() {
         return new(ctr.bind.apply(ctr, [].concat(ctr, args)));
     }
 
+    // member access
+    // (. obj member)
+    // (. obj symbol)
+    // (. obj -symbol)
+    // (. obj (symbol *args))
+    // (. obj (-symbol))
     function evalMemberAccess(form, env) {
         var obj = evaluate(car(cdr(form)), env);
         var member = car(cdr(cdr(form)));
@@ -1112,7 +1315,12 @@ var zera = (function() {
     define(top, "apply", apply);
     define(top, "macroexpand", macroexpand);
     define(top, "nil", Nil);
+    define(top, "nil?", isNil);
     define(top, "list", list);
+    define(top, "array-map", arrayMap);
+    define(top, "entries", entries);
+    define(top, "get", get);
+    define(top, "assoc", assoc);
     //define(top, "list?", isList);
     define(top, "cons", cons);
     define(top, "count", count);
@@ -1125,6 +1333,7 @@ var zera = (function() {
     define(top, "range", range);
     define(top, "first", first);
     define(top, "rest", rest);
+    define(top, "conj", conj);
     define(top, "cons?", isCons);
     define(top, "pair?", isPair);
     define(top, "pair", pair);
@@ -1336,6 +1545,9 @@ var zera = (function() {
     }
 
     define(top, '*platform*', 'js');
+
+    define(top, 'math/pi', Math.PI);
+    define(top, 'math/e',  Math.E);
 
     // import js stuff
     [

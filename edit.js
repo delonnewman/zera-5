@@ -53,13 +53,28 @@ var edit = (function(){
         return ['<div class="form number" id="', id, '">', form, '</div>'].join('');
     }
 
+    function renderSymbol(form, id) {
+        return ['<div class="form string" id="', id, '">"', form, '"</div>'].join('');
+    }
+
     function renderNil(form, id) {
         return ['<div class="form nil" id="', id, '">()</div>'].join('');
+    }
+
+    function renderPair(form, id) {
+        return ['<div class="form pair" id="', id, '">(', render(z.car(form), id), '&', render(z.cdr(form), id), ')</div>'].join('');
+    }
+
+    function renderQuotedForm(form, id) {
+        return ['<div class="form quote" id="', id, '">\'', z.cdr(form), '</div>'].join('');
     }
 
     function render(form, id) {
         if (z.isBoolean(form)) {
             return renderBoolean(form, id);
+        }
+        if (z.isSymbol(form)) {
+            return renderSymbol(form, id);
         }
         else if (z.isNumber(form)) {
             return renderNumber(form, id);
@@ -68,10 +83,20 @@ var edit = (function(){
             return renderNil(form, id);
         }
         else if (z.isCons(form)) {
+            var tag = z.car(form);
+            if (tag === 'quote') {
+                return renderQuotedForm(form);
+            }
+            else if (tag === 'cond') {
+                return renderCond(form);
+            }
+            else if (tag === 'fn') {
+                return renderLambda(form);
+            }
+
             if (z.isPair(form)) {
                 return renderPair(form, id);
             }
-            var tag = z.car(form);
         }
         else {
             console.log(form);
