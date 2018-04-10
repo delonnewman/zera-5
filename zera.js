@@ -110,6 +110,105 @@ var zera = (function() {
         return xs;
     }
 
+    function LazyList(seq, fn) {
+        this.fn = fn == null ? null : fn;
+        this._seq = seq == null ? null : seq;
+        this._sv = null;
+    }
+
+    //LazyList.prototype = Object.create(List.prototype);
+
+    LazyList.prototype.sval = function() {
+        if (this.fn != null) {
+            this._sv = this.fn.call();
+            this.fn = null;
+        }
+        if (this._sv != null) {
+            return this._sv;
+        }
+        return this._seq;
+    };
+
+    LazyList.prototype.seq = function() {
+        this.sval();
+        if (this._sv != null) {
+            var ls = this._sv;
+            this._sv = null;
+            while (ls instanceof LazyList) {
+                ls = ls.sval();
+            }
+            this._seq = ls;
+        }
+        return this._seq;
+    };
+
+    LazyList.prototype.count = function() {
+        var c = 0, s;
+        for (s = this; s != null; s = s.next()) {
+            c++;
+        }
+        return c;
+    };
+
+    LazyList.prototype.cons = function(x) {
+        return cons(x, this.seq());
+    };
+
+    LazyList.prototype.first = function() {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.first();
+    };
+
+    LazyList.prototype.next = function() {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.next();
+    };
+
+    LazyList.prototype.rest = function() {
+        var val = this.next();
+        if (val == null) return Cons.empty();
+        else             return val;
+    };
+
+    LazyList.prototype.toString = function() {
+        var buff = [];
+        var seq = this, x;
+        while (seq.next()) {
+            x = seq.first();
+            seq = seq.next();
+            buff.push(prnStr(x));
+        }
+        return '(' + buff.join(' ') + ')'; 
+    };
+
+    function lazyList(fn) {
+        return new LazyList(null, fn);
+    }
+
+    function isLazyList(x) {
+        return x instanceof LazyList;
+    }
+
+    function take(n, xs) {
+        if (arguments.length !== 2) {
+            throw new Error(str('Wrong number of arguments expected: 2, got: ', arguments.length));
+        }
+        return lazyList(function() {
+            if (n > 0) {
+                return cons(first(xs), take(n - 1, rest(xs)));
+            } else {
+                return null;
+            }
+        });
+    }
+
+    // TODO: use lazyList
     function range(x, y, z) {
         var start, stop, step;
         if (arguments.length === 1) {
@@ -544,9 +643,13 @@ var zera = (function() {
             };
         }
         else if (arguments.length === 2) {
-            return reverse(reduce(function(ys, x) {
-                return conj(ys, apply(f, list(x)));
-            }, xs, null));
+            return lazyList(function() {
+                var xs_ = rest(xs);
+                if (isEmpty(xs_)) {
+                    return null;
+                }
+                return cons(apply(f, list(first(xs))), map(f, xs_));
+            });
         }
         else {
             throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
@@ -1307,10 +1410,6 @@ var zera = (function() {
         return x % 2 === 1;
     }
 
-    function drop(n, l) {
-
-    }
-
     function dropLast(l) {
         return reverse(cdr(reverse(l)));
     }
@@ -1432,7 +1531,8 @@ var zera = (function() {
     define(top, "map", map);
     define(top, "reduce", reduce);
     define(top, "filter", filter);
-    define(top, "reverse", reverse);
+    define(top, "filter", filter);
+    define(top, "take", take);
     define(top, "range", range);
     define(top, "first", first);
     define(top, "rest", rest);
