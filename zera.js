@@ -209,6 +209,7 @@ var zera = (function() {
         });
     }
 
+    // TODO: use lazyList
     function range(x, y, z) {
         var start, stop, step;
         if (arguments.length === 1) {
