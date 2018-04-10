@@ -8,46 +8,101 @@ var zera = (function() {
     var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
     var isBrowser = typeof window !== 'undefined';
 
-    // Cons operations
+    // Cons
 
-    function cons(car, cdr) {
-        if (cdr == null) {
-            return {$car: car, $cdr: cdr, $count: 0};
+    function Cons(car, cdr) {
+        this.$zera$car = car;
+        this.$zera$cdr = cdr;
+        if (car == null && cdr == null) {
+            this.$zera$count = 0;
         }
-        else if (!isCons(cdr)) {
-            return {$car: car, $cdr: cdr, $count: 1}; // make pair
+        else if (cdr == null) {
+            this.$zera$cdr = Cons.empty();
+            this.$zera$count = 1;
+        }
+        else if (!(cdr instanceof Cons)) {
+            this.$zera$count = 1;
         }
         else {
-            return {$car: car, $cdr: cdr, $count: count(cdr) + 1};
+            this.$zera$count = cdr.count() + 1;
         }
+    }
+
+    Cons.empty = function() {
+        return new Cons(null, null);
+    };
+
+    Cons.prototype.first = function() {
+        return this.$zera$car;
+    };
+
+    Cons.prototype.rest = function() {
+        return this.$zera$cdr;
+    };
+
+    Cons.prototype.count = function() {
+        return this.$zera$count;
+    };
+
+    Cons.prototype.next = function() {
+        var cdr = this.rest();
+        return cdr instanceof Cons ? cdr.first() : cdr;
+    };
+
+    Cons.prototype.cons = function(x) {
+        return new Cons(x, this);
+    };
+
+    Cons.prototype.conj = function(vals) {
+        var i, xs = this;
+        for (i = 0; i < vals.length; i++) {
+            xs = xs.cons(vals[i]);
+        }
+        return xs;
+    };
+
+    Cons.prototype.isEmpty = function() {
+        return this.$zera$count === 0;
+    };
+
+    Cons.prototype.isList = function() {
+        return true;
+    };
+
+    function cons(car, cdr) {
+        return new Cons(car, cdr);
     }
 
     function car(cons) {
-        return cons.$car;
+        if (cons == null) return null;
+        return cons.first();
     }
 
     function cdr(cons) {
-        return cons.$cdr;
+        if (cons == null) return null;
+        return cons.rest();
     }
 
     function isCons(x) {
-        if (x == null) {
-            return false;
-        } else {
-            return x.$car !== void(0) && x.$cdr !== void(0);
-        }
+        return x instanceof Cons;
+    }
+
+    function isList(x) {
+        if (x == null) return false;
+        if (isJSFn(x.isList)) return true;
+        return false;
     }
 
     // make a list out of conses
     function list() {
         if (arguments.length === 0) {
-            return Nil;
+            return Cons.empty();
         }
         else if (arguments.length === 1) {
-            return cons(arguments[0], Nil);
+            return cons(arguments[0], Cons.empty());
         }
         var i, x;
-        var xs = Nil;
+        var xs = Cons.empty();
         for (i = arguments.length - 1; i >= 0; i--) {
             x = arguments[i];
             xs = cons(x, xs);
@@ -86,10 +141,8 @@ var zera = (function() {
         return isCons(x) && !isCons(cdr(x)) && cdr(x) != null;
     }
 
-    var Nil = cons(null, null);
-
     function isNil(x) {
-        return x == null || (car(x) === null && cdr(x) === null);
+        return x == null;
     }
 
     // Array operations
@@ -168,11 +221,11 @@ var zera = (function() {
     }
 
     function aget(a, i) {
-        return a[i];
+        return a == null ? null : a[i];
     }
 
     function aset(a, i, v) {
-        a[i] = v;
+        if (a != null) a[i] = v;
         return a;
     }
 
@@ -201,6 +254,16 @@ var zera = (function() {
     MapEntry.prototype.toString = function() {
         return s('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
     };
+
+    function mapEntry(x) {
+        if (isMapEntry(x)) return x;
+        else if (isArray(x) && x.length == 2) {
+            return new MapEntry(x[0], x[1]);
+        }
+        else {
+            throw new Error(s("Don't know how to coerce '", prnStr(x), "' into a zera.MapEntry"));
+        }
+    }
     
     function ArrayMap(entries) {
         this.$zera$entries = entries;
@@ -222,6 +285,13 @@ var zera = (function() {
 
     ArrayMap.prototype.rest = function() {
         return cdr(this.entries());
+    };
+
+    ArrayMap.prototype.conj = function(entries) {
+        var i, x, m = this;
+        for (i = 0; i < entries.length; i++) {
+            x = mapEntry(entries[i]);
+        }
     };
 
     ArrayMap.prototype.entries = function() {
@@ -254,7 +324,7 @@ var zera = (function() {
         return list.apply(null, res);
     };
 
-    ArrayMap.prototype.get = function(key) {
+    ArrayMap.prototype.find = function(key) {
         if (this.$zera$valCache[key] != null) {
             return this.$zera$valCache[key];
         }
@@ -286,20 +356,39 @@ var zera = (function() {
     ArrayMap.prototype.dissoc = function() {
     };
 
+    ArrayMap.prototype.isMap = function() {
+        return true;
+    };
+
+    function isMap(x) {
+        if (x == null) return false;
+        if (isJSFn(x.isMap)) return true;
+        return false;
+    }
+
     function arrayMap() {
         return new ArrayMap(Array.prototype.slice.call(arguments));
     }
 
     function entries(m) {
-        if (m.entries) return m.entries();
+        if (isJSFn(m.entries)) return m.entries();
         else {
             throw new Error(s("Don't know how to get the entries of: ", prnStr(m)));
         }
     }
 
+    function find(m, key) {
+        if (isJSFn(m.find)) {
+            return m.find(key);
+        }
+        else {
+            throw new Error(s("Don't know how to find value by key in: ", prnStr(m)));
+        }
+    }
+
     function get(m, key, alt) {
-        if (m.get) {
-            var val = m.get(key);
+        if (isJSFn(m.find)) {
+            var val = m.find(key);
             if (alt == null) {
                 return val ? val : null;
             }
@@ -308,7 +397,7 @@ var zera = (function() {
             }
         }
         else {
-            throw new Error(s("Don't know how to get from: ", prnStr(m)));
+            throw new Error(s("Don't know how to get value by key from: ", prnStr(m)));
         }
     }
 
@@ -323,7 +412,7 @@ var zera = (function() {
     }
 
     function keys(m) {
-        if (m.keys) {
+        if (isJSFn(m.keys)) {
             return m.keys();
         }
         else {
@@ -332,7 +421,7 @@ var zera = (function() {
     }
 
     function vals(m) {
-        if (m.vals) {
+        if (isJSFn(m.vals)) {
             return m.vals();
         }
         else {
@@ -341,7 +430,7 @@ var zera = (function() {
     }
 
     function key(m) {
-        if (m.key) {
+        if (isJSFn(m.key)) {
             return m.key();
         }
         else {
@@ -350,7 +439,7 @@ var zera = (function() {
     }
 
     function val(m) {
-        if (m.val) {
+        if (isJSFn(m.val)) {
             return m.val();
         }
         else {
@@ -365,9 +454,8 @@ var zera = (function() {
         if (col == null) {
             return 0;
         }
-        // list
-        else if (col.$count != null) {
-            return col.$count;
+        else if (isJSFn(col.count)) {
+            return col.count();
         }
         // array-like
         else if (col.length != null) {
@@ -380,15 +468,9 @@ var zera = (function() {
 
     function conj(col) {
         var args = Array.prototype.slice.call(arguments, 1);
-        var xs = col == null ? Nil : col;
+        var xs = col == null ? Cons.empty() : col;
         var i;
-        if (xs.conj) return xs.conj();
-        else if (isCons(xs)) {
-            for (i = 0; i < args.length; i++) {
-                xs = cons(args[i], xs);
-            }
-            return xs;
-        }
+        if (isJSFn(xs.conj)) return xs.conj(args);
         else if (isArrayLike(xs)) {
             for (i = 0; i < args.length; i++) {
                 xs.push(args[i]);
@@ -402,8 +484,7 @@ var zera = (function() {
 
     function first(xs) {
         if (xs == null) return null;
-        else if (xs.first) return xs.first();
-        else if (isCons(xs)) return car(xs);
+        else if (isJSFn(xs.first)) return xs.first();
         else if (isArrayLike(xs)) {
             return xs[0];
         }
@@ -413,9 +494,8 @@ var zera = (function() {
     }
 
     function rest(xs) {
-        if (xs == null) return Nil;
-        else if (xs.rest) return xs.rest();
-        else if (isCons(xs)) return cdr(xs);
+        if (xs == null) return null;
+        else if (isJSFn(xs.rest)) return xs.rest();
         else if (isArrayLike(xs)) {
             return Array.prototype.slice.call(xs, 1);
         }
@@ -425,7 +505,12 @@ var zera = (function() {
     }
 
     function isEmpty(x) {
-        return isNil(x) || x.length === 0;
+        if (x == null) return true;
+        else if (isJSFn(x.isEmpty)) return x.isEmpty();
+        else if (isArrayLike(x)) return x.length === 0;
+        else {
+            throw new Error(s("Don't know hot to determine if: ", prnStr(x), " is empty"));
+        }
     }
 
     function reduce(f) {
@@ -461,7 +546,7 @@ var zera = (function() {
         else if (arguments.length === 2) {
             return reverse(reduce(function(ys, x) {
                 return conj(ys, apply(f, list(x)));
-            }, xs, Nil));
+            }, xs, null));
         }
         else {
             throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
@@ -481,7 +566,7 @@ var zera = (function() {
                     return conj(ys, x);
                 }
                 return ys;
-            }, xs, Nil));
+            }, xs, null));
         }
         else {
             throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
@@ -539,7 +624,7 @@ var zera = (function() {
     }
 
     function prnStr(x) {
-        if (isNil(x)) return "()";
+        if (x == null) return "nil";
         else if (isNumber(x)) return s(x);
         else if (isBoolean(x)) {
             return x ? "true" : "false";
@@ -550,7 +635,7 @@ var zera = (function() {
         } else if (isCons(x)) {
             if (isPair(x)) {
                 return s('(', prnStr(car(x)), " & ", prnStr(cdr(x)), ')');
-            } else if (isNil(x)) {
+            } else if (isEmpty(x)) {
                 return '()';
             } else {
                 var y = car(x);
@@ -606,10 +691,10 @@ var zera = (function() {
     }
 
     function arrayToCons(a) {
-        if (a.length === 0) return Nil;
-        else if (a.length === 1) return cons(a[0], Nil);
+        if (a == null || a.length === 0) return Cons.empty();
+        else if (a.length === 1) return cons(a[0], Cons.empty());
         var i;
-        var list = Nil;
+        var list = null;
         for (i = a.length - 1; i >= 0; i--) {
             list = cons(a[i], list);
         }
@@ -621,21 +706,19 @@ var zera = (function() {
     }
 
     function isAtom(x) {
-        return isBoolean(x) || isNumber(x) || isNil(x);
+        return isBoolean(x) || isNumber(x) || x == null;
     }
 
     function eq(a, b) {
         if (a == null) {
             return b == null;
-        } else if (isNil(a)) {
-            return isNil(b);
         } else if (isCons(a)) {
             if (isCons(b)) {
                 var xa = car(a);
                 var xb = car(b);
                 var xsa = cdr(a);
                 var xsb = cdr(b);
-                while (!isNil(xsa) && !isNil(xsb)) {
+                while (!isEmpty(xsa) && !isEmpty(xsb)) {
                     if (xa !== xb) {
                         return false;
                     } else {
@@ -779,12 +862,12 @@ var zera = (function() {
     }
 
     function reverse(xs) {
-        if (isNil(xs)) {
-            return Nil;
+        if (isEmpty(xs)) {
+            return Cons.empty();
         } else {
             var xs_ = cdr(xs),
                 x = car(xs),
-                l = Nil;
+                l = Cons.empty();
             while (x) {
                 l = cons(x, l);
                 x = car(xs_);
@@ -796,14 +879,14 @@ var zera = (function() {
 
     function pair(xs) {
         if (isNil(xs)) {
-            return Nil;
+            return Cons.empty();
         } else if (count(xs) == 1) {
             return xs;
         } else {
             var xs_ = xs,
                 x = car(xs_),
                 y = car(cdr(xs_)),
-                l = Nil;
+                l = Cons.empty();
             while (x && y) {
                 l = cons(cons(x, y), l);
                 xs_ = cdr(cdr(xs_));
@@ -846,7 +929,7 @@ var zera = (function() {
             xs = cdr(rest);
             i++;
         }
-        return Nil;
+        return null;
     }
 
     function isFn(x) {
@@ -875,7 +958,7 @@ var zera = (function() {
 
     function bindArguments(names, values) {
         if (isPair(names)) {
-            if (isNil(car(names))) {
+            if (isEmpty(car(names))) {
                 return [
                     [cdr(names), values]
                 ];
@@ -903,7 +986,7 @@ var zera = (function() {
 
     function calculateArity(args) {
         if (isPair(args)) {
-            if (isNil(car(args))) return -1;
+            if (isEmpty(car(args))) return -1;
             else {
                 return -2;
             }
@@ -940,7 +1023,7 @@ var zera = (function() {
         var names = car(rest);
         var body = cdr(rest);
 
-        if (isNil(body)) return Nil;
+        if (isEmpty(body)) return null;
 
         var namec = calculateArity(names);
         var argc = count(args);
@@ -1048,7 +1131,7 @@ var zera = (function() {
         var binds = car(cdr(form));
         var body = cdr(cdr(form));
         var scope = env(env_);
-        var ret = Nil;
+        var ret = null;
 
         if (count(binds) % 2 !== 0) {
             throw new Error('loop requires an even number of bindings');
@@ -1154,8 +1237,8 @@ var zera = (function() {
         while (recur) {
             recur = false;
             if (form == null) {
-                ret = Nil;
-            } else if (isAtom(form) || isJSFn(form)) {
+                ret = null;
+            } else if (isAtom(form) || isJSFn(form) || isMap(form)) {
                 ret = form;
             } else if (isSymbol(form)) {
                 ret = findVar(env, form);
@@ -1233,8 +1316,8 @@ var zera = (function() {
     }
 
     function mapA(f, l) {
-        if (isNil(l)) {
-            return Nil;
+        if (isEmpty(l)) {
+            return null;
         } else {
             var a = isArray(l) ? a : consToArray(l);
             var newA = [];
@@ -1247,15 +1330,14 @@ var zera = (function() {
     }
 
     function readJSArray(exp) {
-        if (exp.length === 0) return Nil;
-        if (exp.length === 1) return cons(readJS(exp[0]), Nil);
-        var xs = Nil;
-        var last = Nil,
-            x;
+        if (exp.length === 0) return null;
+        if (exp.length === 1) return cons(readJS(exp[0]), Cons.empty());
+        var xs = null;
+        var last = null, x;
         for (i = exp.length - 1; i >= 0; i--) {
             // use & to read pairs
             if (exp[i] === '&') {
-                if (exp.length === 2) return cons(Nil, readJS(last));
+                if (exp.length === 2) return cons(Cons.empty(), readJS(last));
                 i--;
                 x = cons(readJS(exp[i]), last);
                 if (exp.length === 3) return x;
@@ -1280,15 +1362,14 @@ var zera = (function() {
                 return exp;
             }
         } else if (isArray(exp)) {
-            if (exp.length === 0) return Nil;
-            if (exp.length === 1) return cons(readJS(exp[0]), Nil);
-            var xs = Nil;
-            var last = Nil,
-                x;
+            if (exp.length === 0) return null;
+            if (exp.length === 1) return cons(readJS(exp[0]), Cons.empty());
+            var xs = null;
+            var last = null, x;
             for (i = exp.length - 1; i >= 0; i--) {
                 // use & to read pairs
                 if (exp[i] === '&') {
-                    if (exp.length === 2) return cons(Nil, readJS(last));
+                    if (exp.length === 2) return cons(Cons.empty(), readJS(last));
                     i--;
                     x = cons(readJS(exp[i]), last);
                     if (exp.length === 3) return x;
@@ -1303,12 +1384,13 @@ var zera = (function() {
         } else if (isJSFn(exp)) return exp;
         else if (isObject(exp)) {
             var keys = Object.getOwnPropertyNames(exp);
-            if (keys.length === 0) return Nil;
-            var l = Nil;
+            if (keys.length === 0) return null;
+            var entries = [];
             for (i = 0; i < keys.length; i++) {
-                l = cons(cons(keys[i], readJS(exp[keys[i]])), l);
+                entries.push(keys[i]);
+                entries.push(readJS(exp[keys[i]]));
             }
-            return list('quote', l);
+            return new ArrayMap(entries);
         } else {
             return exp;
         }
@@ -1330,8 +1412,9 @@ var zera = (function() {
     define(top, "eval", evaluate);
     define(top, "apply", apply);
     define(top, "macroexpand", macroexpand);
-    define(top, "nil", Nil);
+    define(top, "nil", null);
     define(top, "nil?", isNil);
+    define(top, "empty?", isEmpty);
     define(top, "list", list);
     define(top, "array-map", arrayMap);
     define(top, "entries", entries);
@@ -1775,6 +1858,10 @@ var zera = (function() {
         'MediaError'
     ].forEach(symbolImporter('js.dom'));
 
+    evalJS(
+        ['defmacro', 'defn', ['name', 'args', '&', 'body'],
+            ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
+
     var api = {
         eval: evaluate,
         evalJS: evalJS,
@@ -1791,7 +1878,6 @@ var zera = (function() {
         isArray: isArray,
         isArrayLike: isArrayLike,
         isAtom: isAtom,
-        Nil: Nil,
         isNil: isNil,
         isCons: isCons,
         cons: cons,
