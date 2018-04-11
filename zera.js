@@ -195,7 +195,6 @@ var zera = (function() {
         return x instanceof LazyList;
     }
 
-    // TODO: use LazyList
     function take(n, xs) {
         if (arguments.length !== 2) {
             throw new Error(str('Wrong number of arguments expected: 2, got: ', arguments.length));
@@ -209,7 +208,6 @@ var zera = (function() {
         });
     }
 
-    // TODO: use lazyList
     function range(x, y, z) {
         var start, stop, step;
         if (arguments.length === 1) {
@@ -230,11 +228,14 @@ var zera = (function() {
         else {
             throw new Error(s('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
-        var buff = [], i;
-        for (i = start; i < stop; i += step) {
-            buff.push(i);
-        }
-        return list.apply(null, buff);
+        return lazyList(function() {
+            if (start === stop) {
+                return null;
+            }
+            else {
+                return cons(start, range(start + step, stop, step));
+            }
+        });
     }
 
     function isPair(x) {
@@ -383,7 +384,13 @@ var zera = (function() {
         return new MapEntry(this.$zera$entries[0], this.$zera$entries[1]);
     };
 
+    ArrayMap.prototype.next = function() {
+        return cdr(this.entries());
+    };
+
     ArrayMap.prototype.rest = function() {
+        var entries = this.entries();
+        if (count(entries) === 0) return Cons.empty();
         return cdr(this.entries());
     };
 
@@ -430,7 +437,7 @@ var zera = (function() {
         }
         var val, i, entries = this.$zera$entries;
         for (i = 0; i < entries.length; i += 2) {
-            if (entries[i] === key) {
+            if (eq(entries[i], key)) {
                 val = entries[i + 1];
                 this.$zera$valCache[key] = val;
                 return val;
@@ -439,7 +446,7 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.apply = function(x, args) {
-        return this.get(args[0]);
+        return this.find(args[0]);
     };
 
     ArrayMap.prototype.assoc = function(pairs) {
@@ -593,6 +600,18 @@ var zera = (function() {
         }
     }
 
+    function next(xs) {
+        if (xs == null) return null;
+        else if (isJSFn(xs.next)) return xs.next();
+        else if (isArrayLike(xs)) {
+            if (xs.length === 0) return null;
+            return Array.prototype.slice.call(xs, 1);
+        }
+        else {
+            throw new Error(s("Don't know how to get the rest of the elements of: ", prnStr(xs)));
+        }
+    }
+
     function rest(xs) {
         if (xs == null) return null;
         else if (isJSFn(xs.rest)) return xs.rest();
@@ -607,6 +626,7 @@ var zera = (function() {
     function isEmpty(x) {
         if (x == null) return true;
         else if (isJSFn(x.isEmpty)) return x.isEmpty();
+        else if (isJSFn(x.count)) return x.count() === 0;
         else if (isArrayLike(x)) return x.length === 0;
         else {
             throw new Error(s("Don't know hot to determine if: ", prnStr(x), " is empty"));
@@ -645,8 +665,8 @@ var zera = (function() {
         }
         else if (arguments.length === 2) {
             return lazyList(function() {
-                var xs_ = rest(xs);
-                if (isEmpty(xs_)) {
+                var xs_ = next(xs);
+                if (xs_ === null) {
                     return null;
                 }
                 return cons(apply(f, list(first(xs))), map(f, xs_));
@@ -1533,11 +1553,11 @@ var zera = (function() {
     define(top, "map", map);
     define(top, "reduce", reduce);
     define(top, "filter", filter);
-    define(top, "filter", filter);
     define(top, "take", take);
     define(top, "range", range);
     define(top, "first", first);
     define(top, "rest", rest);
+    define(top, "next", next);
     define(top, "conj", conj);
     define(top, "cons?", isCons);
     define(top, "pair?", isPair);
