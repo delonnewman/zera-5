@@ -1203,6 +1203,7 @@ var zera = (function() {
         //p(names);
         if (!isCons(names)) throw new Error('function arguments should be a list');
         // TODO: add variable validation, capture variable values from environment
+        // TODO: add recur support
         return cons(form, env(env_));
     }
 
@@ -1352,8 +1353,15 @@ var zera = (function() {
         }
     }
 
+    function evalThrownException(form, env) {
+        var exp = evaluate(cdr(form), env);
+        throw exp;
+    }
+
     var top = env();
 
+    // TODO: add catch / finally
+    // TODO: add deftype / defprotocol
     function evaluate(form_, env_) {
         var env = env_ || top;
         var recur = true;
@@ -1361,7 +1369,7 @@ var zera = (function() {
         var form = macroexpand(form_);
         while (recur) {
             recur = false;
-            if (form == null) {
+            if (form == null || form === 'nil') {
                 ret = null;
             } else if (isAtom(form) || isJSFn(form) || isMap(form)) {
                 ret = form;
@@ -1391,6 +1399,9 @@ var zera = (function() {
                         break;
                     case 'recur':
                         ret = evalRecursionPoint(form, env);
+                        break;
+                    case 'throw':
+                        ret = evalThrownException(form, env);
                         break;
                     case 'new':
                         ret = evalClassInstantiation(form, env);
@@ -1533,7 +1544,6 @@ var zera = (function() {
     define(top, "eval", evaluate);
     define(top, "apply", apply);
     define(top, "macroexpand", macroexpand);
-    define(top, "nil", null);
     define(top, "nil?", isNil);
     define(top, "empty?", isEmpty);
     define(top, "list", list);
@@ -1567,7 +1577,7 @@ var zera = (function() {
     define(top, "p", p);
     define(top, "boolean?", isBoolean);
     define(top, "symbol?", isSymbol);
-    define(top, "s", s);
+    define(top, "str", s);
     define(top, "number?", isNumber);
     define(top, "even?", isEven);
     define(top, "odd?", isOdd);
@@ -1983,6 +1993,15 @@ var zera = (function() {
     evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
             ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
+
+    evalJS(
+        ['defn', 'compile', ['form'],
+            ['loop', ['form*', 'form'],
+                ['cond', ['nil?', 'form*'], [':null'],
+                         ['number?', 'form*'], ['str', 'form*'],
+                         ['symbol?', 'form*'], ['str', ':"', 'form*', ':"'],
+                         ['boolean?', 'form*'], ['str', 'form*'],
+                         'else', ['throw', ['js/Error.', ['str', '"invalid form: "', ['prn-str', 'form*']]]]]]]);
 
     var api = {
         eval: evaluate,
