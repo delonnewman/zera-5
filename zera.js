@@ -8,6 +8,74 @@ var zera = (function() {
     var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
     var isBrowser = typeof window !== 'undefined';
 
+    function Sym(ns, name, meta) {
+        this.$zera$ns = ns;
+        this.$zera$name = name;
+        this.$zera$meta = meta;
+    }
+
+    Sym.intern = function(rep) {
+        var i = rep.indexOf('/');
+        if (i === -1 || rep === '/') {
+            return new Sym(null, rep);
+        }
+        else {
+            return new Sym(rep.substring(0, i), rep.substring(i + 1));
+        }
+    };
+
+    Sym.prototype.name = function() {
+        return this.$zera$name;
+    };
+
+    Sym.prototype.namespace = function() {
+        return this.$zera$ns;
+    };
+
+    Sym.prototype.toString = function() {
+        if (this.$zera$ns == null) {
+            return this.$zera$name;
+        }
+        return s(this.$zera$ns, '/', this.$zera$name);
+    };
+
+    // IMeta
+    Sym.prototype.withMeta = function(meta) {
+        return new Sym(this.$zera$ns, this.$zera$name, meta);
+    };
+
+    // Invokable
+    Sym.prototype.apply = function(x, args) {
+        if (args.length != 1) throw new Error('Symbols expect one and only one argument');
+        if (isJSFn(args[0].apply)) {
+            return args[0].apply(null, [this]);
+        }
+        else {
+            throw new Error('Symbols expect and argument this is invokable');
+        }
+    };
+
+    Sym.prototype.equals = function(o) {
+        if (o == null || !isSymbol(o)) return false;
+        return this.$zera$ns === o.$zera$ns && this.$zera$name === this.$zera$name;
+    };
+
+    function symbol() {
+        if (arguments.length === 1) {
+            return new Sym(null, arguments[0]);
+        }
+        else if (arguments.length === 2) {
+            return new Sym(arguments[0], arguments[1]);
+        }
+        else {
+            throw new Error(s('Wrong number of arguments (', arguments.length, ') passed to symbol'));
+        }
+    }
+
+    function isSymbol(x) {
+        return x instanceof Sym;
+    }
+
     // Cons
 
     function Cons(car, cdr) {
@@ -67,6 +135,33 @@ var zera = (function() {
 
     Cons.prototype.isList = function() {
         return true;
+    };
+
+    Cons.prototype.equals = function(o) {
+        if (o == null) {
+            return false;
+        }
+        else if (isCons(o)) {
+            var xa  = this.first();
+            var xb  = o.first();
+            var xsa = this.rest();
+            var xsb = o.rest();
+            while (!isEmpty(xsa) && !isEmpty(xsb)) {
+                if (xa !== xb) {
+                    return false;
+                }
+                else {
+                    xa  = xsa.first();
+                    xb  = xsb.first();
+                    xsa = xsa.rest();
+                    xsb = xsb.rest();
+                }
+            }
+            return true;
+        }
+        else {
+            return false;
+        }
     };
 
     function cons(car, cdr) {
@@ -432,14 +527,14 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.find = function(key) {
-        if (this.$zera$valCache[key] != null) {
+        /*if (this.$zera$valCache[key] != null) {
             return this.$zera$valCache[key];
-        }
+        }*/
         var val, i, entries = this.$zera$entries;
         for (i = 0; i < entries.length; i += 2) {
-            if (eq(entries[i], key)) {
+            if (equals(entries[i], key)) {
                 val = entries[i + 1];
-                this.$zera$valCache[key] = val;
+                //this.$zera$valCache[key] = val;
                 return val;
             }
         }
@@ -698,63 +793,15 @@ var zera = (function() {
         }
     }
 
-    function io(r, w) {
-        return {
-            read: r,
-            write: w
-        };
-    }
-
-    var stdout;
-    if (isNode) {
-        stdout = io(
-            null,
-            function() {
-                console.log(Array.prototype.slice(arguments).join(''));
-            }
-        );
-    } else {
-        stdout = io(
-            null,
-            function() {
-                console.log(Array.prototype.slice(arguments).join(''));
-            }
-        );
-    }
-
-    function isIO(x) {
-        return x != null && (x.read != null || x.write != null);
-    }
-
-    function print(x) {
-        var output, io = stdout;
-        if (isIO(x)) {
-            io = x;
-            output = Array.prototype.slice(arguments, 1).join('');
-        } else {
-            output = Array.prototype.slice(arguments).join('');
-        }
-        p(io);
-        p(output);
-        p(arguments);
-        var writer = io.write;
-        if (writer == null) {
-            throw new Error('the IO object given is read only');
-        }
-        return writer.call(io, output);
-    }
-
-    function say() {
-        return print.apply(null, [].concat(arguments, "\n"));
-    }
-
     function prnStr(x) {
         if (x == null) return "nil";
         else if (isNumber(x)) return s(x);
         else if (isBoolean(x)) {
             return x ? "true" : "false";
-        } else if (isSymbol(x)) {
+        } else if (isString(x)) {
             return s('"', x, '"');
+        } else if (isSymbol(x)) {
+            return x.toString();
         } else if (isEnv(x)) {
             return 'env';
         } else if (isCons(x)) {
@@ -794,7 +841,7 @@ var zera = (function() {
     }
 
     // symbols can be quoted with ":", "'" or by surrounding in "'s
-    function isSymbol(x) {
+    function isString(x) {
         return Object.prototype.toString.call(x) === '[object String]';
     }
 
@@ -831,33 +878,17 @@ var zera = (function() {
     }
 
     function isAtom(x) {
-        return isBoolean(x) || isNumber(x) || x == null;
+        return isBoolean(x) || isNumber(x) || isString(x) || x == null;
     }
 
-    function eq(a, b) {
+    function equals(a, b) {
         if (a == null) {
             return b == null;
-        } else if (isCons(a)) {
-            if (isCons(b)) {
-                var xa = car(a);
-                var xb = car(b);
-                var xsa = cdr(a);
-                var xsb = cdr(b);
-                while (!isEmpty(xsa) && !isEmpty(xsb)) {
-                    if (xa !== xb) {
-                        return false;
-                    } else {
-                        xa = car(xsa);
-                        xb = car(xsb);
-                        xsa = cdr(xsa);
-                        xsb = cdr(xsb);
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        } else {
+        }
+        else if (isJSFn(a.equals)) {
+            return a.equals(b);
+        }
+        else {
             return a === b;
         }
     }
@@ -900,6 +931,69 @@ var zera = (function() {
 
     function evalQuote(form) {
         return car(cdr(form));
+    }
+
+    // TODO: complete Var implementation
+    function Var(namespace, name, meta) {
+        this.$zera$ns   = namespace;
+        this.$zera$name = name;
+        this.$zera$meta = meta;
+    }
+
+    // TODO: complete Namespace implementation
+    function Namespace(name) {
+        if (!isSymbol(name)) throw new Error('namespace name should be a symbol');
+        this.$zera$name     = name;
+        this.$zera$mappings = {};
+        this.$zera$aliases  = {};
+    }
+
+    Namespace.namespaces = {};
+
+    Namespace.all = function() {
+        return list.apply(null, Object.values(Namespace.namespaces));
+    };
+
+    Namespace.findOrCreate = function(name) {
+        var ns = Namespace.namespaces[name];
+        if (ns != null) return ns;
+        else {
+            ns = new Namespace(name);
+            Namespace.namespaces[name] = ns;
+        }
+        return ns;
+    };
+
+    Namespace.prototype.name = function() {
+        return this.$zera$name;
+    };
+
+    Namespace.prototype.mappings = function() {
+        return this.$zera$mappings;
+    };
+
+    Namespace.prototype.mapping = function(sym) {
+        return this.$zera$mappings[sym];
+    };
+
+    Namespace.prototype.intern = function(sym) {
+        if (sym == null) throw new Error('Cannot intern nil');
+        if (sym.namespace() != null) throw new Error('Cannot intern namespace-qualified symbol');
+        var v = new Var(this, sym);
+        this.$zera$mappings[sym] = v;
+        return v;
+    };
+
+    Namespace.prototype.toString = function() {
+        return s('#<Namespace name: ', this.$zera$name, '>');
+    };
+
+    function namespace(name) {
+        return Namespace.findOrCreate(name);
+    }
+
+    function isNamespace(x) {
+        return x instanceof Namespace;
     }
 
     function env(parent) {
@@ -1058,7 +1152,11 @@ var zera = (function() {
     }
 
     function isFn(x) {
-        return isPair(x) && car(car(x)) === 'fn';
+        if (isPair(x)) {
+            var tag = first(first(x));
+            return tag != null && tag.toString() === 'fn';
+        }
+        return false;
     }
 
     function isJSFn(x) {
@@ -1214,8 +1312,6 @@ var zera = (function() {
             name = car(rest),
             fnrest = cdr(rest);
         MACROS[name] = evalFunction(cons("fn", fnrest), env);
-        //prn(MACROS[name]);
-        //prn(apply(MACROS[name], list(1, 2)));
         return name;
     }
 
@@ -1225,7 +1321,7 @@ var zera = (function() {
 
     function macroexpand(form) {
         if (isTaggedValue(form)) {
-            var name = car(form);
+            var name = car(form).toString();
             if (name != '.-' && name.startsWith('.-')) {
                 return list('.', car(cdr(form)), name.slice(1));
             } else if (name != '.' && name.startsWith('.')) {
@@ -1485,13 +1581,13 @@ var zera = (function() {
 
     function readJS(exp) {
         var i;
-        if (isSymbol(exp)) {
+        if (isString(exp)) {
             if (exp.startsWith(':') || exp.startsWith("'")) {
-                return list('quote', exp.slice(1));
+                return list('quote', Sym.intern(exp.slice(1)));
             } else if (exp.startsWith('"') && exp.endsWith('"')) {
-                return list('quote', exp.slice(1).replace(/"$/, ''));
+                return exp.substring(1).substring(0, exp.length - 2);
             } else {
-                return exp;
+                return Sym.intern(exp);
             }
         } else if (isArray(exp)) {
             if (exp.length === 0) return null;
@@ -1519,7 +1615,7 @@ var zera = (function() {
             if (keys.length === 0) return null;
             var entries = [];
             for (i = 0; i < keys.length; i++) {
-                entries.push(keys[i]);
+                entries.push(Sym.intern(keys[i]));
                 entries.push(readJS(exp[keys[i]]));
             }
             return new ArrayMap(entries);
@@ -1541,6 +1637,8 @@ var zera = (function() {
     }
 
     // primitive functions
+    define(top, "namespace", namespace);
+    define(top, "namespace?", isNamespace);
     define(top, "eval", evaluate);
     define(top, "apply", apply);
     define(top, "macroexpand", macroexpand);
@@ -1575,9 +1673,11 @@ var zera = (function() {
     define(top, "prn-str", prnStr);
     define(top, "prn", prn);
     define(top, "p", p);
-    define(top, "boolean?", isBoolean);
-    define(top, "symbol?", isSymbol);
     define(top, "str", s);
+    define(top, "boolean?", isBoolean);
+    define(top, "string?", isString);
+    define(top, "symbol?", isSymbol);
+    define(top, "symbol", symbol);
     define(top, "number?", isNumber);
     define(top, "even?", isEven);
     define(top, "odd?", isOdd);
@@ -1600,12 +1700,6 @@ var zera = (function() {
     define(top, "read-js", readJS);
     define(top, "read-json", readJSON);
 
-    define(top, "io", io);
-    define(top, "io?", isIO);
-    define(top, "stdout", stdout);
-    define(top, "print", print);
-    define(top, "say", say);
-
     define(top, "identical?", function(a, b) {
         return a === b;
     });
@@ -1613,10 +1707,18 @@ var zera = (function() {
         return a == b;
     });
 
+    define(top, "=", equals);
+
+    define(top, "assert", function(x) {
+        if (x == null || x === false) throw new Error(s('Assert failed: ', prnStr(x)));
+        return null;
+    });
+
     define(top, "not", function(x) {
         return !x;
     });
 
+    // bit operations
     define(top, "bit-not", function(x) {
         return ~x;
     });
@@ -1636,8 +1738,7 @@ var zera = (function() {
         return a >>> b;
     });
 
-    define(top, "=", eq);
-
+    // TODO: rewrite these to match the Clojure API
     var lt = function(a, b) {
         if (arguments.length === 0) {
             return lt;
@@ -1780,9 +1881,6 @@ var zera = (function() {
     }
 
     define(top, '*platform*', 'js');
-
-    define(top, 'math/pi', Math.PI);
-    define(top, 'math/e',  Math.E);
 
     // import js stuff
     [
@@ -1990,7 +2088,7 @@ var zera = (function() {
         'MediaError'
     ].forEach(symbolImporter('js.dom'));
 
-    evalJS(
+    /*evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
             ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
 
@@ -2001,7 +2099,7 @@ var zera = (function() {
                          ['number?', 'form*'], ['str', 'form*'],
                          ['symbol?', 'form*'], ['str', ':"', 'form*', ':"'],
                          ['boolean?', 'form*'], ['str', 'form*'],
-                         'else', ['throw', ['js/Error.', ['str', '"invalid form: "', ['prn-str', 'form*']]]]]]]);
+                         'else', ['throw', ['js/Error.', ['str', '"invalid form: "', ['prn-str', 'form*']]]]]]]);*/
 
     var api = {
         eval: evaluate,
@@ -2009,34 +2107,11 @@ var zera = (function() {
         evalJSON: evalJSON,
         readJS: readJS,
         readJSON: readJSON,
-        arrayToCons: arrayToCons,
-        consToArray: consToArray,
-        objectToPairs: objectToPairs,
-        isFn: isFn,
-        isSymbol: isSymbol,
-        isBoolean: isBoolean,
-        isNumber: isNumber,
-        isArray: isArray,
-        isArrayLike: isArrayLike,
-        isAtom: isAtom,
-        isNil: isNil,
-        isCons: isCons,
-        cons: cons,
-        count: count,
-        car: car,
-        cdr: cdr,
-        isPair: isPair,
-        pair: pair,
-        list: list,
-        first: car,
-        rest: cdr,
         prn: prn,
         prnStr: prnStr,
         ok: ok,
         is: is,
-        eq: eq,
-        num: num,
-        s: s
+        equals: equals
     };
 
     if (isNode) {
