@@ -8,7 +8,7 @@ var zera = (function() {
     var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
     var isBrowser = typeof window !== 'undefined';
 
-    // TODO: add keywords, sets, and vectors
+    // TODO: add sets, and vectors
 
     function Sym(ns, name, meta) {
         this.$zera$ns = ns;
@@ -115,9 +115,49 @@ var zera = (function() {
         return x instanceof Sym;
     }
 
-    // TODO: add Keywords
+    function Keyword(sym) {
+        this.$zera$sym = sym;
+    }
+
+    Keyword.table = {};
+
+    Keyword.intern = function(sym_) {
+        var sym = isSymbol(sym_) ? sym_ : Sym.intern(sym_);
+        var kw = Keyword.table[sym];
+        if (!kw) kw = Keyword.table[sym] = new Keyword(sym);
+        return kw;
+    };
+
+    Keyword.prototype.name = function() {
+        return this.$zera$sym.name();
+    };
+
+    Keyword.prototype.namespace = function() {
+        return this.$zera$sym.namespace();
+    };
+
+    Keyword.prototype.toString = function() {
+        return s(':', this.$zera$sym);
+    };
+
+    function isKeyword(x) {
+        return x instanceof Keyword;
+    }
+
+    function keyword() {
+        if (arguments.length === 1) {
+            return Keyword.intern(new Sym(null, arguments[0]));
+        }
+        else if (arguments.length === 2) {
+            return Keyword.intern(new Sym(arguments[0], arguments[1]));
+        }
+        else {
+            throw new Error(s('Wrong number of arguments expected 1 or 2, got: ', arguments.length));
+        }
+    }
+
     function isNamed(x) {
-        return isSymbol(x);
+        return isSymbol(x) || isKeyword(x);
     }
 
     function name(sym) {
@@ -517,24 +557,28 @@ var zera = (function() {
         }
     }
     
-    function ArrayMap(entries) {
-        this.$zera$entries = entries;
+    function ArrayMap(array) {
+        this.$zera$array = array ? array : [];
         this.$zera$valCache = {};
     }
 
     ArrayMap.EMPTY = new ArrayMap([]);
 
+    ArrayMap.prototype.count = function() {
+        return this.$zera$array.length / 2;
+    };
+
     ArrayMap.prototype.toString = function() {
         var buff = [], i;
-        var entries = this.$zera$entries;
-        for (i = 0; i < entries.length; i += 2) {
-            buff.push(s(prnStr(entries[i]), ' ', prnStr(entries[i + 1])));
+        var array = this.$zera$array;
+        for (i = 0; i < array.length; i += 2) {
+            buff.push(s(prnStr(array[i]), ' ', prnStr(array[i + 1])));
         }
         return s('{', buff.join(', '), '}');
     };
 
     ArrayMap.prototype.first = function() {
-        return new MapEntry(this.$zera$entries[0], this.$zera$entries[1]);
+        return new MapEntry(this.$zera$array[0], this.$zera$array[1]);
     };
 
     ArrayMap.prototype.next = function() {
@@ -555,17 +599,17 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.entries = function() {
-        var entries = this.$zera$entries;
+        var array = this.$zera$array;
         var i;
         var res = [];
-        for (i = 0; i < entries.length; i += 2) {
-            res.push(new MapEntry(entries[i], entries[i + 1]));
+        for (i = 0; i < array.length; i += 2) {
+            res.push(new MapEntry(array[i], array[i + 1]));
         }
         return list.apply(null, res);
     };
 
     ArrayMap.prototype.keys = function() {
-        var entries = this.$zera$entries;
+        var entries = this.$zera$array;
         var i;
         var res = [];
         for (i = 0; i < entries.length; i += 2) {
@@ -575,7 +619,7 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.vals = function() {
-        var entries = this.$zera$entries;
+        var entries = this.$zera$array;
         var i;
         var res = [];
         for (i = 0; i < entries.length; i += 2) {
@@ -588,7 +632,7 @@ var zera = (function() {
         /*if (this.$zera$valCache[key] != null) {
             return this.$zera$valCache[key];
         }*/
-        var val, i, entries = this.$zera$entries;
+        var val, i, entries = this.$zera$array;
         for (i = 0; i < entries.length; i += 2) {
             if (equals(entries[i], key)) {
                 val = entries[i + 1];
@@ -605,7 +649,7 @@ var zera = (function() {
     ArrayMap.prototype.assoc = function(pairs) {
         var i;
         if (pairs.length % 2 !== 0) throw new Error('key value pairs must be even to assoc');
-        var entries = Array.prototype.slice.call(this.$zera$entries);
+        var entries = Array.prototype.slice.call(this.$zera$array);
         for (i = 0; i < pairs.length; i += 2) {
             entries.push(pairs[i]);
             entries.push(pairs[i + 1]);
@@ -937,7 +981,7 @@ var zera = (function() {
     }
 
     function isAtom(x) {
-        return isBoolean(x) || isNumber(x) || isString(x) || x == null;
+        return isBoolean(x) || isNumber(x) || isString(x) || isKeyword(x) || x == null;
     }
 
     function equals(a, b) {
@@ -1812,8 +1856,10 @@ var zera = (function() {
     function readJS(exp) {
         var i;
         if (isString(exp)) {
-            if (exp.startsWith(':') || exp.startsWith("'")) {
-                return list(QUOTE_SYM, Sym.intern(exp.slice(1)));
+            if (exp.startsWith(':')) {
+                return Keyword.intern(exp.substring(1));
+            } else if (exp.startsWith("'")) {
+                return list(QUOTE_SYM, Sym.intern(exp.substring(1)));
             } else if (exp.startsWith('"') && exp.endsWith('"')) {
                 return exp.substring(1).substring(0, exp.length - 2);
             } else {
@@ -1916,6 +1962,8 @@ var zera = (function() {
     define(ZERA_NS, "string?", isString);
     define(ZERA_NS, "symbol?", isSymbol);
     define(ZERA_NS, "symbol", symbol);
+    define(ZERA_NS, "keyword", keyword);
+    define(ZERA_NS, "keyword?", isKeyword);
     define(ZERA_NS, "name", name);
     define(ZERA_NS, "namespace", namespace);
     define(ZERA_NS, "number?", isNumber);
