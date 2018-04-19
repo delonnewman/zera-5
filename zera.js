@@ -557,10 +557,14 @@ var zera = (function() {
         }
     }
     
+    function AMap(){}
+
     function ArrayMap(array) {
         this.$zera$array = array ? array : [];
         this.$zera$valCache = {};
     }
+
+    ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap([]);
 
@@ -660,14 +664,12 @@ var zera = (function() {
     ArrayMap.prototype.dissoc = function() {
     };
 
-    ArrayMap.prototype.isMap = function() {
-        return true;
-    };
-
     function isMap(x) {
-        if (x == null) return false;
-        if (isJSFn(x.isMap)) return true;
-        return false;
+        return x instanceof AMap;
+    }
+
+    function isArrayMap(x) {
+        return x instanceof ArrayMap;
     }
 
     function arrayMap() {
@@ -707,7 +709,7 @@ var zera = (function() {
 
     function assoc(m) {
         var pairs = Array.prototype.slice.call(arguments, 1);
-        if (m.assoc) {
+        if (isJSFn(m.assoc)) {
             return m.assoc(pairs);
         }
         else {
@@ -1888,7 +1890,7 @@ var zera = (function() {
         } else if (isJSFn(exp)) return exp;
         else if (isObject(exp)) {
             var keys = Object.getOwnPropertyNames(exp);
-            if (keys.length === 0) return null;
+            if (keys.length === 0) return ArrayMap.EMPTY;
             var entries = [];
             for (i = 0; i < keys.length; i++) {
                 entries.push(Sym.intern(keys[i]));
@@ -1930,6 +1932,8 @@ var zera = (function() {
     define(ZERA_NS, "empty?", isEmpty);
     define(ZERA_NS, "list", list);
     define(ZERA_NS, "array-map", arrayMap);
+    define(ZERA_NS, "array-map?", isArrayMap);
+    define(ZERA_NS, "map?", isMap);
     define(ZERA_NS, "entries", entries);
     define(ZERA_NS, "get", get);
     define(ZERA_NS, "assoc", assoc);
