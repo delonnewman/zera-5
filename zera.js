@@ -10,11 +10,15 @@ var zera = (function() {
 
     // TODO: add sets, and vectors
 
+    function Named(){}
+
     function Sym(ns, name, meta) {
         this.$zera$ns = ns;
         this.$zera$name = name;
         this.$zera$meta = meta;
     }
+
+    Sym.prototype = Object.create(Named.prototype);
 
     Sym.intern = function(rep) {
         var i = rep.indexOf('/');
@@ -81,6 +85,7 @@ var zera = (function() {
     var NEW_SYM = Sym.intern('new');
     var DOT_SYM = Sym.intern('.');
     var MACRO_SYM = Sym.intern('defmacro');
+    var AMP_SYM = Sym.intern('&');
 
     var SPECIAL_FORMS = {
         'nil': true,
@@ -118,6 +123,8 @@ var zera = (function() {
     function Keyword(sym) {
         this.$zera$sym = sym;
     }
+
+    Keyword.prototype = Object.create(Named.prototype);
 
     Keyword.table = {};
 
@@ -157,7 +164,7 @@ var zera = (function() {
     }
 
     function isNamed(x) {
-        return isSymbol(x) || isKeyword(x);
+        return x instanceof Named;
     }
 
     function name(sym) {
@@ -172,6 +179,24 @@ var zera = (function() {
         else {
             throw new Error(s("Don't know how to get the namespace of: ", prnStr(sym)));
         }
+    }
+
+    function Seq(){}
+
+    function isSeq(x) {
+        return x instanceof Seq;
+    }
+
+    function isSeqable(x) {
+        if (x == null) return false;
+        return isJSFn(x.seq) || isArrayLike(x);
+    }
+
+    function List(){}
+    List.prototype = Object.create(Seq.prototype);
+
+    function isList(x) {
+        return x instanceof List;
     }
 
     // Cons
@@ -193,6 +218,8 @@ var zera = (function() {
             this.$zera$count = cdr.count() + 1;
         }
     }
+
+    Cons.prototype = Object.create(Seq.prototype);
 
     Cons.EMPTY = new Cons(null, null);
 
@@ -278,12 +305,6 @@ var zera = (function() {
         return x instanceof Cons;
     }
 
-    function isList(x) {
-        if (x == null) return false;
-        if (isJSFn(x.isList)) return true;
-        return false;
-    }
-
     // make a list out of conses
     function list() {
         if (arguments.length === 0) {
@@ -307,7 +328,7 @@ var zera = (function() {
         this._sv = null;
     }
 
-    //LazyList.prototype = Object.create(List.prototype);
+    LazyList.prototype = Object.create(List.prototype);
 
     LazyList.prototype.sval = function() {
         if (this.fn != null) {
@@ -558,6 +579,7 @@ var zera = (function() {
     }
     
     function AMap(){}
+    AMap.prototype = Object.create(Seq.prototype);
 
     function ArrayMap(array) {
         this.$zera$array = array ? array : [];
@@ -1833,28 +1855,6 @@ var zera = (function() {
         }
     }
 
-    function readJSArray(exp) {
-        if (exp.length === 0) return null;
-        if (exp.length === 1) return cons(readJS(exp[0]), Cons.EMPTY);
-        var xs = null;
-        var last = null, x;
-        for (i = exp.length - 1; i >= 0; i--) {
-            // use & to read pairs
-            if (exp[i] === '&') {
-                if (exp.length === 2) return cons(Cons.EMPTY, readJS(last));
-                i--;
-                x = cons(readJS(exp[i]), last);
-                if (exp.length === 3) return x;
-                xs = dropLast(xs);
-            } else {
-                x = readJS(exp[i]);
-            }
-            xs = cons(x, xs);
-            last = x;
-        }
-        return xs;
-    }
-
     function readJS(exp) {
         var i;
         if (isString(exp)) {
@@ -1941,7 +1941,9 @@ var zera = (function() {
     define(ZERA_NS, "vals", vals);
     define(ZERA_NS, "key", key);
     define(ZERA_NS, "val", val);
-    //define(ZERA_NS, "list?", isList);
+    define(ZERA_NS, "list?", isList);
+    define(ZERA_NS, "seq?", isSeq);
+    define(ZERA_NS, "seqable?", isSeqable);
     define(ZERA_NS, "cons", cons);
     define(ZERA_NS, "count", count);
     define(ZERA_NS, "car", car);
