@@ -935,10 +935,46 @@ var zera = (function() {
 
     // TODO: complete Var implementation
     function Var(namespace, name, meta) {
-        this.$zera$ns   = namespace;
-        this.$zera$name = name;
-        this.$zera$meta = meta;
+        this.$zera$ns         = namespace;
+        this.$zera$name       = name;
+        this.$zera$meta       = meta;
+        this.$zera$isDyanamic = false;
+        this.$zera$isMacro    = false;
     }
+
+    Var.intern = function(ns, sym) {
+        var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
+        return ns_.intern(sym);
+    };
+
+    Var.prototype.get = function() {
+        return this.$zera$value;
+    };
+
+    // TODO: add validation and watchers
+    Var.prototype.set = function(value) {
+        if (this.$zera$value == null || this.$zera$isDynamic) {
+            this.$zera$value = value;
+            return value;
+        }
+        else {
+            throw new Error("Can't set Var value once it has been set");
+        }
+    };
+
+    Var.prototype.setDynamic = function() {
+        this.$zera$isDynamic = true;
+        return this;
+    };
+
+    Var.prototype.setMacro = function() {
+        this.$zera$isMacro = true;
+        return this;
+    };
+
+    Var.prototype.toString = function() {
+        return s('#<Var ns: ', this.$zera$ns, ' name: ', this.$zera$name, '>');
+    };
 
     // TODO: complete Namespace implementation
     function Namespace(name) {
@@ -977,7 +1013,7 @@ var zera = (function() {
     };
 
     Namespace.prototype.intern = function(sym) {
-        if (sym == null) throw new Error('Cannot intern nil');
+        if (!isSymbol(sym)) throw new Error('Namespace can only intern symbols');
         if (sym.namespace() != null) throw new Error('Cannot intern namespace-qualified symbol');
         var v = new Var(this, sym);
         this.$zera$mappings[sym] = v;
@@ -987,6 +1023,9 @@ var zera = (function() {
     Namespace.prototype.toString = function() {
         return s('#<Namespace name: ', this.$zera$name, '>');
     };
+
+    var ZERA_NS = Namespace.findOrCreate(Sym.intern('zera.core'));
+    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*')).setDynamic();
 
     function namespace(name) {
         return Namespace.findOrCreate(name);
