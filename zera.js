@@ -942,9 +942,11 @@ var zera = (function() {
         this.$zera$isMacro    = false;
     }
 
-    Var.intern = function(ns, sym) {
+    Var.intern = function(ns, sym, init) {
         var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
-        return ns_.intern(sym);
+        var v = ns_.intern(sym);
+        if (init) v.set(init);
+        return v;
     };
 
     Var.prototype.get = function() {
@@ -973,8 +975,16 @@ var zera = (function() {
     };
 
     Var.prototype.toString = function() {
-        return s('#<Var ns: ', this.$zera$ns, ' name: ', this.$zera$name, '>');
+        return s("#'", this.$zera$ns.name(), '/', this.$zera$name);
     };
+
+    function var_(ns, name, init) {
+        return Var.intern(Namespace.findOrCreate(Sym.intern(ns)), Sym.intern(name), init);
+    }
+
+    function define(ns, name, init) {
+        return Var.intern(ns, Sym.intern(name), init);
+    }
 
     // TODO: complete Namespace implementation
     function Namespace(name) {
@@ -1024,9 +1034,6 @@ var zera = (function() {
         return s('#<Namespace name: ', this.$zera$name, '>');
     };
 
-    var ZERA_NS = Namespace.findOrCreate(Sym.intern('zera.core'));
-    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*')).setDynamic();
-
     function namespace(name) {
         return Namespace.findOrCreate(name);
     }
@@ -1075,7 +1082,7 @@ var zera = (function() {
         }
     }
 
-    function define(env, name, value) {
+    function defineLexically(env, name, value) {
         if (typeof value !== 'undefined') {
             env.vars[name] = value;
             return null;
@@ -1104,12 +1111,22 @@ var zera = (function() {
         }
     }
 
+    // TODO: add let body, etc.
+    function evalLexicalDefinition(form, env) {
+        var rest = cdr(form);
+        var name = car(rest);
+        var value = car(cdr(rest));
+        defineLexically(env, name);
+        return defineLexically(env, name, evaluate(value, env));
+    }
+
     function evalDefinition(form, env) {
         var rest = cdr(form);
         var name = car(rest);
         var value = car(cdr(rest));
-        define(env, name);
-        return define(env, name, evaluate(value, env));
+        var ns = CURRENT_NS.get();
+        var_(ns, name);
+        return var_(ns, name, evaluate(value, env));
     }
 
     function evalAssignment(form, env) {
@@ -1495,6 +1512,9 @@ var zera = (function() {
 
     var top = env();
 
+    var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
+    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*')).setDynamic();
+
     // TODO: add catch / finally
     // TODO: add deftype / defprotocol
     function evaluate(form_, env_) {
@@ -1676,104 +1696,105 @@ var zera = (function() {
     }
 
     // primitive functions
-    define(top, "namespace", namespace);
-    define(top, "namespace?", isNamespace);
-    define(top, "eval", evaluate);
-    define(top, "apply", apply);
-    define(top, "macroexpand", macroexpand);
-    define(top, "nil?", isNil);
-    define(top, "empty?", isEmpty);
-    define(top, "list", list);
-    define(top, "array-map", arrayMap);
-    define(top, "entries", entries);
-    define(top, "get", get);
-    define(top, "assoc", assoc);
-    define(top, "keys", keys);
-    define(top, "vals", vals);
-    define(top, "key", key);
-    define(top, "val", val);
-    //define(top, "list?", isList);
-    define(top, "cons", cons);
-    define(top, "count", count);
-    define(top, "car", car);
-    define(top, "cdr", cdr);
-    define(top, "map", map);
-    define(top, "reduce", reduce);
-    define(top, "filter", filter);
-    define(top, "take", take);
-    define(top, "range", range);
-    define(top, "first", first);
-    define(top, "rest", rest);
-    define(top, "next", next);
-    define(top, "conj", conj);
-    define(top, "cons?", isCons);
-    define(top, "pair?", isPair);
-    define(top, "pair", pair);
-    define(top, "prn-str", prnStr);
-    define(top, "prn", prn);
-    define(top, "p", p);
-    define(top, "str", s);
-    define(top, "boolean?", isBoolean);
-    define(top, "string?", isString);
-    define(top, "symbol?", isSymbol);
-    define(top, "symbol", symbol);
-    define(top, "number?", isNumber);
-    define(top, "even?", isEven);
-    define(top, "odd?", isOdd);
-    define(top, "num", num);
-    define(top, "is", is);
-    define(top, "ok", ok);
-    define(top, "cons->array", consToArray);
-    define(top, "array->cons", arrayToCons);
-    define(top, "array?", isArray);
-    define(top, 'areduce', areduce);
-    define(top, 'amap', amap);
-    define(top, 'afilter', afilter);
-    define(top, 'aset', aset);
-    define(top, 'aget', aget);
-    define(top, "array", function() {
+    define(ZERA_NS, "var", var_);
+    define(ZERA_NS, "namespace", namespace);
+    define(ZERA_NS, "namespace?", isNamespace);
+    define(ZERA_NS, "eval", evaluate);
+    define(ZERA_NS, "apply", apply);
+    define(ZERA_NS, "macroexpand", macroexpand);
+    define(ZERA_NS, "nil?", isNil);
+    define(ZERA_NS, "empty?", isEmpty);
+    define(ZERA_NS, "list", list);
+    define(ZERA_NS, "array-map", arrayMap);
+    define(ZERA_NS, "entries", entries);
+    define(ZERA_NS, "get", get);
+    define(ZERA_NS, "assoc", assoc);
+    define(ZERA_NS, "keys", keys);
+    define(ZERA_NS, "vals", vals);
+    define(ZERA_NS, "key", key);
+    define(ZERA_NS, "val", val);
+    //define(ZERA_NS, "list?", isList);
+    define(ZERA_NS, "cons", cons);
+    define(ZERA_NS, "count", count);
+    define(ZERA_NS, "car", car);
+    define(ZERA_NS, "cdr", cdr);
+    define(ZERA_NS, "map", map);
+    define(ZERA_NS, "reduce", reduce);
+    define(ZERA_NS, "filter", filter);
+    define(ZERA_NS, "take", take);
+    define(ZERA_NS, "range", range);
+    define(ZERA_NS, "first", first);
+    define(ZERA_NS, "rest", rest);
+    define(ZERA_NS, "next", next);
+    define(ZERA_NS, "conj", conj);
+    define(ZERA_NS, "cons?", isCons);
+    define(ZERA_NS, "pair?", isPair);
+    define(ZERA_NS, "pair", pair);
+    define(ZERA_NS, "prn-str", prnStr);
+    define(ZERA_NS, "prn", prn);
+    define(ZERA_NS, "p", p);
+    define(ZERA_NS, "str", s);
+    define(ZERA_NS, "boolean?", isBoolean);
+    define(ZERA_NS, "string?", isString);
+    define(ZERA_NS, "symbol?", isSymbol);
+    define(ZERA_NS, "symbol", symbol);
+    define(ZERA_NS, "number?", isNumber);
+    define(ZERA_NS, "even?", isEven);
+    define(ZERA_NS, "odd?", isOdd);
+    define(ZERA_NS, "num", num);
+    define(ZERA_NS, "is", is);
+    define(ZERA_NS, "ok", ok);
+    define(ZERA_NS, "cons->array", consToArray);
+    define(ZERA_NS, "array->cons", arrayToCons);
+    define(ZERA_NS, "array?", isArray);
+    define(ZERA_NS, 'areduce', areduce);
+    define(ZERA_NS, 'amap', amap);
+    define(ZERA_NS, 'afilter', afilter);
+    define(ZERA_NS, 'aset', aset);
+    define(ZERA_NS, 'aget', aget);
+    define(ZERA_NS, "array", function() {
         return Array.prototype.slice.call(arguments);
     });
-    define(top, "object->pairs", objectToPairs);
-    define(top, "object?", isObject);
-    define(top, "read-js", readJS);
-    define(top, "read-json", readJSON);
+    define(ZERA_NS, "object->pairs", objectToPairs);
+    define(ZERA_NS, "object?", isObject);
+    define(ZERA_NS, "read-js", readJS);
+    define(ZERA_NS, "read-json", readJSON);
 
-    define(top, "identical?", function(a, b) {
+    define(ZERA_NS, "identical?", function(a, b) {
         return a === b;
     });
-    define(top, "equiv?", function(a, b) {
+    define(ZERA_NS, "equiv?", function(a, b) {
         return a == b;
     });
 
-    define(top, "=", equals);
+    define(ZERA_NS, "=", equals);
 
-    define(top, "assert", function(x) {
+    define(ZERA_NS, "assert", function(x) {
         if (x == null || x === false) throw new Error(s('Assert failed: ', prnStr(x)));
         return null;
     });
 
-    define(top, "not", function(x) {
+    define(ZERA_NS, "not", function(x) {
         return !x;
     });
 
     // bit operations
-    define(top, "bit-not", function(x) {
+    define(ZERA_NS, "bit-not", function(x) {
         return ~x;
     });
-    define(top, "bit-and", function(a, b) {
+    define(ZERA_NS, "bit-and", function(a, b) {
         return a & b;
     });
-    define(top, "bit-or", function(a, b) {
+    define(ZERA_NS, "bit-or", function(a, b) {
         return a || b;
     });
-    define(top, "bit-shift-left", function(a, b) {
+    define(ZERA_NS, "bit-shift-left", function(a, b) {
         return a << b;
     });
-    define(top, "bit-shift-right", function(a, b) {
+    define(ZERA_NS, "bit-shift-right", function(a, b) {
         return a >> b;
     });
-    define(top, "unsigned-bit-shift-right", function(a, b) {
+    define(ZERA_NS, "unsigned-bit-shift-right", function(a, b) {
         return a >>> b;
     });
 
@@ -1789,7 +1810,7 @@ var zera = (function() {
             return a < b;
         }
     };
-    define(top, '<', lt);
+    define(ZERA_NS, '<', lt);
 
     var lteq = function(a, b) {
         if (arguments.length === 0) {
@@ -1802,7 +1823,7 @@ var zera = (function() {
             return a <= b;
         }
     };
-    define(top, '<=', lteq);
+    define(ZERA_NS, '<=', lteq);
 
     var gt = function(a, b) {
         if (arguments.length === 0) {
@@ -1815,7 +1836,7 @@ var zera = (function() {
             return a > b;
         }
     };
-    define(top, '>', gt);
+    define(ZERA_NS, '>', gt);
 
     var gteq = function(a, b) {
         if (arguments.length === 0) {
@@ -1828,7 +1849,7 @@ var zera = (function() {
             return a >= b;
         }
     };
-    define(top, '>=', gteq);
+    define(ZERA_NS, '>=', gteq);
 
     var add = function() {
         if (arguments.length === 0) {
@@ -1847,7 +1868,7 @@ var zera = (function() {
             return sum;
         }
     };
-    define(top, "+", add);
+    define(ZERA_NS, "+", add);
 
     var sub = function() {
         if (arguments.length === 0) {
@@ -1866,7 +1887,7 @@ var zera = (function() {
             return sum;
         }
     };
-    define(top, '-', sub);
+    define(ZERA_NS, '-', sub);
 
     var mult = function() {
         if (arguments.length === 0) {
@@ -1885,7 +1906,7 @@ var zera = (function() {
             return sum;
         }
     };
-    define(top, '*', mult);
+    define(ZERA_NS, '*', mult);
 
     var div = function() {
         if (arguments.length === 0) {
@@ -1904,14 +1925,14 @@ var zera = (function() {
             return sum;
         }
     };
-    define(top, '/', div);
+    define(ZERA_NS, '/', div);
 
     function symbolImporter(ns) {
         return function(name) {
             try {
                 var val = eval(name);
                 if (val != null) {
-                    define(top, s(ns, '/', name), val);
+                    define(ns, name, val);
                 }
             } catch (e) {
                 //console.error(e);
@@ -1919,7 +1940,9 @@ var zera = (function() {
         };
     }
 
-    define(top, '*platform*', 'js');
+    define(ZERA_NS, '*platform*', Sym.intern('js'));
+
+    var JS_NS = Namespace.findOrCreate(Sym.intern('js'));
 
     // import js stuff
     [
@@ -1989,15 +2012,132 @@ var zera = (function() {
         'setTimeout',
         'clearInterval',
         'clearTimeout'
-    ].forEach(symbolImporter('js'));
+    ].forEach(symbolImporter(JS_NS));
 
     if (isBrowser) {
-        define(top, '*platform*', 'js/browser');
+        var DOM_NS = Namespace.findOrCreate(Sym.intern('js.dom'));
+        define(ZERA_NS, '*platform*', Sym.intern('js/browser'));
+        [
+            'Attr',
+            'ByteString',
+            'CDATASection',
+            'CharacterData',
+            'ChildNode',
+            'CSSPrimitiveValue',
+            'CSSValue',
+            'CSSValueList',
+            'Comment',
+            'CustomEvent',
+            'Document',
+            'DocumentFragment',
+            'DocumentType',
+            'DOMError',
+            'DOMException',
+            'DOMImplmentation',
+            'DOMString',
+            'DOMTimeStamp',
+            'DOMStringList',
+            'DOMTokenList',
+            'Element',
+            'Event',
+            'EventTarget',
+            'MutationObserver',
+            'MutationRecord',
+            'Node',
+            'NodeFilter',
+            'NodeIterator',
+            'NodeList',
+            'ParentNode',
+            'ProcessingInstruction',
+            'Range',
+            'Text',
+            'TreeWalker',
+            'URL',
+            'Window',
+            'Worker',
+            'XMLDocument',
+            'HTMLAnchorElement',
+            'HTMLAreaElement',
+            'HTMLAudioElement',
+            'HTMLBaseElement',
+            'HTMLBodyElement',
+            'HTMLBREElement',
+            'HTMLButtonElement',
+            'HTMLCanvasElement',
+            'HTMLDataElement',
+            'HTMLDataListElement',
+            'HTMLDialogElement',
+            'HTMLDivElement',
+            'HTMLDListElement',
+            'HTMLEmbedElement',
+            'HTMLFieldSetElement',
+            'HTMLFontElement',
+            'HTMLFormElement',
+            'HTMLFrameSetElement',
+            'HTMLHeadElement',
+            'HTMLHtmlElement',
+            'HTMLHRElement',
+            'HTMLIFrameElement',
+            'HTMLImageElement',
+            'HTMLInputElement',
+            'HTMLKeygenElement',
+            'HTMLLabelElement',
+            'HTMLLIElement',
+            'HTMLLinkElement',
+            'HTMLMapElement',
+            'HTMLMediaElement',
+            'HTMLMetaElement',
+            'HTMLMeterElement',
+            'HTMLModElement',
+            'HTMLObjectElement',
+            'HTMLOListElement',
+            'HTMLOptGroupElement',
+            'HTMLOptionElement',
+            'HTMLOutputElement',
+            'HTMLParagraphElement',
+            'HTMLParamElement',
+            'HTMLPreElement',
+            'HTMLProgressElement',
+            'HTMLQuoteElement',
+            'HTMLScriptElement',
+            'HTMLSelectElement',
+            'HTMLSourceElement',
+            'HTMLSpanElement',
+            'HTMLStyleElement',
+            'HTMLTableElement',
+            'HTMLTableCaptionElement',
+            'HTMLTableCellElement',
+            'HTMLTableDataCellElement',
+            'HTMLTableHeaderCellElement',
+            'HTMLTableColElement',
+            'HTMLTableRowElement',
+            'HTMLTableSectionElement',
+            'HTMLTextAreaElement',
+            'HTMLTimeElement',
+            'HTMLTitleElement',
+            'HTMLTrackElement',
+            'HTMLUListElement',
+            'HTMLUnknownElement',
+            'HTMLVideoElement',
+            'CanvasRenderingContext2D',
+            'CanvasGradient',
+            'CanvasPattern',
+            'TextMetrics',
+            'ImageData',
+            'CanvasPixelArray',
+            'NotifyAudioAvailableEvent',
+            'HTMLFormControlsCollection',
+            'HTMLOptionsCollection',
+            'DOMStringMap',
+            'RadioNodeList',
+            'MediaError'
+        ].forEach(symbolImporter(DOM_NS));
     }
 
 
     if (isNode) {
-        define(top, '*platform*', "js/node");
+        var NODE_NS = Namespace.findOrCreate(Sym.intern('js.node'));
+        define(ZERA_NS, '*platform*', Sym.intern("js/node"));
         [
             'Buffer',
             '__dirname',
@@ -2008,124 +2148,8 @@ var zera = (function() {
             'global',
             'process',
             'setImmediate',
-        ].forEach(symbolImporter('js.node'));
+        ].forEach(symbolImporter(NODE_NS));
     }
-
-    [
-        'Attr',
-        'ByteString',
-        'CDATASection',
-        'CharacterData',
-        'ChildNode',
-        'CSSPrimitiveValue',
-        'CSSValue',
-        'CSSValueList',
-        'Comment',
-        'CustomEvent',
-        'Document',
-        'DocumentFragment',
-        'DocumentType',
-        'DOMError',
-        'DOMException',
-        'DOMImplmentation',
-        'DOMString',
-        'DOMTimeStamp',
-        'DOMStringList',
-        'DOMTokenList',
-        'Element',
-        'Event',
-        'EventTarget',
-        'MutationObserver',
-        'MutationRecord',
-        'Node',
-        'NodeFilter',
-        'NodeIterator',
-        'NodeList',
-        'ParentNode',
-        'ProcessingInstruction',
-        'Range',
-        'Text',
-        'TreeWalker',
-        'URL',
-        'Window',
-        'Worker',
-        'XMLDocument',
-        'HTMLAnchorElement',
-        'HTMLAreaElement',
-        'HTMLAudioElement',
-        'HTMLBaseElement',
-        'HTMLBodyElement',
-        'HTMLBREElement',
-        'HTMLButtonElement',
-        'HTMLCanvasElement',
-        'HTMLDataElement',
-        'HTMLDataListElement',
-        'HTMLDialogElement',
-        'HTMLDivElement',
-        'HTMLDListElement',
-        'HTMLEmbedElement',
-        'HTMLFieldSetElement',
-        'HTMLFontElement',
-        'HTMLFormElement',
-        'HTMLFrameSetElement',
-        'HTMLHeadElement',
-        'HTMLHtmlElement',
-        'HTMLHRElement',
-        'HTMLIFrameElement',
-        'HTMLImageElement',
-        'HTMLInputElement',
-        'HTMLKeygenElement',
-        'HTMLLabelElement',
-        'HTMLLIElement',
-        'HTMLLinkElement',
-        'HTMLMapElement',
-        'HTMLMediaElement',
-        'HTMLMetaElement',
-        'HTMLMeterElement',
-        'HTMLModElement',
-        'HTMLObjectElement',
-        'HTMLOListElement',
-        'HTMLOptGroupElement',
-        'HTMLOptionElement',
-        'HTMLOutputElement',
-        'HTMLParagraphElement',
-        'HTMLParamElement',
-        'HTMLPreElement',
-        'HTMLProgressElement',
-        'HTMLQuoteElement',
-        'HTMLScriptElement',
-        'HTMLSelectElement',
-        'HTMLSourceElement',
-        'HTMLSpanElement',
-        'HTMLStyleElement',
-        'HTMLTableElement',
-        'HTMLTableCaptionElement',
-        'HTMLTableCellElement',
-        'HTMLTableDataCellElement',
-        'HTMLTableHeaderCellElement',
-        'HTMLTableColElement',
-        'HTMLTableRowElement',
-        'HTMLTableSectionElement',
-        'HTMLTextAreaElement',
-        'HTMLTimeElement',
-        'HTMLTitleElement',
-        'HTMLTrackElement',
-        'HTMLUListElement',
-        'HTMLUnknownElement',
-        'HTMLVideoElement',
-        'CanvasRenderingContext2D',
-        'CanvasGradient',
-        'CanvasPattern',
-        'TextMetrics',
-        'ImageData',
-        'CanvasPixelArray',
-        'NotifyAudioAvailableEvent',
-        'HTMLFormControlsCollection',
-        'HTMLOptionsCollection',
-        'DOMStringMap',
-        'RadioNodeList',
-        'MediaError'
-    ].forEach(symbolImporter('js.dom'));
 
     /*evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
