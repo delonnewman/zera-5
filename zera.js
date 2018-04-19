@@ -39,6 +39,10 @@ var zera = (function() {
         return s(this.$zera$ns, '/', this.$zera$name);
     };
 
+    Sym.prototype.isNamespaceQualified = function() {
+        return !!this.$zera$ns;
+    };
+
     // IMeta
     Sym.prototype.withMeta = function(meta) {
         return new Sym(this.$zera$ns, this.$zera$name, meta);
@@ -74,6 +78,25 @@ var zera = (function() {
 
     function isSymbol(x) {
         return x instanceof Sym;
+    }
+
+    // TODO: add Keywords
+    function isNamed(x) {
+        return isSymbol(x);
+    }
+
+    function name(sym) {
+        if (isNamed(sym)) return sym.name();
+        else {
+            throw new Error(s("Don't know how to get the name of: ", prnStr(sym)));
+        }
+    }
+
+    function namespace(sym) {
+        if (isNamed(sym)) return sym.namespace();
+        else {
+            throw new Error(s("Don't know how to get the namespace of: ", prnStr(sym)));
+        }
     }
 
     // Cons
@@ -986,9 +1009,23 @@ var zera = (function() {
         return Var.intern(ns, Sym.intern(name), init);
     }
 
+    function isVar(x) {
+        return x instanceof Var;
+    }
+
+    function varGet(v) {
+        if (isVar(v)) return v.get();
+        throw new Error('var-get can only be used on Vars');
+    }
+
+    function varSet(v, value) {
+        if (isVar(v)) return v.set(value);
+        throw new Error('var-set can only be used on Vars');
+    }
+
     // TODO: complete Namespace implementation
     function Namespace(name) {
-        if (!isSymbol(name)) throw new Error('namespace name should be a symbol');
+        if (!isSymbol(name)) throw new Error(s('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
@@ -1008,6 +1045,14 @@ var zera = (function() {
             Namespace.namespaces[name] = ns;
         }
         return ns;
+    };
+
+    Namespace.findOrDie = function(name) {
+        var ns = Namespace.namespaces[name];
+        if (ns != null) return ns;
+        else {
+            throw new Error(s("Can't find the namespace: ", name));
+        }
     };
 
     Namespace.prototype.name = function() {
@@ -1034,13 +1079,23 @@ var zera = (function() {
         return s('#<Namespace name: ', this.$zera$name, '>');
     };
 
-    function namespace(name) {
-        return Namespace.findOrCreate(name);
+    function theNS(ns) {
+        if (isNamespace(ns)) return ns;
+        return Namespace.findOrDie(ns);
+    }
+
+    function nsName(ns) {
+        var ns_ = theNS(ns);
+        return ns_.name();
     }
 
     function isNamespace(x) {
         return x instanceof Namespace;
     }
+
+    var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
+    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*')).setDynamic();
+    CURRENT_NS.set(ZERA_NS);
 
     function env(parent) {
         if (parent) {
@@ -1092,23 +1147,45 @@ var zera = (function() {
         }
     }
 
-    function findVar(env, name) {
-        var scope = lookup(env, name);
-        if (scope == null) {
-            throw new Error(s('Undefined variable: "', name, '"'));
-        } else {
-            return scope.vars[name];
+    // TODO: should lexically scoped values be wrapped in Vars?
+    // 1) if namespace-qualified lookup in namespace
+    // 2) lookup in lexical scope
+    // 3) lookup in current namespace
+    // 4) lookup in default namespace
+    // (could go back and put default imports in top then they'll always befound lexically unless they've been redefined and should be more performant)
+    function findVar(env, sym) {
+        var ERROR_UNDEFINED_VAR = new Error(s('Undefined variable: ', sym));
+        var ns, v, scope, name = sym.name();
+        // 1) namespace-qualified
+        if (sym.isNamespaceQualified()) {
+            ns = Namespace.findOrDie(sym.namespace());
+            v  = ns.mapping(name);
+            if (!v) throw ERROR_UNDEFINED_VAR;
+            return v;
+        }
+        else {
+            // 2) lookup in lexical environment
+            scope = lookup(env, name);
+            if (scope != null) {
+                return scope.vars[name];
+            }
+            else {
+                // 3) lookup in curret namespace
+                v = CURRENT_NS.get().mapping(name);
+                if (v) return v;
+                else {
+                    // 4) lookup in default namespace
+                    v = ZERA_NS.mapping(name);
+                    if (v) return v;
+                    throw ERROR_UNDEFINED_VAR;
+                }
+            }
         }
     }
 
     function set(env, name, value) {
-        var scope = lookup(env, name);
-        if (scope == null) {
-            throw new Error(s('Undefined variable: "', name, '"'));
-        } else {
-            scope.vars[name] = value;
-            return value;
-        }
+        var v = findVar(env, name);
+        return v.set(value);
     }
 
     // TODO: add let body, etc.
@@ -1341,11 +1418,7 @@ var zera = (function() {
         var args = cdr(form);
         var a = car(args);
         var as = cdr(args);
-        var arr = mapA(function(x) { return evaluate(x, env); }, args);
-        if (isInvocable(fn)) {
-            return fn.apply(null, arr);
-        }
-        var args_ = arrayToCons(arr);
+        var args_ = list.apply(null, mapA(function(x) { return evaluate(x, env); }, args));
         return apply(fn, args_);
     }
 
@@ -1512,9 +1585,6 @@ var zera = (function() {
 
     var top = env();
 
-    var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
-    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*')).setDynamic();
-
     // TODO: add catch / finally
     // TODO: add deftype / defprotocol
     function evaluate(form_, env_) {
@@ -1529,10 +1599,11 @@ var zera = (function() {
             } else if (isAtom(form) || isJSFn(form) || isMap(form)) {
                 ret = form;
             } else if (isSymbol(form)) {
-                ret = findVar(env, form);
+                ret = findVar(env, form).get();
                 //if (form === 'i') pt('evalVar i', ret);
             } else if (isCons(form)) {
-                var tag = car(form);
+                if (form.isEmpty()) return form;
+                var tag = s(car(form));
                 switch (tag) {
                     case 'quote':
                         ret = evalQuote(form);
@@ -1649,7 +1720,7 @@ var zera = (function() {
                 return Sym.intern(exp);
             }
         } else if (isArray(exp)) {
-            if (exp.length === 0) return null;
+            if (exp.length === 0) return Cons.empty();
             if (exp.length === 1) return cons(readJS(exp[0]), Cons.empty());
             var xs = null;
             var last = null, x;
@@ -1697,7 +1768,11 @@ var zera = (function() {
 
     // primitive functions
     define(ZERA_NS, "var", var_);
-    define(ZERA_NS, "namespace", namespace);
+    define(ZERA_NS, "var?", isVar);
+    define(ZERA_NS, "var-get", varGet);
+    define(ZERA_NS, "var-set", varSet);
+    define(ZERA_NS, "the-ns", theNS);
+    define(ZERA_NS, "ns-name", nsName);
     define(ZERA_NS, "namespace?", isNamespace);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "apply", apply);
@@ -1738,6 +1813,8 @@ var zera = (function() {
     define(ZERA_NS, "string?", isString);
     define(ZERA_NS, "symbol?", isSymbol);
     define(ZERA_NS, "symbol", symbol);
+    define(ZERA_NS, "name", name);
+    define(ZERA_NS, "namespace", namespace);
     define(ZERA_NS, "number?", isNumber);
     define(ZERA_NS, "even?", isEven);
     define(ZERA_NS, "odd?", isOdd);
