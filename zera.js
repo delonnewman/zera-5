@@ -10,12 +10,44 @@ var zera = (function() {
 
     // TODO: add sets, and vectors
 
+    function IMeta(){}
+    IMeta.prototype.meta = function() {
+        throw new Error('unimplemented');
+    };
+
+    function IObj(){}
+    IObj.prototype = Object.create(IMeta.prototype);
+    IObj.prototype.withMeta = function(meta) {
+        throw new Error('unimplemented');
+    };
+
+    function AReference(meta) {
+        this.$zera$meta = meta;
+    }
+
+    AReference.prototype = Object.create(IMeta.prototype);
+
+    AReference.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
+    AReference.prototype.alterMeta = function(f, args) {
+        this.$zera$meta = apply(f, cons(this.$zera$meta, args));
+        return this.$zera$meta;
+    };
+
+    AReference.prototype.resetMeta = function(m) {
+        this.$zera$meta = m;
+        return m;
+    };
+
     function Named(){}
+    Named.prototype = Object.create(IObj.prototype);
 
     function Sym(ns, name, meta) {
         this.$zera$ns = ns;
         this.$zera$name = name;
-        this.$zera$meta = meta;
+        this.$zera$meta = meta || arrayMap();
     }
 
     Sym.prototype = Object.create(Named.prototype);
@@ -49,9 +81,14 @@ var zera = (function() {
         return !!this.$zera$ns;
     };
 
-    // IMeta
+    // IObj
     Sym.prototype.withMeta = function(meta) {
         return new Sym(this.$zera$ns, this.$zera$name, meta);
+    };
+
+    // IObj, IMeta
+    Sym.prototype.meta = function() {
+        return this.$zera$meta;
     };
 
     // Invokable
@@ -542,6 +579,28 @@ var zera = (function() {
         return a;
     }
 
+    function alength(a) {
+        return a.length;
+    }
+
+    function intArray(x) {
+        if (isNumber(x)) {
+            return new Int32Array(x);
+        }
+        else if (isSeq(x)) {
+            return new Int32Array(consToArray(x));
+        }
+    }
+
+    function floatArray(x) {
+        if (isNumber(x)) {
+            return new Float32Array(x);
+        }
+        else if (isSeq(x)) {
+            return new Float32Array(consToArray(x));
+        }
+    }
+
     // Map Interface
     
     function MapEntry(key, val) {
@@ -927,8 +986,6 @@ var zera = (function() {
             return x ? "true" : "false";
         } else if (isString(x)) {
             return s('"', x, '"');
-        } else if (isSymbol(x)) {
-            return x.toString();
         } else if (isEnv(x)) {
             return 'env';
         } else if (isCons(x)) {
@@ -940,7 +997,7 @@ var zera = (function() {
                 var y = car(x);
                 var ys = cdr(x);
                 var buffer = [];
-                while (y != null) {
+                while (y != null) { // FIXME: should be able to tolerate nil (i.e. null) values
                     buffer.push(prnStr(y));
                     y = car(ys);
                     ys = cdr(ys);
@@ -1986,6 +2043,9 @@ var zera = (function() {
     define(ZERA_NS, 'afilter', afilter);
     define(ZERA_NS, 'aset', aset);
     define(ZERA_NS, 'aget', aget);
+    define(ZERA_NS, 'alength', alength);
+    define(ZERA_NS, 'int-array', intArray);
+    define(ZERA_NS, 'float-array', floatArray);
     define(ZERA_NS, "array", function() {
         return Array.prototype.slice.call(arguments);
     });
@@ -2410,7 +2470,27 @@ var zera = (function() {
         prnStr: prnStr,
         ok: ok,
         is: is,
-        equals: equals
+        equals: equals,
+        Keyword: Keyword,
+        Symbol: Sym,
+        Cons: Cons,
+        Seq: Seq,
+        List: List,
+        LazyList: LazyList,
+        ArrayMap: ArrayMap,
+        Map: AMap,
+        MapEntry: MapEntry,
+        Namespace: Namespace,
+        Var: Var,
+        list: list,
+        arrayMap: arrayMap,
+        isSymbol: isSymbol,
+        isString: isString,
+        isKeyword: isKeyword,
+        isMap: isMap,
+        isSeq: isSeq,
+        IMeta: IMeta,
+        AReference: AReference
     };
 
     if (isNode) {
