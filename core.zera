@@ -1,0 +1,4 @@
+; vim: ft=clojure
+(set! *ns* (the-ns 'zera.core))
+
+(.log js/console "test")
