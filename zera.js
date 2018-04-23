@@ -10,7 +10,7 @@ var zera = (function() {
 
     // TODO: add sets, and vectors
 
-    function IMeta(){}
+    function IMeta() {}
     IMeta.prototype.meta = function() {
         throw new Error('unimplemented');
     };
@@ -42,7 +42,7 @@ var zera = (function() {
     }
 
     function AReference(meta) {
-        this.$zera$meta = meta;
+        this.$zera$meta = meta || arrayMap();
     }
 
     AReference.prototype = Object.create(IMeta.prototype);
@@ -1847,7 +1847,8 @@ var zera = (function() {
 
     var top = env();
 
-    // TODO: add catch / finally
+    // TODO: add try, catch, finally
+    // TODO: add let, and do
     // TODO: add deftype / defprotocol
     function evaluate(form_, env_) {
         var env = env_ || top;
@@ -2020,6 +2021,7 @@ var zera = (function() {
     define(ZERA_NS, "find-ns", findNS);
     define(ZERA_NS, "ns-map", nsMap);
     define(ZERA_NS, "namespace?", isNamespace);
+    define(ZERA_NS, "meta", meta);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "apply", apply);
     define(ZERA_NS, "macroexpand", macroexpand);
