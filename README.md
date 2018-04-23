@@ -1,12 +1,12 @@
 NAME
 ====
 
-zera
+Zera
 
 DESCRIPTION
 ===========
 
-A light-weight Clojure implementation in JavaScript
+A light-weight Clojure implementation
 
 AUTHOR
 ======
