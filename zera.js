@@ -15,11 +15,31 @@ var zera = (function() {
         throw new Error('unimplemented');
     };
 
+    function meta(x) {
+        if (x == null) return null;
+        else if (isJSFn(x.meta)) {
+            return x.meta();
+        }
+        else {
+            throw new Error("Don't now how to get metadata from: " + x);
+        }
+    }
+
     function IObj(){}
     IObj.prototype = Object.create(IMeta.prototype);
     IObj.prototype.withMeta = function(meta) {
         throw new Error('unimplemented');
     };
+
+    function withMeta(x, meta) {
+        if (x == null) return null;
+        else if (isJSFn(x.withMeta)) {
+            return x.withMetaeta(meta);
+        }
+        else {
+            throw new Error("Don't now how to add metadata to: " + x);
+        }
+    }
 
     function AReference(meta) {
         this.$zera$meta = meta;
@@ -40,6 +60,13 @@ var zera = (function() {
         this.$zera$meta = m;
         return m;
     };
+
+    // TODO: complete ARef implementation
+    function ARef(meta) {
+        AReference.call(this);
+    }
+
+    ARef.prototype = Object.create(AReference.prototype);
 
     function Named(){}
     Named.prototype = Object.create(IObj.prototype);
@@ -138,7 +165,8 @@ var zera = (function() {
         'throw': true,
         'new': true,
         '.': true,
-        'defmacro': true
+        'defmacro': true,
+        'var': true
     };
 
     function symbol() {
@@ -1118,13 +1146,15 @@ var zera = (function() {
     }
 
     // TODO: complete Var implementation
-    function Var(namespace, name, meta) {
+    function Var(namespace, name) {
         this.$zera$ns         = namespace;
         this.$zera$name       = name;
-        this.$zera$meta       = meta;
         this.$zera$isDyanamic = false;
         this.$zera$isMacro    = false;
+        ARef.call(this);
     }
+
+    Var.prototype = Object.create(ARef.prototype);
 
     Var.intern = function(ns, sym, init) {
         var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
@@ -1169,10 +1199,6 @@ var zera = (function() {
     Var.prototype.toString = function() {
         return s("#'", this.$zera$ns.name(), '/', this.$zera$name);
     };
-
-    function var_(ns, name, init) {
-        return Var.intern(Namespace.findOrCreate(ns), name, init);
-    }
 
     function define(ns, name, init) {
         return Var.intern(ns, Sym.intern(name), init);
@@ -1375,13 +1401,17 @@ var zera = (function() {
             else {
                 // 3) lookup in curret namespace
                 v = CURRENT_NS.get().mapping(name);
-                if (v.isMacro()) throw MACRO_ERROR;
-                if (v) return v.get();
+                if (v) {
+                    if (v.isMacro()) throw MACRO_ERROR;
+                    return v.get();
+                }
                 else {
                     // 4) lookup in default namespace
                     v = ZERA_NS.mapping(name);
-                    if (v.isMacro()) throw MACRO_ERROR;
-                    if (v) return v.get();
+                    if (v) {
+                        if (v.isMacro()) throw MACRO_ERROR;
+                        return v.get();
+                    }
                     throw ERROR_UNDEFINED_VAR;
                 }
             }
@@ -1411,8 +1441,8 @@ var zera = (function() {
         var name = car(rest);
         var value = car(cdr(rest));
         var ns = CURRENT_NS.get();
-        var v = Var.intern(ns, name);
-        v.set(evaluate(value, env));
+        var v = Var.intern(ns, name, evaluate(value, env));
+        if (name.meta()) v.resetMeta(name.meta());
         return v;
     }
 
@@ -1809,6 +1839,12 @@ var zera = (function() {
         throw exp;
     }
 
+    function evalVar(form, env) {
+        var exp = car(cdr(form));
+        if (!isSymbol(exp)) throw new Error('Var name should be a Symbol, got: ' + prnStr(exp));
+        return Var.intern(Sym.intern(exp.namespace()), Sym.intern(exp.name()));
+    }
+
     var top = env();
 
     // TODO: add catch / finally
@@ -1835,6 +1871,9 @@ var zera = (function() {
                         break;
                     case 'def':
                         ret = evalDefinition(form, env);
+                        break;
+                    case 'var':
+                        ret = evalVar(form, env);
                         break;
                     case 'set!':
                         ret = evalAssignment(form, env);
@@ -1972,7 +2011,6 @@ var zera = (function() {
     }
 
     // primitive functions
-    define(ZERA_NS, "var", var_);
     define(ZERA_NS, "var?", isVar);
     define(ZERA_NS, "var-get", varGet);
     define(ZERA_NS, "var-set", varSet);
@@ -2444,6 +2482,404 @@ var zera = (function() {
         ].forEach(symbolImporter(NODE_NS));
     }
 
+    //
+    // Reader
+    // 
+
+    function PushBackReader(str) {
+        this.limit  = str.length - 1;
+        this.stream = str.split('');
+        this.position = 0;
+        this._line = 1;
+        this._column = 1;
+    }
+
+    PushBackReader.prototype.line = function() {
+        return this._line;
+    };
+
+    PushBackReader.prototype.column = function() {
+        return this._column;
+    };
+
+    PushBackReader.prototype.read = function() {
+        if (this.position > this.limit) return null;
+        var ch = this.stream[this.position];
+        this.position++;
+        if (ch === '\n') {
+            this._column = 1;
+            this._line++;
+        }
+        else {
+            this._column++;
+        }
+        return ch;
+    };
+
+    PushBackReader.prototype.skip = function(n) {
+        this.position += n;
+    };
+
+    PushBackReader.prototype.reset = function() {
+        this.position = 0;
+    };
+
+    PushBackReader.prototype.unread = function(ch) {
+        this.position -= 1;
+        this.stream[this.position] = ch;
+    };
+
+    function stringReader(r, doublequote, opts) {
+        var buff = [];
+    
+        var ch;
+        for (ch = r.read(); ch !== '"'; ch = r.read()) {
+            if (ch === null) throw new Error('EOF while reading string');
+            if (ch === '\\') { // escape
+                ch = r.read();
+                if (ch === null) throw new Error('EOF while reading string');
+                switch (ch) {
+                    case 't':
+                        ch = '\t';
+                        break;
+                    case 'r':
+                        ch = '\r';
+                        break;
+                    case 'n':
+                        ch = '\n';
+                        break;
+                    case '\\':
+                        break;
+                    case '"':
+                        break;
+                    case 'b':
+                        ch = '\b';
+                        break;
+                    case 'f':
+                        ch = '\f';
+                        break;
+                    case 'u':
+                        // TODO: add Unicode support
+                        throw new Error("Don't know how to read unicode yet");
+                    default:
+                        // TODO: complete this
+                        throw new Error("Unsupported escape character: " + ch);
+                }
+            }
+            buff.push(ch);
+        }
+        return buff.join('');
+    }
+
+    function commentReader(r, semicolon, opts) {
+        var ch;
+        do {
+            ch = r.read();
+        } while (ch !== null && ch !== '\n' && ch !== '\r');
+        return r;
+    }
+
+    function readDelimitedList(delim, r, isRecursive, opts) {
+        var firstline = r.line();
+        var a = [];
+
+        while (true) {
+            var ch = r.read();
+            while (isWhitespace(ch)) ch = r.read();
+            
+            if (ch === null) {
+                throw new Error('EOF while reading, starting at line: ' + firstline);
+            }
+
+            if (ch === delim) break;
+
+            var macrofn = getMacro(ch);
+            if (macrofn !== null) {
+                var ret = macrofn.call(null, r, ch, opts);
+                // no op macros return the reader
+                if (ret !== r) a.push(ret);
+            }
+            else {
+                r.unread(ch);
+                var x = read(r, true, null, isRecursive, opts);
+                if (x !== r) a.push(x);
+            }
+        }
+
+        return a;
+    }
+
+    function listReader(r, openparen, opts) {
+        var a = readDelimitedList(')', r, true, opts);
+        return list.apply(null, a);
+    }
+
+    function unmatchedDelimiterReader(r, delim, opts) {
+        throw new Error('Unmatched delimiter: ' + delim);
+    }
+
+    function vectorReader(r, openbracket, opts) {
+        return readDelimitedList(']', r, true, opts);
+    }
+
+    function mapReader(r, openbracket, opts) {
+        var a = readDelimitedList('}', r, true, opts);
+        return arrayMap.apply(null, a);
+    }
+
+    function characterReader(r, slash, opts) {
+        var ch = r.read();
+        if (ch === null) throw new Error('EOF while reading character');
+        var token = readToken(r, ch, false);
+        if (token.length === 1) return token;
+        else if (token === 'newline') return '\n';
+        else if (token === 'space') return ' ';
+        else if (token === 'tab') return '\t';
+        else if (token === 'backspace') return '\b';
+        else if (token === 'formfeed') return '\f';
+        else if (token === 'return') return '\r';
+        else if (token.startsWith('u')) {
+            throw new Error("Don't know how to read unicode characters");
+        }
+        else if (token.startsWith('o')) {
+            throw new Error("Don't know how to read octal characters");
+        }
+    }
+
+    var TAG_KEY    = Keyword.intern('tag');
+    var LINE_KEY   = Keyword.intern('line');
+    var COLUMN_KEY = Keyword.intern('colunm');
+
+    function metaReader(r, hat, opts) {
+        var line = r.line();
+        var column = r.column();
+        var meta = read(r, true, null, true, opts);
+        // FIXME: we probably don't have any use for tags
+        if (isSymbol(meta) || isString(meta)) {
+            meta = arrayMap(TAG_KEY, meta);
+        }
+        else if (isKeyword(meta)) {
+            meta = arrayMap(meta, true);
+        }
+        else if (!isMap(meta)) {
+            throw new Error('Metadata must be a Symbol, Keyword, String or Map');
+        }
+        
+        var x = read(r, true, null, true, opts);
+        if (x instanceof IMeta) {
+            if (isSeq(x)) {
+                meta = meta.assoc([LINE_KEY, line, COLUMN_KEY, column]);
+            }
+            if (x instanceof AReference) {
+                x.resetMeta(meta);
+                return x;
+            }
+
+            var xmeta = x.meta();
+            for (var s = meta.entries(); s !== null; s = s.next()) {
+                var kv = s.first();
+                xmeta = xmeta.assoc([kv.key(), kv.val()]);
+            }
+            return x.withMeta(xmeta);
+        }
+        else {
+            throw new Error('Metadata can only be applied to IMetas');
+        }
+    }
+
+    function dispatchReader(r, hash, opts) {
+        var ch = r.read();
+        if (ch === null) throw new Error('EOF while reading character');
+        var fn = DISPATCH_MACROS[ch];
+
+        if (fn == null) {
+            // TODO: implement taggedReader
+            /*if (ch.match(/[A-Za-z]{1,1}/)) {
+                r.unread(ch);
+                return taggedReader.call(null, ch, opts);
+            }*/
+            throw new Error('No dispatch macro for: ' + ch);
+        }
+        return fn.call(null, r, ch, opts);
+    }
+
+    function wrappingReader(sym) {
+        return function(r, quote, opts) {
+            var x = read(r, true, null, true, opts);
+            return list(sym, x);
+        };
+    }
+
+    var THE_VAR = Sym.intern('var');
+
+    function varReader(r, quote, opts) {
+        var x = read(r, true, null, true, opts);
+        return list(THE_VAR, x);
+    }
+
+    var MACROS = {
+        '"': stringReader,
+        ';': commentReader,
+        "'": wrappingReader(Sym.intern('quote')),
+        '@': wrappingReader(Sym.intern('deref')),
+        '^': metaReader,
+        '(': listReader,
+        ')': unmatchedDelimiterReader,
+        '[': vectorReader,
+        ']': unmatchedDelimiterReader,
+        '{': mapReader,
+        '}': unmatchedDelimiterReader,
+        '\\': characterReader,
+        '#': dispatchReader
+    };
+
+    // TODO: implement dispatch macros
+    var DISPATCH_MACROS = {
+        '^': metaReader,
+        "'": varReader
+    };
+
+    function isWhitespace(ch) {
+        if (ch == null) return false;
+        return ch === ',' || ch.match(/^\s$/);
+    }
+
+    function isDigit(ch) {
+        return ch.match(/^\d$/);
+    }
+
+    function isMacro(ch) {
+        return !!MACROS[ch];
+    }
+
+    function isTerminatingMacro(ch) {
+        return (ch !== '#' && ch !== '\'' && isMacro(ch));
+    }
+
+    function getMacro(ch) {
+        var m = MACROS[ch];
+        if (m != null) return m;
+        return null;
+    }
+
+    function readString(str, opts) {
+        var r = new PushBackReader(str);
+        return read(r, opts);
+    }
+
+    function readNumber(r, initch) {
+        var buff = [initch];
+
+        while(true) {
+            var ch = r.read();
+            if (ch === null || isWhitespace(ch) || isMacro(ch)) {
+                r.unread(ch);
+                break;
+            }
+            buff.push(ch);
+        }
+
+        var s = buff.join('');
+        var n = matchNumber(s);
+        if (n === null) throw new Error('Invalid number: ' + s);
+        return n;
+    }
+
+    // TODO: add decimals, _'s, scientific notation, rationals?
+    function matchNumber(s) {
+        var m = s.match(/(\-|\+)?\d+/);
+        if (m !== null) {
+            return 1*s;
+        }
+        return null;
+    }
+
+    function nonConstituent(ch) {
+        return ch === '@' || ch === '`' || ch === '~';
+    }
+
+    function readToken(r, initch, leadConstituent) {
+        if (leadConstituent && nonConstituent(initch)) {
+            throw new Error('Invalid leading character: ' + initch);
+        }
+
+        var buff = [initch];
+        while(true) {
+            var ch = r.read();
+            if (ch === null || isWhitespace(ch) || isTerminatingMacro(ch)) {
+                r.unread(ch);
+                return buff.join('');
+            }
+            else if (nonConstituent(ch)) {
+                throw new Error('Invalid constituent character: ' + ch);
+            }
+            buff.push(ch);
+        }
+    }
+
+    function matchSymbol(s) {
+        if (s.charAt(0) === ':') {
+            return Keyword.intern(Sym.intern(s.substring(1)));
+        }
+        return Sym.intern(s);
+    }
+
+    function interpretToken(s) {
+        if (s === 'nil') {
+            return null;
+        }
+        else if (s === 'true') {
+            return true;
+        }
+        else if (s === 'false') {
+            return false;
+        }
+
+        var ret = matchSymbol(s);
+        if (ret !== null) return ret;
+        throw new Error('Invalid token: ' + s);
+    }
+
+    function read(r, eofIsError, eofValue, isRecursive, opts) {
+        while (true) {
+            var ch = r.read();
+
+            while (isWhitespace(ch)) ch = r.read();
+            if (ch === null) {
+                if (eofIsError) throw new Error('EOF while reading');
+                return eofValue;
+            }
+
+            if (isDigit(ch)) {
+                var n = readNumber(r, ch);
+                return n;
+            }
+
+            var macrofn = getMacro(ch);
+            if (macrofn !== null) {
+                var ret = macrofn.call(null, r, ch, opts);
+                if (ret === r) continue;
+                return ret;
+            }
+
+            if (ch === '+' || ch === '-') {
+                var ch2 = r.read();
+                if (isDigit(ch2)) {
+                    r.unread(ch2);
+                    return readNumber(r, ch);
+                }
+                r.unread(ch2);
+            }
+
+            var token = readToken(r, ch, true);
+            return interpretToken(token);
+        }
+    }
+
+    function evalString(s) {
+        return evaluate(readString(s));
+    }
+
     evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
             ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
@@ -2466,6 +2902,8 @@ var zera = (function() {
         evalJSON: evalJSON,
         readJS: readJS,
         readJSON: readJSON,
+        readString: readString,
+        evalString: evalString,
         prn: prn,
         prnStr: prnStr,
         ok: ok,
@@ -2505,7 +2943,7 @@ var zera = (function() {
         };
 
         api.evalFile = function(file) {
-            return evalString(fs.readFileSync(file).toString());
+            return evaluate(readString(fs.readFileSync(file).toString()));
         };
 
         module.exports = api;
