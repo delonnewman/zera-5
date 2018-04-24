@@ -668,17 +668,25 @@ var zera = (function() {
     function AMap(){}
     AMap.prototype = Object.create(Seq.prototype);
 
-    function ArrayMap(array) {
+    function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
-        this.$zera$valCache = {};
+        this.$zera$meta = meta;
     }
 
     ArrayMap.prototype = Object.create(AMap.prototype);
 
-    ArrayMap.EMPTY = new ArrayMap([]);
+    ArrayMap.EMPTY = new ArrayMap(null, []);
 
     ArrayMap.prototype.count = function() {
         return this.$zera$array.length / 2;
+    };
+
+    ArrayMap.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
+    ArrayMap.prototype.withMeta = function(meta) {
+        return new ArrayMap(meta, this.$zera$array);
     };
 
     ArrayMap.prototype.toString = function() {
@@ -742,14 +750,10 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.find = function(key) {
-        /*if (this.$zera$valCache[key] != null) {
-            return this.$zera$valCache[key];
-        }*/
         var val, i, entries = this.$zera$array;
         for (i = 0; i < entries.length; i += 2) {
             if (equals(entries[i], key)) {
                 val = entries[i + 1];
-                //this.$zera$valCache[key] = val;
                 return val;
             }
         }
@@ -767,10 +771,26 @@ var zera = (function() {
             entries.push(pairs[i]);
             entries.push(pairs[i + 1]);
         }
-        return new ArrayMap(entries);
+        return new ArrayMap(null, entries);
     };
 
-    ArrayMap.prototype.dissoc = function() {
+    ArrayMap.prototype.dissoc = function(key) {
+        var i, newArray = [], array = this.$zera$array;
+        for (i = 0; i < array.length; i += 2) {
+            if (!equals(array[i], key)) {
+                newArray.push(array[i]);
+                newArray.push(array[i + 1]);
+            }
+        }
+        return new ArrayMap(this.meta(), newArray);
+    };
+
+    ArrayMap.prototype.containsKey = function(key) {
+        var i, array = this.$zera$array;
+        for (i = 0; i < array.length; i += 2) {
+            if (equals(array[i], key)) return true;
+        }
+        return false;
     };
 
     function isMap(x) {
@@ -782,7 +802,7 @@ var zera = (function() {
     }
 
     function arrayMap() {
-        return new ArrayMap(Array.prototype.slice.call(arguments));
+        return new ArrayMap(null, Array.prototype.slice.call(arguments));
     }
 
     function entries(m) {
@@ -859,6 +879,120 @@ var zera = (function() {
         }
         else {
             throw new Error(s("Don't know how to get val from: ", prnStr(m)));
+        }
+    }
+
+    // Set
+
+    function ZSet(){}
+    ZSet.prototype = Object.create(IObj.prototype); 
+
+    function APersistentSet(map) {
+        this.$zera$rep = map || arrayMap();
+    }
+
+    APersistentSet.prototype = Object.create(ZSet.prototype);
+
+    APersistentSet.prototype.toString = function() {
+        return s('#{', this.toArray().join(''), '}');
+    };
+
+    APersistentSet.prototype.toArray = function() {
+        return consToArray(this.seq());
+    };
+
+    APersistentSet.prototype.get = function(key) {
+        return this.$zera$rep.get(key);
+    };
+
+    APersistentSet.prototype.count = function() {
+        return this.$zera$rep.count();
+    };
+
+    APersistentSet.prototype.seq = function() {
+        return this.$zera$rep.keys();
+    };
+
+    APersistentSet.prototype.apply = function(x, args) {
+        return this.get(args[0]);
+    };
+
+    APersistentSet.prototype.equals = function(o) {
+        return o instanceof ZSet && this.$zera$rep.equals(o.$zera$rep);
+    };
+
+    APersistentSet.prototype.contains = function(val) {
+        return this.$zera$rep.containsKey(val);
+    };
+
+    APersistentSet.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
+    APersistentSet.prototype.first = function() {
+        return this.seq().first();
+    };
+
+    APersistentSet.prototype.rest = function() {
+        return this.seq().rest();
+    };
+
+    APersistentSet.prototype.next = function() {
+        return this.seq().next();
+    };
+
+    function HashSet(meta, map) {
+        this.$zera$meta = meta;
+        APersistentSet.call(this, map);
+    }
+
+    HashSet.createFromArray = function(a) {
+        var i, entries = [];
+        for (i = 0; i < a.length; i++) {
+            entries.push(a);
+            entries.push(a);
+        }
+        return new HashSet(null, new ArrayMap(null, entries));
+    };
+
+    HashSet.prototype = Object.create(APersistentSet.prototype);
+
+    HashSet.EMPTY = new HashSet(null, ArrayMap.EMPTY);
+
+    HashSet.prototype.withMeta = function(meta) {
+        return new HashSet(this.meta(), this.$zera$rep);
+    };
+
+    HashSet.prototype.disjoin = function(key) {
+        if (this.contains(key)) {
+            return new HashSet(this.meta(), this.$zera$rep.dissoc(key));
+        }
+        return this;
+    };
+
+    HashSet.prototype.cons = function(x) {
+        if (this.contains(x)) return this;
+        return new HashSet(this.meta(), this.$zera$rep.assoc(x));
+    };
+
+    function isSet(x) {
+        return x instanceof ZSet;
+    }
+
+    function createSet(seq) {
+        if (isArrayLike(seq)) {
+            return HashSet.createFromArray(seq);
+        }
+        else {
+            var x = seq.first();
+            var xs = seq.rest();
+            var a = [];
+            while (xs.next()) {
+                a.push(x);
+                xs = xs.rest();
+                x = xs.first();
+            }
+            return HashSet.createFromArray(a);
         }
     }
 
@@ -1508,7 +1642,7 @@ var zera = (function() {
             entries.push(Sym.intern(keys[i]));
             entries.push(obj[keys[i]]);
         }
-        return new ArrayMap(entries);
+        return new ArrayMap(null, entries);
     }
 
     function evalConditional(form, env) {
@@ -1845,6 +1979,10 @@ var zera = (function() {
         return Var.intern(Sym.intern(exp.namespace()), Sym.intern(exp.name()));
     }
 
+    function isSelfEvaluating(form) {
+        return isAtom(form) || isJSFn(form) || isMap(form) || isSet(form);
+    }
+
     var top = env();
 
     // TODO: add try, catch, finally
@@ -1859,7 +1997,7 @@ var zera = (function() {
             recur = false;
             if (form == null || NIL_SYM.equals(form)) {
                 ret = null;
-            } else if (isAtom(form) || isJSFn(form) || isMap(form)) {
+            } else if (isSelfEvaluating(form)) {
                 ret = form;
             } else if (isSymbol(form)) {
                 ret = evalSymbol(form, env);
@@ -1993,7 +2131,7 @@ var zera = (function() {
                 entries.push(Sym.intern(keys[i]));
                 entries.push(readJS(exp[keys[i]]));
             }
-            return new ArrayMap(entries);
+            return new ArrayMap(null, entries);
         } else {
             return exp;
         }
@@ -2038,6 +2176,8 @@ var zera = (function() {
     define(ZERA_NS, "vals", vals);
     define(ZERA_NS, "key", key);
     define(ZERA_NS, "val", val);
+    define(ZERA_NS, "set", createSet);
+    define(ZERA_NS, "set?", isSet);
     define(ZERA_NS, "list?", isList);
     define(ZERA_NS, "seq?", isSeq);
     define(ZERA_NS, "seqable?", isSeqable);
@@ -2655,7 +2795,7 @@ var zera = (function() {
     function metaReader(r, hat, opts) {
         var line = r.line();
         var column = r.column();
-        var meta = read(r, true, null, true, opts);
+        var meta = _read(r, true, null, true, opts);
         // FIXME: we probably don't have any use for tags
         if (isSymbol(meta) || isString(meta)) {
             meta = arrayMap(TAG_KEY, meta);
@@ -2667,7 +2807,7 @@ var zera = (function() {
             throw new Error('Metadata must be a Symbol, Keyword, String or Map');
         }
         
-        var x = read(r, true, null, true, opts);
+        var x = _read(r, true, null, true, opts);
         if (x instanceof IMeta) {
             if (isSeq(x)) {
                 meta = meta.assoc([LINE_KEY, line, COLUMN_KEY, column]);
@@ -2707,7 +2847,7 @@ var zera = (function() {
 
     function wrappingReader(sym) {
         return function(r, quote, opts) {
-            var x = read(r, true, null, true, opts);
+            var x = _read(r, true, null, true, opts);
             return list(sym, x);
         };
     }
@@ -2715,8 +2855,12 @@ var zera = (function() {
     var THE_VAR = Sym.intern('var');
 
     function varReader(r, quote, opts) {
-        var x = read(r, true, null, true, opts);
+        var x = _read(r, true, null, true, opts);
         return list(THE_VAR, x);
+    }
+
+    function setReader(r, leftbracket, opts) {
+        return HashSet.createFromArray(readDelimitedList('}', r, true, opts));
     }
 
     var MACROS = {
@@ -2738,7 +2882,8 @@ var zera = (function() {
     // TODO: implement dispatch macros
     var DISPATCH_MACROS = {
         '^': metaReader,
-        "'": varReader
+        "'": varReader,
+        '{': setReader
     };
 
     function isWhitespace(ch) {
@@ -2842,7 +2987,17 @@ var zera = (function() {
         throw new Error('Invalid token: ' + s);
     }
 
-    function read(r, eofIsError, eofValue, isRecursive, opts) {
+    function read(r, opts) {
+        var eofIsError = true;
+        var eofValue = null;
+        if (opts != null) {
+            eofIsError = opts.eofIsError;
+            eofValue = opts.eofValue;
+        }
+        return _read(r, eofIsError, eofValue, false, opts);
+    }
+
+    function _read(r, eofIsError, eofValue, isRecursive, opts) {
         while (true) {
             var ch = r.read();
 
