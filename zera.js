@@ -248,13 +248,22 @@ var zera = (function() {
 
     function Seq(){}
 
+    function seq(x) {
+        if (x == null) return Cons.EMPTY;
+        else if (isSeq(x)) return x;
+        else if (isSeqable(x)) return x.seq();
+        else {
+            throw new Error('Not a valid Seq or Seqable');
+        }
+    }
+
     function isSeq(x) {
-        return x instanceof Seq;
+        return x instanceof Seq || isArrayLike(x);
     }
 
     function isSeqable(x) {
-        if (x == null) return false;
-        return isJSFn(x.seq) || isArrayLike(x);
+        if (x == null) return true;
+        return isJSFn(x.seq);
     }
 
     function List(){}
@@ -387,15 +396,15 @@ var zera = (function() {
         return xs;
     }
 
-    function LazyList(seq, fn) {
+    function LazySeq(seq, fn) {
         this.fn = fn == null ? null : fn;
         this._seq = seq == null ? null : seq;
         this._sv = null;
     }
 
-    LazyList.prototype = Object.create(List.prototype);
+    LazySeq.prototype = Object.create(Seq.prototype);
 
-    LazyList.prototype.sval = function() {
+    LazySeq.prototype.sval = function() {
         if (this.fn != null) {
             this._sv = this.fn.call();
             this.fn = null;
@@ -406,12 +415,12 @@ var zera = (function() {
         return this._seq;
     };
 
-    LazyList.prototype.seq = function() {
+    LazySeq.prototype.seq = function() {
         this.sval();
         if (this._sv != null) {
             var ls = this._sv;
             this._sv = null;
-            while (ls instanceof LazyList) {
+            while (ls instanceof LazySeq) {
                 ls = ls.sval();
             }
             this._seq = ls;
@@ -419,7 +428,7 @@ var zera = (function() {
         return this._seq;
     };
 
-    LazyList.prototype.count = function() {
+    LazySeq.prototype.count = function() {
         var c = 0, s;
         for (s = this; s != null; s = s.next()) {
             c++;
@@ -427,11 +436,11 @@ var zera = (function() {
         return c;
     };
 
-    LazyList.prototype.cons = function(x) {
+    LazySeq.prototype.cons = function(x) {
         return cons(x, this.seq());
     };
 
-    LazyList.prototype.first = function() {
+    LazySeq.prototype.first = function() {
         this.seq();
         if (this._seq == null) {
             return null;
@@ -439,7 +448,7 @@ var zera = (function() {
         return this._seq.first();
     };
 
-    LazyList.prototype.next = function() {
+    LazySeq.prototype.next = function() {
         this.seq();
         if (this._seq == null) {
             return null;
@@ -447,13 +456,13 @@ var zera = (function() {
         return this._seq.next();
     };
 
-    LazyList.prototype.rest = function() {
+    LazySeq.prototype.rest = function() {
         var val = this.next();
         if (val == null) return Cons.EMPTY;
         else             return val;
     };
 
-    LazyList.prototype.toString = function() {
+    LazySeq.prototype.toString = function() {
         var buff = [];
         var seq = this, x;
         while (seq.next()) {
@@ -464,19 +473,19 @@ var zera = (function() {
         return '(' + buff.join(' ') + ')'; 
     };
 
-    function lazyList(fn) {
-        return new LazyList(null, fn);
+    function lazySeq(fn) {
+        return new LazySeq(null, fn);
     }
 
-    function isLazyList(x) {
-        return x instanceof LazyList;
+    function isLazySeq(x) {
+        return x instanceof LazySeq;
     }
 
     function take(n, xs) {
         if (arguments.length !== 2) {
             throw new Error(str('Wrong number of arguments expected: 2, got: ', arguments.length));
         }
-        return lazyList(function() {
+        return lazySeq(function() {
             if (n > 0) {
                 return cons(first(xs), take(n - 1, rest(xs)));
             } else {
@@ -505,7 +514,7 @@ var zera = (function() {
         else {
             throw new Error(s('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
-        return lazyList(function() {
+        return lazySeq(function() {
             if (start === stop) {
                 return null;
             }
@@ -655,6 +664,10 @@ var zera = (function() {
         return s('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
     };
 
+    function isMapEntry(x) {
+        return x instanceof MapEntry;
+    }
+
     function mapEntry(x) {
         if (isMapEntry(x)) return x;
         else if (isArray(x) && x.length == 2) {
@@ -676,6 +689,24 @@ var zera = (function() {
     ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap(null, []);
+
+    ArrayMap.createFromEntries = function(entries) {
+        var i, e, a = [];
+        for (i = 0; i < entries.length; i++) {
+            e = entries[i];
+            if (isMapEntry(e)) {
+                a.push(e.key()); a.push(e.val());
+            }
+            else if (isArray(e) && e.length === 2) {
+                a.push(e[i]); a.push(e[i + 1]);
+            }
+            else {
+                throw new Error('Invalid map entry');
+            }
+        }
+
+        return new ArrayMap(null, a);
+    };
 
     ArrayMap.prototype.count = function() {
         return this.$zera$array.length / 2;
@@ -713,10 +744,15 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.conj = function(entries) {
-        var i, x, m = this;
+        var i, x, array = this.$zera$array, a = [];
+        for (i = 0; i < array.length; i++) {
+            a.push(array[i]);
+        }
         for (i = 0; i < entries.length; i++) {
             x = mapEntry(entries[i]);
+            a.push(x.key()); a.push(x.val());
         }
+        return new ArrayMap(this.meta(), a);
     };
 
     ArrayMap.prototype.entries = function() {
@@ -794,7 +830,7 @@ var zera = (function() {
     };
 
     function isMap(x) {
-        return x instanceof AMap;
+        return x instanceof AMap || Object.prototype.toString.call(x) === '[object Map]'; 
     }
 
     function isArrayMap(x) {
@@ -842,7 +878,17 @@ var zera = (function() {
             return m.assoc(pairs);
         }
         else {
-            throw new Error(s("Don't know how to get from: ", prnStr(m)));
+            throw new Error(s("Don't know how to assoc: ", prnStr(m)));
+        }
+    }
+
+    // TODO: add variable number of keys
+    function dissoc(m, k) {
+        if (isJSFn(m.dissoc)) {
+            return m.dissoc(k);
+        }
+        else {
+            throw new Error(s("Don't know how to dissoc: ", prnStr(m)));
         }
     }
 
@@ -882,6 +928,16 @@ var zera = (function() {
         }
     }
 
+    function containsKey(m, k) {
+        if (isMap(m)) {
+            if (m.containsKey) return m.containsKey(k);
+            return m.has(k);
+        }
+        else {
+            throw new Error(s("Not a valid map"));
+        }
+    }
+
     // Set
 
     function ZSet(){}
@@ -894,7 +950,7 @@ var zera = (function() {
     APersistentSet.prototype = Object.create(ZSet.prototype);
 
     APersistentSet.prototype.toString = function() {
-        return s('#{', this.toArray().join(''), '}');
+        return s('#{', this.toArray().join(' '), '}');
     };
 
     APersistentSet.prototype.toArray = function() {
@@ -902,7 +958,7 @@ var zera = (function() {
     };
 
     APersistentSet.prototype.get = function(key) {
-        return this.$zera$rep.get(key);
+        return this.$zera$rep.find(key);
     };
 
     APersistentSet.prototype.count = function() {
@@ -941,6 +997,14 @@ var zera = (function() {
         return this.seq().next();
     };
 
+    APersistentSet.prototype.conj = function(vals) {
+        var i, a = [];
+        for (i = 0; i < vals.length; i++) {
+            a.push([vals[i], vals[i]]);
+        }
+        return new HashSet(this.meta(), this.$zera$rep.conj(a));
+    };
+
     function HashSet(meta, map) {
         this.$zera$meta = meta;
         APersistentSet.call(this, map);
@@ -949,8 +1013,8 @@ var zera = (function() {
     HashSet.createFromArray = function(a) {
         var i, entries = [];
         for (i = 0; i < a.length; i++) {
-            entries.push(a);
-            entries.push(a);
+            entries.push(a[i]);
+            entries.push(a[i]);
         }
         return new HashSet(null, new ArrayMap(null, entries));
     };
@@ -975,11 +1039,22 @@ var zera = (function() {
         return new HashSet(this.meta(), this.$zera$rep.assoc(x));
     };
 
+    function contains(s, v) {
+        if (isSet(s)) {
+            if (s.contains) return s.contains(v);
+            return s.has(v);
+        }
+        else {
+            throw new Error('Not a valid set');
+        }
+    }
+
     function isSet(x) {
-        return x instanceof ZSet;
+        return x instanceof ZSet; // || Object.prototype.toString.call('[object Set]');
     }
 
     function createSet(seq) {
+        if (seq == null) return HashSet.EMPTY;
         if (isArrayLike(seq)) {
             return HashSet.createFromArray(seq);
         }
@@ -1107,7 +1182,7 @@ var zera = (function() {
             };
         }
         else if (arguments.length === 2) {
-            return lazyList(function() {
+            return lazySeq(function() {
                 var xs_ = next(xs);
                 if (xs_ === null) {
                     return null;
@@ -1120,7 +1195,7 @@ var zera = (function() {
         }
     }
 
-    // TODO: use LazyList
+    // TODO: use LazySeq
     function filter(f, xs) {
         if (arguments.length === 1) {
             return function(xs) {
@@ -1753,6 +1828,7 @@ var zera = (function() {
 
     // add capture variables using pair notation
     function apply(x, args) {
+        if (isArray(x)) return x[car(args)];
         if (isInvocable(x)) {
             return x.apply(null, consToArray(args));
         }
@@ -1980,7 +2056,7 @@ var zera = (function() {
     }
 
     function isSelfEvaluating(form) {
-        return isAtom(form) || isJSFn(form) || isMap(form) || isSet(form);
+        return isAtom(form) || isJSFn(form) || isMap(form) || isSet(form) || isArray(form);
     }
 
     var top = env();
@@ -2179,6 +2255,7 @@ var zera = (function() {
     define(ZERA_NS, "set", createSet);
     define(ZERA_NS, "set?", isSet);
     define(ZERA_NS, "list?", isList);
+    define(ZERA_NS, "seq", seq);
     define(ZERA_NS, "seq?", isSeq);
     define(ZERA_NS, "seqable?", isSeqable);
     define(ZERA_NS, "cons", cons);
@@ -2909,9 +2986,14 @@ var zera = (function() {
         return null;
     }
 
-    function readString(str, opts) {
+    function readString(str) {
         var r = new PushBackReader(str);
-        return read(r, opts);
+        var res, ret;
+        while (true) {
+            res = read(r, {eofIsError: false, eofValue: null});
+            if (res != null) ret = res;
+            if (res == null) return ret;
+        }
     }
 
     function readNumber(r, initch) {
@@ -3034,7 +3116,15 @@ var zera = (function() {
     }
 
     function evalString(s) {
-        return evaluate(readString(s));
+        var r = new PushBackReader(s);
+        var res, ret;
+        while (true) {
+            res = read(r, {eofIsError: false, eofValue: null});
+            if (res != null) {
+                ret = evaluate(res);
+            }
+            if (res == null) return ret;
+        }
     }
 
     evalJS(
@@ -3054,6 +3144,31 @@ var zera = (function() {
     evalJS(['defn', 'constantly', ['x'], ['fn', [], 'x']]);
 
     var api = {
+        lang: {
+            IMeta: IMeta,
+            IObj: IObj,
+            AReference: AReference,
+            ARef: ARef,
+            Named: Named,
+            Symbol: Sym,
+            Keyword: Keyword,
+            Seq: Seq,
+            List: List,
+            Cons: Cons,
+            LazySeq: LazySeq,
+            MapEntry: MapEntry,
+            Map: AMap,
+            ArrayMap: ArrayMap,
+            Set: ZSet,
+            APersistentSet: APersistentSet,
+            HashSet: HashSet,
+            Var: Var,
+            Namespace: Namespace
+        },
+        reader: {
+            PushBackReader: PushBackReader,
+            readString: readString
+        },
         eval: evaluate,
         evalJS: evalJS,
         evalJSON: evalJSON,
@@ -3066,17 +3181,6 @@ var zera = (function() {
         ok: ok,
         is: is,
         equals: equals,
-        Keyword: Keyword,
-        Symbol: Sym,
-        Cons: Cons,
-        Seq: Seq,
-        List: List,
-        LazyList: LazyList,
-        ArrayMap: ArrayMap,
-        Map: AMap,
-        MapEntry: MapEntry,
-        Namespace: Namespace,
-        Var: Var,
         list: list,
         arrayMap: arrayMap,
         isSymbol: isSymbol,
@@ -3084,8 +3188,7 @@ var zera = (function() {
         isKeyword: isKeyword,
         isMap: isMap,
         isSeq: isSeq,
-        IMeta: IMeta,
-        AReference: AReference
+        str: s
     };
 
     if (isNode) {
@@ -3100,7 +3203,7 @@ var zera = (function() {
         };
 
         api.evalFile = function(file) {
-            return evaluate(readString(fs.readFileSync(file).toString()));
+            return evalString(fs.readFileSync(file).toString());
         };
 
         module.exports = api;

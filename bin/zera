@@ -3,12 +3,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const argv = require('yargs').argv;
-const z  = require(__dirname + '/../zera.js');
-//const _  = require(__dirname + '/../dist/util.js');
-
-function currentModuleName() {
-  return z.NS_SCOPE.getName();
-}
+const zera  = require(__dirname + '/../zera.js');
 
 function interactive() {
   const rl = readline.createInterface({
@@ -18,18 +13,6 @@ function interactive() {
     terminal: true
   });
   
-  /*z.globalEnv.define('*dir*', process.cwd());
-  z.globalEnv.define('*file*', null);
-  z.readJS(
-    ['do',
-      ['ns', 'user'],
-      ['say', ['str', '"Zera "', '*version*']],
-      ['say', '*platform-version*'],
-      ['say', ['str', '"Running in "', '*mode*', '" mode"']],
-      ['say', '"   Exit: Control+D or exit"'],
-      ['say', '"   Help: (doc function-name-here"'],
-      ['say', '"         (source function-name-here"']]);*/
-  //rl.setPrompt(_.str(currentModuleName(), "> "));
   rl.setPrompt("> ");
   rl.prompt();
 
@@ -41,8 +24,8 @@ function interactive() {
         process.exit(0);
       }
       else {
-        var res = z.evalString(input);
-        console.log(z.s("=> ", z.prnStr(res)));
+        var res = zera.evalString(input);
+        console.log(zera.str("=> ", zera.prnStr(res)));
         rl.setPrompt("> ");
       }
     }
@@ -63,7 +46,7 @@ if (argv.i || argv.interactive) {
 else if (process.argv.length >= 3) {
   try {
     //z.readJS(['ns', 'user']);
-    z.evalFile([process.cwd(), process.argv[2]].join('/'));
+    zera.evalFile([process.cwd(), process.argv[2]].join('/'));
     process.exitCode = 0;
   }
   catch (e) {
@@ -79,7 +62,7 @@ else {
   }, 500);
   process.stdin.on('data', (chunk) => {
     if (!INTERACTIVE) {
-      z.evalString(chunk.toString('utf8'));
+      zera.evalString(chunk.toString('utf8'));
     }
   });
 }
