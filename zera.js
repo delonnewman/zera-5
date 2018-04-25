@@ -8,8 +8,6 @@ var zera = (function() {
     var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
     var isBrowser = typeof window !== 'undefined';
 
-    // TODO: add sets, and vectors
-
     function IMeta() {}
     IMeta.prototype.meta = function() {
         throw new Error('unimplemented');
@@ -166,7 +164,9 @@ var zera = (function() {
         'new': true,
         '.': true,
         'defmacro': true,
-        'var': true
+        'var': true,
+        'do': true,
+        'let': true
     };
 
     function symbol() {
@@ -997,14 +997,6 @@ var zera = (function() {
         return this.seq().next();
     };
 
-    APersistentSet.prototype.conj = function(vals) {
-        var i, a = [];
-        for (i = 0; i < vals.length; i++) {
-            a.push([vals[i], vals[i]]);
-        }
-        return new HashSet(this.meta(), this.$zera$rep.conj(a));
-    };
-
     function HashSet(meta, map) {
         this.$zera$meta = meta;
         APersistentSet.call(this, map);
@@ -1022,6 +1014,14 @@ var zera = (function() {
     HashSet.prototype = Object.create(APersistentSet.prototype);
 
     HashSet.EMPTY = new HashSet(null, ArrayMap.EMPTY);
+
+    HashSet.prototype.conj = function(vals) {
+        var i, a = [];
+        for (i = 0; i < vals.length; i++) {
+            a.push([vals[i], vals[i]]);
+        }
+        return new HashSet(this.meta(), this.$zera$rep.conj(a));
+    };
 
     HashSet.prototype.withMeta = function(meta) {
         return new HashSet(this.meta(), this.$zera$rep);
@@ -1070,6 +1070,17 @@ var zera = (function() {
             return HashSet.createFromArray(a);
         }
     }
+
+    // Vectors
+    
+    function nth(v, n) {
+        if (isArray(v)) return v[n];
+        else {
+            throw new Error(s("Don't know how to get the nth element from: ", prnStr(v)));
+        }
+    }
+
+    var isVector = isArray;
 
     // Collection interface
     
@@ -1125,7 +1136,7 @@ var zera = (function() {
             return Array.prototype.slice.call(xs, 1);
         }
         else {
-            throw new Error(s("Don't know how to get the rest of the elements of: ", prnStr(xs)));
+            throw new Error(s("Don't know how to get the next element of: ", prnStr(xs)));
         }
     }
 
@@ -1152,11 +1163,7 @@ var zera = (function() {
 
     function reduce(f) {
         var x, init, xs;
-        if (arguments.length === 1) {
-            return function(init, xs) {
-                return reduce(f, init, xs);
-            };
-        } else if (arguments.length === 2) {
+        if (arguments.length === 2) {
             xs   = arguments[1];
             init = first(xs);
             xs   = rest(xs);
@@ -1164,7 +1171,7 @@ var zera = (function() {
             xs   = arguments[1];
             init = arguments[2];
         } else {
-            throw new Error(s('Expected between 1 and 3 arguments, got: ', arguments.length));
+            throw new Error(s('Expected either 2 or 3 arguments, got: ', arguments.length));
         }
         while (!isEmpty(xs)) {
             x    = first(xs);
@@ -1176,22 +1183,16 @@ var zera = (function() {
 
     // TODO: look into transducers
     function map(f, xs) {
-        if (arguments.length === 1) {
-            return function(xs) {
-                return map(f, xs);
-            };
-        }
-        else if (arguments.length === 2) {
+        if (arguments.length === 2) {
             return lazySeq(function() {
-                var xs_ = next(xs);
-                if (xs_ === null) {
+                if (isEmpty(xs)) {
                     return null;
                 }
-                return cons(apply(f, list(first(xs))), map(f, xs_));
+                return cons(apply(f, list(first(xs))), map(f, rest(xs)));
             });
         }
         else {
-            throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
+            throw new Error(s('Expected 2 arguments, got: ', arguments.length));
         }
     }
 
@@ -1534,7 +1535,7 @@ var zera = (function() {
     function lookup(env, name) {
         if (env == null) {
             return null;
-        } else if (env.vars != null && env.vars[name] != null) {
+        } else if (env.vars != null && env.vars[name] !== void(0)) {
             return env;
         } else {
             if (env.parent == null) {
@@ -1542,7 +1543,7 @@ var zera = (function() {
             } else {
                 var scope = env.parent;
                 while (scope != null) {
-                    if (scope.vars != null && scope.vars[name] != null) {
+                    if (scope.vars != null && scope.vars[name] !== void(0)) {
                         return scope;
                     }
                     scope = scope.parent;
@@ -1583,21 +1584,19 @@ var zera = (function() {
 
     }
 
-    // TODO: should lexically scoped values be wrapped in Vars?
     // 1) if namespace-qualified lookup in namespace
     // 2) lookup in lexical scope
     // 3) lookup in current namespace
     // 4) lookup in default namespace
     // (could go back and put default imports in top then they'll always befound lexically unless they've been redefined and should be more performant)
     function evalSymbol(sym, env) {
-        var ERROR_UNDEFINED_VAR = new Error(s('Undefined variable: ', sym));
-        var MACRO_ERROR = new Error(s('Macros cannot be evaluated in this context'))
+        var MACRO_ERROR = new Error(s('Macros cannot be evaluated in this context'));
         var ns, v, scope, name = sym.name();
         // 1) namespace-qualified
         if (sym.isNamespaceQualified()) {
             ns = Namespace.findOrDie(sym.namespace());
             v  = ns.mapping(name);
-            if (!v) throw ERROR_UNDEFINED_VAR;
+            if (!v) throw new Error(s('Undefined variable: ', sym));
             if (v.isMacro()) throw MACRO_ERROR;
             return v.get();
         }
@@ -1621,7 +1620,7 @@ var zera = (function() {
                         if (v.isMacro()) throw MACRO_ERROR;
                         return v.get();
                     }
-                    throw ERROR_UNDEFINED_VAR;
+                    throw new Error(s('Undefined variable: ', sym));
                 }
             }
         }
@@ -1636,13 +1635,31 @@ var zera = (function() {
         return v.set(value);
     }
 
-    // TODO: add let body, etc.
-    function evalLexicalDefinition(form, env) {
+    // TODO: add destructuring
+    function evalLetBlock(form, env) {
         var rest = cdr(form);
-        var name = car(rest);
-        var value = car(cdr(rest));
-        defineLexically(env, name);
-        return defineLexically(env, name, evaluate(value, env));
+        var binds = car(rest);
+        var body = cdr(rest);
+
+        if (!isVector(binds) && count(binds) % 2 === 0) {
+            throw new Error('Bindings should be a vector with an even number of elements');
+        }
+
+        var i;
+        for (i = 0; i < binds.length; i += 2) {
+            defineLexically(env, binds[i]);
+            defineLexically(env, binds[i], evaluate(binds[i + 1], env));
+        }
+        
+        var x = car(body),
+            xs = cdr(body),
+            ret;
+        while (x != null) {
+            ret = evaluate(x, env);
+            x = xs.first();
+            xs = xs.rest();
+        }
+        return ret;
     }
 
     function evalDefinition(form, env) {
@@ -1655,6 +1672,7 @@ var zera = (function() {
         return v;
     }
 
+    // TODO: make sure works with JS interop
     function evalAssignment(form, env) {
         var rest = cdr(form);
         var name = car(rest);
@@ -1762,6 +1780,7 @@ var zera = (function() {
     }
 
     function consToArray(cons) {
+        if (isArray(cons)) return cons;
         var x = car(cons);
         var xs = cdr(cons);
         var a = [];
@@ -1884,15 +1903,15 @@ var zera = (function() {
         return apply(fn, args_);
     }
 
+    // TODO: add destructuring
+    // TODO: add variable validation, capture variable values from environment
+    // TODO: add recur support
+    // TODO: add multibody function support
     function evalFunction(form, env_) {
-        //prn(form);
         var rest = cdr(form),
             names = car(rest),
             body = cdr(rest);
-        //p(names);
-        if (!isCons(names)) throw new Error('function arguments should be a list');
-        // TODO: add variable validation, capture variable values from environment
-        // TODO: add recur support
+        if (!isVector(names)) throw new Error(s('function arguments should be a vector, got: ', prnStr(form)));
         return cons(form, env(env_));
     }
 
@@ -1915,11 +1934,11 @@ var zera = (function() {
             if (SPECIAL_FORMS[name]) {
                 return form;
             } else if (name != '.-' && name.startsWith('.-')) {
-                return list('.', car(cdr(form)), name.slice(1));
+                return list('.', car(cdr(form)), Sym.intern(name.slice(1)));
             } else if (name != '.' && name.startsWith('.')) {
-                return list('.', car(cdr(form)), cons(name.slice(1), cdr(cdr(form))));
+                return list(DOT_SYM, car(cdr(form)), cons(Sym.intern(name.slice(1)), cdr(cdr(form))));
             } else if (name.endsWith('.')) {
-                return cons('new', cons(name.replace(/\.$/, ''), cdr(form)));
+                return cons(NEW_SYM, cons(Sym.intern(name.replace(/\.$/, '')), cdr(form)));
             } else {
                 var v = findVar(sym);
                 if (v.isMacro()) {
@@ -2018,9 +2037,10 @@ var zera = (function() {
         var member = car(cdr(cdr(form)));
         var val;
         if (isSymbol(member)) {
-            val = obj[member];
-            if (member.startsWith('-')) {
-                return obj[member.slice(1)];
+            var smember = member.toString();
+            val = obj[smember];
+            if (smember.startsWith('-')) {
+                return obj[smember.slice(1)];
             } else if (isJSFn(val)) {
                 return val.call(obj);
             } else {
@@ -2054,15 +2074,53 @@ var zera = (function() {
         if (!isSymbol(exp)) throw new Error('Var name should be a Symbol, got: ' + prnStr(exp));
         return Var.intern(Sym.intern(exp.namespace()), Sym.intern(exp.name()));
     }
+    
+    function evalDoBlock(form, env) {
+        var x  = car(cdr(form)),
+            xs = cdr(cdr(form)),
+            ret;
+        while (x != null) {
+            ret = evaluate(x, env);
+            x = xs.first();
+            xs = xs.rest();
+        }
+        return ret;
+    }
+
+    function evalVector(form, env) {
+        return form.map(function(x) { return evaluate(x, env); });
+    }
+
+    var evalArray = evalVector;
+
+    // TODO: add a toTrasient method to all Seq's
+    function into(to, from) {
+        var to_ = seq(to),
+            from_ = seq(from);
+        while (first(from_) != null) {
+            to_ = conj(to_, first(from_));
+            from_ = rest(from_);
+        }
+        return to_;
+    }
+
+    function evalMap(form, env) {
+        var seq = map(function(x) { return [evaluate(x.key(), env), evaluate(x.val(), env)]; }, form);
+        return into(ArrayMap.EMPTY, seq);
+    }
+
+    function evalSet(form, env) {
+        var seq = map(function(x) { return evaluate(x, env); }, form);
+        return into(HashSet.EMPTY, seq);
+    }
 
     function isSelfEvaluating(form) {
-        return isAtom(form) || isJSFn(form) || isMap(form) || isSet(form) || isArray(form);
+        return isAtom(form) || isJSFn(form);
     }
 
     var top = env();
 
     // TODO: add try, catch, finally
-    // TODO: add let, and do
     // TODO: add deftype / defprotocol
     function evaluate(form_, env_) {
         var env = env_ || top;
@@ -2075,6 +2133,14 @@ var zera = (function() {
                 ret = null;
             } else if (isSelfEvaluating(form)) {
                 ret = form;
+            } else if (isMap(form)) {
+                ret = evalMap(form, env);
+            } else if (isVector(form)) {
+                ret = evalVector(form, env);
+            } else if (isArray(form)) {
+                ret = evalArray(form, env);
+            } else if (isSet(form)) {
+                ret = evalSet(form, env);
             } else if (isSymbol(form)) {
                 ret = evalSymbol(form, env);
             } else if (isCons(form)) {
@@ -2083,6 +2149,12 @@ var zera = (function() {
                 switch (tag) {
                     case 'quote':
                         ret = evalQuote(form);
+                        break;
+                    case 'do':
+                        ret = evalDoBlock(form, env);
+                        break;
+                    case 'let':
+                        ret = evalLetBlock(form, env);
                         break;
                     case 'def':
                         ret = evalDefinition(form, env);
@@ -2263,6 +2335,7 @@ var zera = (function() {
     define(ZERA_NS, "car", car);
     define(ZERA_NS, "cdr", cdr);
     define(ZERA_NS, "map", map);
+    define(ZERA_NS, "into", into);
     define(ZERA_NS, "reduce", reduce);
     define(ZERA_NS, "filter", filter);
     define(ZERA_NS, "take", take);
@@ -3127,7 +3200,7 @@ var zera = (function() {
         }
     }
 
-    evalJS(
+    /*evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
             ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
 
@@ -3141,7 +3214,7 @@ var zera = (function() {
                          'else', ['throw', ['js/Error.', ['str', '"invalid form: "', ['prn-str', 'form*']]]]]]]);
 
     evalJS(['defn', 'ident', ['x'], 'x']);
-    evalJS(['defn', 'constantly', ['x'], ['fn', [], 'x']]);
+    evalJS(['defn', 'constantly', ['x'], ['fn', [], 'x']]);*/
 
     var api = {
         lang: {
@@ -3169,6 +3242,7 @@ var zera = (function() {
             PushBackReader: PushBackReader,
             readString: readString
         },
+        CURRENT_NS: CURRENT_NS,
         eval: evaluate,
         evalJS: evalJS,
         evalJSON: evalJSON,

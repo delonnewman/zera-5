@@ -1,0 +1,23 @@
+; vim: ft=clojure
+(def join-str
+  (fn [delim col]
+    (cond (empty? col) ""
+          :else (reduce (fn [s x] (str s delim x)) col ""))))
+
+(def html
+  (fn [form]
+    (loop [f form]
+      (cond (nil? f) ""
+            (= true f) "true"
+            (= false f) "false"
+            (list? f) (reduce str (map html f))
+            (array? f)
+              (let [x (first f)
+                    y (first (rest f))]
+                (cond (map? y) (str "<" x (join-str " " (map (fn [x*] (str (name (key x*)) "=\"" (val x*) "\"")) y)) ">" (join-str " " (rest (rest f))) "</" x ">")
+                      :else (str "<" (first f) ">" (join-str " " (rest f)) "</" (first f) ">")))
+            :else
+              (throw (js/Error. (str "Invalid form: " (prn-str f))))))))
+
+(prn (html ['a {:href "#"} "This is a test"]))
+;(prn (join-str " " [1 2 3]))

@@ -13,7 +13,7 @@ function interactive() {
     terminal: true
   });
   
-  rl.setPrompt("> ");
+  rl.setPrompt(zera.str(zera.CURRENT_NS.get().name(), "> "));
   rl.prompt();
 
   rl.on('line', function(line) {
@@ -26,7 +26,7 @@ function interactive() {
       else {
         var res = zera.evalString(input);
         console.log(zera.str("=> ", zera.prnStr(res)));
-        rl.setPrompt("> ");
+        rl.setPrompt(zera.str(zera.CURRENT_NS.get().name(), "> "));
       }
     }
     catch (e) {
@@ -45,7 +45,6 @@ if (argv.i || argv.interactive) {
 }
 else if (process.argv.length >= 3) {
   try {
-    //z.readJS(['ns', 'user']);
     zera.evalFile([process.cwd(), process.argv[2]].join('/'));
     process.exitCode = 0;
   }
@@ -59,7 +58,7 @@ else {
   setTimeout(() => {
     interactive();
     INTERACTIVE = true;
-  }, 500);
+  }, 1);
   process.stdin.on('data', (chunk) => {
     if (!INTERACTIVE) {
       zera.evalString(chunk.toString('utf8'));
