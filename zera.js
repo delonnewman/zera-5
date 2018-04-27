@@ -99,7 +99,7 @@ var zera = (function() {
         if (this.$zera$ns == null) {
             return this.$zera$name;
         }
-        return s(this.$zera$ns, '/', this.$zera$name);
+        return str(this.$zera$ns, '/', this.$zera$name);
     };
 
     Sym.prototype.isNamespaceQualified = function() {
@@ -177,7 +177,7 @@ var zera = (function() {
             return new Sym(arguments[0], arguments[1]);
         }
         else {
-            throw new Error(s('Wrong number of arguments (', arguments.length, ') passed to symbol'));
+            throw new Error(str('Wrong number of arguments (', arguments.length, ') passed to symbol'));
         }
     }
 
@@ -209,7 +209,7 @@ var zera = (function() {
     };
 
     Keyword.prototype.toString = function() {
-        return s(':', this.$zera$sym);
+        return str(':', this.$zera$sym);
     };
 
     function isKeyword(x) {
@@ -224,7 +224,7 @@ var zera = (function() {
             return Keyword.intern(new Sym(arguments[0], arguments[1]));
         }
         else {
-            throw new Error(s('Wrong number of arguments expected 1 or 2, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or 2, got: ', arguments.length));
         }
     }
 
@@ -235,14 +235,14 @@ var zera = (function() {
     function name(sym) {
         if (isNamed(sym)) return sym.name();
         else {
-            throw new Error(s("Don't know how to get the name of: ", prnStr(sym)));
+            throw new Error(str("Don't know how to get the name of: ", prnStr(sym)));
         }
     }
 
     function namespace(sym) {
         if (isNamed(sym)) return sym.namespace();
         else {
-            throw new Error(s("Don't know how to get the namespace of: ", prnStr(sym)));
+            throw new Error(str("Don't know how to get the namespace of: ", prnStr(sym)));
         }
     }
 
@@ -512,7 +512,7 @@ var zera = (function() {
             step  = z;
         }
         else {
-            throw new Error(s('Expected between 1 and 3 arguments, got: ', arguments.length));
+            throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
         return lazySeq(function() {
             if (start === stop) {
@@ -564,7 +564,7 @@ var zera = (function() {
             }
             return init;
         } else {
-            throw new Error(s('Expected between 1 and 3 arguments, got: ', arguments.length));
+            throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
     }
 
@@ -582,7 +582,7 @@ var zera = (function() {
             return a;
         }
         else {
-            throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
+            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
         }
     }
 
@@ -603,7 +603,7 @@ var zera = (function() {
             return a;
         }
         else {
-            throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
+            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
         }
     }
 
@@ -661,7 +661,7 @@ var zera = (function() {
     };
 
     MapEntry.prototype.toString = function() {
-        return s('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
+        return str('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
     };
 
     function isMapEntry(x) {
@@ -674,7 +674,7 @@ var zera = (function() {
             return new MapEntry(x[0], x[1]);
         }
         else {
-            throw new Error(s("Don't know how to coerce '", prnStr(x), "' into a zera.MapEntry"));
+            throw new Error(str("Don't know how to coerce '", prnStr(x), "' into a zera.MapEntry"));
         }
     }
     
@@ -724,9 +724,9 @@ var zera = (function() {
         var buff = [], i;
         var array = this.$zera$array;
         for (i = 0; i < array.length; i += 2) {
-            buff.push(s(prnStr(array[i]), ' ', prnStr(array[i + 1])));
+            buff.push(str(prnStr(array[i]), ' ', prnStr(array[i + 1])));
         }
-        return s('{', buff.join(', '), '}');
+        return str('{', buff.join(', '), '}');
     };
 
     ArrayMap.prototype.first = function() {
@@ -844,7 +844,7 @@ var zera = (function() {
     function entries(m) {
         if (isJSFn(m.entries)) return m.entries();
         else {
-            throw new Error(s("Don't know how to get the entries of: ", prnStr(m)));
+            throw new Error(str("Don't know how to get the entries of: ", prnStr(m)));
         }
     }
 
@@ -853,7 +853,7 @@ var zera = (function() {
             return m.find(key);
         }
         else {
-            throw new Error(s("Don't know how to find value by key in: ", prnStr(m)));
+            throw new Error(str("Don't know how to find value by key in: ", prnStr(m)));
         }
     }
 
@@ -868,7 +868,7 @@ var zera = (function() {
             }
         }
         else {
-            throw new Error(s("Don't know how to get value by key from: ", prnStr(m)));
+            throw new Error(str("Don't know how to get value by key from: ", prnStr(m)));
         }
     }
 
@@ -878,7 +878,7 @@ var zera = (function() {
             return m.assoc(pairs);
         }
         else {
-            throw new Error(s("Don't know how to assoc: ", prnStr(m)));
+            throw new Error(str("Don't know how to assoc: ", prnStr(m)));
         }
     }
 
@@ -888,7 +888,7 @@ var zera = (function() {
             return m.dissoc(k);
         }
         else {
-            throw new Error(s("Don't know how to dissoc: ", prnStr(m)));
+            throw new Error(str("Don't know how to dissoc: ", prnStr(m)));
         }
     }
 
@@ -897,7 +897,7 @@ var zera = (function() {
             return m.keys();
         }
         else {
-            throw new Error(s("Don't know how to get keys from: ", prnStr(m)));
+            throw new Error(str("Don't know how to get keys from: ", prnStr(m)));
         }
     }
 
@@ -906,7 +906,7 @@ var zera = (function() {
             return m.vals();
         }
         else {
-            throw new Error(s("Don't know how to get vals from: ", prnStr(m)));
+            throw new Error(str("Don't know how to get vals from: ", prnStr(m)));
         }
     }
 
@@ -915,7 +915,7 @@ var zera = (function() {
             return m.key();
         }
         else {
-            throw new Error(s("Don't know how to get key from: ", prnStr(m)));
+            throw new Error(str("Don't know how to get key from: ", prnStr(m)));
         }
     }
 
@@ -924,7 +924,7 @@ var zera = (function() {
             return m.val();
         }
         else {
-            throw new Error(s("Don't know how to get val from: ", prnStr(m)));
+            throw new Error(str("Don't know how to get val from: ", prnStr(m)));
         }
     }
 
@@ -934,7 +934,7 @@ var zera = (function() {
             return m.has(k);
         }
         else {
-            throw new Error(s("Not a valid map"));
+            throw new Error(str("Not a valid map"));
         }
     }
 
@@ -950,7 +950,7 @@ var zera = (function() {
     APersistentSet.prototype = Object.create(ZSet.prototype);
 
     APersistentSet.prototype.toString = function() {
-        return s('#{', this.toArray().join(' '), '}');
+        return str('#{', this.toArray().join(' '), '}');
     };
 
     APersistentSet.prototype.toArray = function() {
@@ -1076,7 +1076,7 @@ var zera = (function() {
     function nth(v, n) {
         if (isArray(v)) return v[n];
         else {
-            throw new Error(s("Don't know how to get the nth element from: ", prnStr(v)));
+            throw new Error(str("Don't know how to get the nth element from: ", prnStr(v)));
         }
     }
 
@@ -1097,7 +1097,7 @@ var zera = (function() {
             return col.length;
         }
         else {
-            throw new Error(s("Don't know how to get the count of: ", prnStr(col)));
+            throw new Error(str("Don't know how to get the count of: ", prnStr(col)));
         }
     }
 
@@ -1113,7 +1113,7 @@ var zera = (function() {
             return xs;
         }
         else {
-            throw new Error(s("Don't know how to conj: ", prnStr(xs)));
+            throw new Error(str("Don't know how to conj: ", prnStr(xs)));
         }
     }
 
@@ -1124,7 +1124,7 @@ var zera = (function() {
             return xs[0];
         }
         else {
-            throw new Error(s("Don't know how to get the first element of: ", prnStr(xs)));
+            throw new Error(str("Don't know how to get the first element of: ", prnStr(xs)));
         }
     }
 
@@ -1136,7 +1136,7 @@ var zera = (function() {
             return Array.prototype.slice.call(xs, 1);
         }
         else {
-            throw new Error(s("Don't know how to get the next element of: ", prnStr(xs)));
+            throw new Error(str("Don't know how to get the next element of: ", prnStr(xs)));
         }
     }
 
@@ -1147,7 +1147,7 @@ var zera = (function() {
             return Array.prototype.slice.call(xs, 1);
         }
         else {
-            throw new Error(s("Don't know how to get the rest of the elements of: ", prnStr(xs)));
+            throw new Error(str("Don't know how to get the rest of the elements of: ", prnStr(xs)));
         }
     }
 
@@ -1157,7 +1157,7 @@ var zera = (function() {
         else if (isJSFn(x.count)) return x.count() === 0;
         else if (isArrayLike(x)) return x.length === 0;
         else {
-            throw new Error(s("Don't know hot to determine if: ", prnStr(x), " is empty"));
+            throw new Error(str("Don't know hot to determine if: ", prnStr(x), " is empty"));
         }
     }
 
@@ -1171,7 +1171,7 @@ var zera = (function() {
             init = arguments[1];
             xs   = arguments[2];
         } else {
-            throw new Error(s('Expected either 2 or 3 arguments, got: ', arguments.length));
+            throw new Error(str('Expected either 2 or 3 arguments, got: ', arguments.length));
         }
         while (!isEmpty(xs)) {
             x    = first(xs);
@@ -1192,7 +1192,7 @@ var zera = (function() {
             });
         }
         else {
-            throw new Error(s('Expected 2 arguments, got: ', arguments.length));
+            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
         }
     }
 
@@ -1213,22 +1213,22 @@ var zera = (function() {
             }, null, xs));
         }
         else {
-            throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
+            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
         }
     }
 
     function prnStr(x) {
         if (x == null) return "nil";
-        else if (isNumber(x)) return s(x);
+        else if (isNumber(x)) return str(x);
         else if (isBoolean(x)) {
             return x ? "true" : "false";
         } else if (isString(x)) {
-            return s('"', x, '"');
+            return str('"', x, '"');
         } else if (isEnv(x)) {
             return 'env';
         } else if (isCons(x)) {
             if (isPair(x)) {
-                return s('(', prnStr(car(x)), " & ", prnStr(cdr(x)), ')');
+                return str('(', prnStr(car(x)), " & ", prnStr(cdr(x)), ')');
             } else if (isEmpty(x)) {
                 return '()';
             } else {
@@ -1240,23 +1240,23 @@ var zera = (function() {
                     y = car(ys);
                     ys = cdr(ys);
                 }
-                return s('(', buffer.join(' '), ')');
+                return str('(', buffer.join(' '), ')');
             }
         } else if (isArray(x)) {
             if (x.length === 0) {
                 return '(array)';
             }
-            return s('(array ', x.map(function(x) {
+            return str('(array ', x.map(function(x) {
                 return prnStr(x);
             }).join(' '), ')');
         } else if (isJSFn(x)) {
-            return s('#js/function "', x.toString(), '"');
+            return str('#js/function "', x.toString(), '"');
         } else if (isArrayLike(x)) {
             if (x.hasOwnProperty('toString')) {
                 return x.toString();
             }
             else {
-                return s('#js/object {', Array.prototype.slice.call(x).map(function(x, i) { return s(i, ' ', prnStr(x)); }).join(', '), '}');
+                return str('#js/object {', Array.prototype.slice.call(x).map(function(x, i) { return str(i, ' ', prnStr(x)); }).join(', '), '}');
             }
         } else {
             return "" + x;
@@ -1276,9 +1276,9 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object String]';
     }
 
-    var s = function() {
+    function str() {
         return Array.prototype.slice.call(arguments).join('');
-    };
+    }
 
     function num(x) {
         var type = Object.prototype.toString.call(x);
@@ -1286,10 +1286,10 @@ var zera = (function() {
             return x;
         } else if (type === '[object String]') {
             var x_ = 1 * x;
-            if (isNaN(x_)) throw new Error(s('Cannot convert: ', prnStr(x), ' to a number'));
+            if (isNaN(x_)) throw new Error(str('Cannot convert: ', prnStr(x), ' to a number'));
             return x_;
         } else {
-            throw new Error(s('Cannot convert: ', prnStr(x), ' to a number'));
+            throw new Error(str('Cannot convert: ', prnStr(x), ' to a number'));
         }
     }
 
@@ -1329,13 +1329,13 @@ var zera = (function() {
     function is(expected, actual, msg) {
         if (expected === actual) {
             if (msg) {
-                p(s('passed - ', msg));
+                p(str('passed - ', msg));
             } else {
                 p('passed');
             }
         } else {
             if (msg) {
-                p(s('failed - ', msg));
+                p(str('failed - ', msg));
             } else {
                 p('failed');
             }
@@ -1347,13 +1347,13 @@ var zera = (function() {
     function ok(value, msg) {
         if (value != null && value !== false) {
             if (msg) {
-                p(s('passed - ', msg));
+                p(str('passed - ', msg));
             } else {
                 p('passed');
             }
         } else {
             if (msg) {
-                p(s('failed - ', msg));
+                p(str('failed - ', msg));
             } else {
                 p('failed');
             }
@@ -1416,7 +1416,7 @@ var zera = (function() {
     };
 
     Var.prototype.toString = function() {
-        return s("#'", this.$zera$ns.name(), '/', this.$zera$name);
+        return str("#'", this.$zera$ns.name(), '/', this.$zera$name);
     };
 
     function define(ns, name, init) {
@@ -1439,7 +1439,7 @@ var zera = (function() {
 
     // TODO: complete Namespace implementation
     function Namespace(name) {
-        if (!isSymbol(name)) throw new Error(s('Namespace name should be a symbol, got: ', prnStr(name)));
+        if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
@@ -1465,7 +1465,7 @@ var zera = (function() {
         var ns = Namespace.namespaces[name];
         if (ns != null) return ns;
         else {
-            throw new Error(s("Can't find the namespace: ", name));
+            throw new Error(str("Can't find the namespace: ", name));
         }
     };
 
@@ -1490,7 +1490,7 @@ var zera = (function() {
     };
 
     Namespace.prototype.toString = function() {
-        return s('#<Namespace name: ', this.$zera$name, '>');
+        return str('#<Namespace name: ', this.$zera$name, '>');
     };
 
     function theNS(ns) {
@@ -1573,7 +1573,7 @@ var zera = (function() {
     }
 
     function findVar(sym) {
-        var ERROR_UNDEFINED_VAR = new Error(s('Undefined variable: ', sym));
+        var ERROR_UNDEFINED_VAR = new Error(str('Undefined variable: ', sym));
         var ns, v, scope, name = sym.name();
         if (sym.isNamespaceQualified()) {
             ns = Namespace.findOrDie(sym.namespace());
@@ -1599,13 +1599,13 @@ var zera = (function() {
     // 4) lookup in default namespace
     // (could go back and put default imports in top then they'll always befound lexically unless they've been redefined and should be more performant)
     function evalSymbol(sym, env) {
-        var MACRO_ERROR = new Error(s('Macros cannot be evaluated in this context'));
+        var MACRO_ERROR = new Error(str('Macros cannot be evaluated in this context'));
         var ns, v, scope, name = sym.name();
         // 1) namespace-qualified
         if (sym.isNamespaceQualified()) {
             ns = Namespace.findOrDie(sym.namespace());
             v  = ns.mapping(name);
-            if (!v) throw new Error(s('Undefined variable: ', sym));
+            if (!v) throw new Error(str('Undefined variable: ', sym));
             if (v.isMacro()) throw MACRO_ERROR;
             return v.get();
         }
@@ -1629,7 +1629,7 @@ var zera = (function() {
                         if (v.isMacro()) throw MACRO_ERROR;
                         return v.get();
                     }
-                    throw new Error(s('Undefined variable: ', sym));
+                    throw new Error(str('Undefined variable: ', sym));
                 }
             }
         }
@@ -1750,7 +1750,7 @@ var zera = (function() {
     function evalConditional(form, env) {
         var preds = cdr(form);
         if (count(preds) % 2 !== 0) {
-            throw new Error(s('cond requires an even number of predicates: ', prnStr(form)));
+            throw new Error(str('cond requires an even number of predicates: ', prnStr(form)));
         }
         var i = 1,
             x, y, rest, xs = preds;
@@ -1861,7 +1861,7 @@ var zera = (function() {
             return x.apply(null, consToArray(args));
         }
         if (!isFn(x)) {
-            throw new Error(s('Not a valid function: ', prnStr(x), ''));
+            throw new Error(str('Not a valid function: ', prnStr(x), ''));
         }
         var fn = car(x);
         var env = cdr(x);
@@ -1874,9 +1874,9 @@ var zera = (function() {
         var namec = calculateArity(names);
         var argc = count(args);
         if (namec < 0 && argc < (Math.abs(namec) - 1)) {
-            throw new Error(s('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
+            throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
         } else if (namec > 0 && namec !== argc) {
-            throw new Error(s('Wrong number of arguments, expected: ', namec, ', got: ', argc));
+            throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
         }
 
         // bind arguments
@@ -1900,7 +1900,7 @@ var zera = (function() {
     }
 
     function pt(tag, val) {
-        p(s(tag, ': ', prnStr(val)));
+        p(str(tag, ': ', prnStr(val)));
     }
 
     function evalApplication(form, env) {
@@ -1920,7 +1920,7 @@ var zera = (function() {
         var rest = cdr(form),
             names = car(rest),
             body = cdr(rest);
-        if (!isVector(names)) throw new Error(s('function arguments should be a vector, got: ', prnStr(form)));
+        if (!isVector(names)) throw new Error(str('function arguments should be a vector, got: ', prnStr(form)));
         return cons(form, env(env_));
     }
 
@@ -2012,7 +2012,7 @@ var zera = (function() {
                     //p(e.args);
                     if (e instanceof RecursionPoint) {
                         if (names.length !== e.args.length) {
-                            throw new Error(s('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
+                            throw new Error(str('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
                         }
                         for (i = 0; i < names.length; i++) {
                             define(scope, names[i], e.args[i]);
@@ -2056,7 +2056,7 @@ var zera = (function() {
                 return val;
             }
         } else if (isCons(member)) {
-            var name = s(car(member));
+            var name = str(car(member));
             val = obj[name];
             if (name.startsWith('-')) {
                 return obj[name.slice(1)];
@@ -2066,10 +2066,10 @@ var zera = (function() {
                 }, cdr(member));
                 return val.apply(obj, args);
             } else {
-                throw new Error(s('invalid member access: "', prnStr(form), '"'));
+                throw new Error(str('invalid member access: "', prnStr(form), '"'));
             }
         } else {
-            throw new Error(s('invalid member access: "', prnStr(form), '"'));
+            throw new Error(str('invalid member access: "', prnStr(form), '"'));
         }
     }
 
@@ -2154,7 +2154,7 @@ var zera = (function() {
                 ret = evalSymbol(form, env);
             } else if (isCons(form)) {
                 if (form.isEmpty()) return form;
-                var tag = s(car(form));
+                var tag = str(car(form));
                 switch (tag) {
                     case 'quote':
                         ret = evalQuote(form);
@@ -2203,7 +2203,7 @@ var zera = (function() {
                         break;
                 }
             } else {
-                throw new Error(s('invalid form: "', form, '"'));
+                throw new Error(str('invalid form: "', form, '"'));
             }
         }
         return ret;
@@ -2211,31 +2211,31 @@ var zera = (function() {
 
     function compileKeyword(form, env) {
         if (form.namespace()) {
-            return s('zera.core.keyword("', form.namespace(), '", "', form.name(), '")');
+            return str('zera.core.keyword("', form.namespace(), '", "', form.name(), '")');
         }
         else {
-            return s('zera.core.keyword("', form.name(), '")');
+            return str('zera.core.keyword("', form.name(), '")');
         }
     }
 
     function compileMap(form, env) {
-        var a = mapA(function(x) { return s(compile(x.key(), env), ', ', compile(x.val(), env)); }, form);
-        return s('zera.core.arrayMap(', a.join(', '), ')');
+        var a = mapA(function(x) { return str(compile(x.key(), env), ', ', compile(x.val(), env)); }, form);
+        return str('zera.core.arrayMap(', a.join(', '), ')');
     }
 
     function compileVector(form, env) {
         var a = mapA(function(x) { return compile(x, env); }, form);
-        return s('zera.core.vector(', a.join(', '), ')');
+        return str('zera.core.vector(', a.join(', '), ')');
     }
 
     function compileArray(form, env) {
         var a = mapA(function(x) { return compile(x, env); }, form);
-        return s('[', a.join(', '), ']');
+        return str('[', a.join(', '), ']');
     }
 
     function compileSet(form, env) {
         var a = mapA(function(x) { return compile(x, env); }, form);
-        return s('zera.core.set([', a.join(', '), '])');
+        return str('zera.core.set([', a.join(', '), '])');
     }
 
     function compile(form_, env_) {
@@ -2255,10 +2255,10 @@ var zera = (function() {
                 ret = "false";
             }
             else if (isNumber(form)) {
-                ret = s(form);
+                ret = str(form);
             }
             else if (isString(form)) {
-                ret = s('"', form, '"');
+                ret = str('"', form, '"');
             }
             else if (isKeyword(form)) {
                 ret = compileKeyword(form); 
@@ -2280,7 +2280,7 @@ var zera = (function() {
             }
             else if (isCons(form)) {
                 if (form.isEmpty()) return form;
-                var tag = s(car(form));
+                var tag = str(car(form));
                 switch (tag) {
                     case 'quote':
                         ret = evalQuote(form);
@@ -2329,7 +2329,7 @@ var zera = (function() {
                         break;
                 }
             } else {
-                throw new Error(s('invalid form: "', form, '"'));
+                throw new Error(str('invalid form: "', form, '"'));
             }
         }
         return ret;
@@ -2487,8 +2487,9 @@ var zera = (function() {
     define(ZERA_NS, "pair", pair);
     define(ZERA_NS, "prn-str", prnStr);
     define(ZERA_NS, "prn", prn);
-    define(ZERA_NS, "p", p);
-    define(ZERA_NS, "str", s);
+    define(ZERA_NS, "println", p);
+    define(ZERA_NS, "say", p);
+    define(ZERA_NS, "str", str);
     define(ZERA_NS, "boolean?", isBoolean);
     define(ZERA_NS, "string?", isString);
     define(ZERA_NS, "symbol?", isSymbol);
@@ -2532,7 +2533,7 @@ var zera = (function() {
     define(ZERA_NS, "=", equals);
 
     define(ZERA_NS, "assert", function(x) {
-        if (x == null || x === false) throw new Error(s('Assert failed: ', prnStr(x)));
+        if (x == null || x === false) throw new Error(str('Assert failed: ', prnStr(x)));
         return null;
     });
 
@@ -2563,7 +2564,7 @@ var zera = (function() {
     // TODO: rewrite these to match the Clojure API
     function lt (a, b) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             return true;
@@ -2590,7 +2591,7 @@ var zera = (function() {
 
     function lteq(a, b) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             return true;
@@ -2617,7 +2618,7 @@ var zera = (function() {
 
     var gt = function(a, b) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             return true;
@@ -2644,7 +2645,7 @@ var zera = (function() {
 
     var gteq = function(a, b) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             return true;
@@ -2690,7 +2691,7 @@ var zera = (function() {
 
     var sub = function(x) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be subtracted');
@@ -2728,7 +2729,7 @@ var zera = (function() {
 
     var div = function(x) {
         if (arguments.length === 0) {
-            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
@@ -3436,6 +3437,23 @@ var zera = (function() {
             PushBackReader: PushBackReader,
             readString: readString
         },
+        core: {
+            set: set,
+            keyword: keyword,
+            list: list,
+            arrayMap: arrayMap,
+            isSymbol: isSymbol,
+            isString: isString,
+            isKeyword: isKeyword,
+            isMap: isMap,
+            isSeq: isSeq,
+            str: str,
+            prn: prn,
+            prnStr: prnStr,
+            ok: ok,
+            is: is,
+            equals: equals
+        },
         CURRENT_NS: CURRENT_NS,
         eval: evaluate,
         evalJS: evalJS,
@@ -3443,20 +3461,7 @@ var zera = (function() {
         readJS: readJS,
         readJSON: readJSON,
         readString: readString,
-        evalString: evalString,
-        prn: prn,
-        prnStr: prnStr,
-        ok: ok,
-        is: is,
-        equals: equals,
-        list: list,
-        arrayMap: arrayMap,
-        isSymbol: isSymbol,
-        isString: isString,
-        isKeyword: isKeyword,
-        isMap: isMap,
-        isSeq: isSeq,
-        str: s
+        evalString: evalString
     };
 
     if (isNode) {

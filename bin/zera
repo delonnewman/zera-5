@@ -4,6 +4,7 @@ const fs = require('fs');
 const readline = require('readline');
 const argv = require('yargs').argv;
 const zera  = require(__dirname + '/../zera.js');
+const z = zera.core;
 
 function interactive() {
   const rl = readline.createInterface({
@@ -13,7 +14,7 @@ function interactive() {
     terminal: true
   });
   
-  rl.setPrompt(zera.str(zera.CURRENT_NS.get().name(), "> "));
+  rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "> "));
   rl.prompt();
 
   rl.on('line', function(line) {
@@ -25,8 +26,8 @@ function interactive() {
       }
       else {
         var res = zera.evalString(input);
-        console.log(zera.str("=> ", zera.prnStr(res)));
-        rl.setPrompt(zera.str(zera.CURRENT_NS.get().name(), "> "));
+        console.log(z.str("=> ", z.prnStr(res)));
+        rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "> "));
       }
     }
     catch (e) {
