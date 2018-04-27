@@ -2,7 +2,7 @@
 (def join-str
   (fn [delim col]
     (cond (empty? col) ""
-          :else (reduce (fn [s x] (str s delim x)) col ""))))
+          :else (reduce (fn [s x] (str s delim x)) "" col))))
 
 (def html
   (fn [form]
@@ -19,5 +19,5 @@
             :else
               (throw (js/Error. (str "Invalid form: " (prn-str f))))))))
 
-(prn (html ['a {:href "#"} "This is a test"]))
+(p (html ['a {:href "#"} "This is a test"]))
 ;(prn (join-str " " [1 2 3]))

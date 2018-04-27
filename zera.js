@@ -406,7 +406,7 @@ var zera = (function() {
 
     LazySeq.prototype.sval = function() {
         if (this.fn != null) {
-            this._sv = this.fn.call();
+            this._sv = apply(this.fn);
             this.fn = null;
         }
         if (this._sv != null) {
@@ -1168,8 +1168,8 @@ var zera = (function() {
             init = first(xs);
             xs   = rest(xs);
         } else if (arguments.length === 3) {
-            xs   = arguments[1];
-            init = arguments[2];
+            init = arguments[1];
+            xs   = arguments[2];
         } else {
             throw new Error(s('Expected either 2 or 3 arguments, got: ', arguments.length));
         }
@@ -1210,7 +1210,7 @@ var zera = (function() {
                     return conj(ys, x);
                 }
                 return ys;
-            }, xs, null));
+            }, null, xs));
         }
         else {
             throw new Error(s('Expected 1 or 2 arguments, got: ', arguments.length));
@@ -1249,6 +1249,15 @@ var zera = (function() {
             return s('(array ', x.map(function(x) {
                 return prnStr(x);
             }).join(' '), ')');
+        } else if (isJSFn(x)) {
+            return s('#js/function "', x.toString(), '"');
+        } else if (isArrayLike(x)) {
+            if (x.hasOwnProperty('toString')) {
+                return x.toString();
+            }
+            else {
+                return s('#js/object {', Array.prototype.slice.call(x).map(function(x, i) { return s(i, ' ', prnStr(x)); }).join(', '), '}');
+            }
         } else {
             return "" + x;
         }
@@ -2047,7 +2056,7 @@ var zera = (function() {
                 return val;
             }
         } else if (isCons(member)) {
-            var name = car(member);
+            var name = s(car(member));
             val = obj[name];
             if (name.startsWith('-')) {
                 return obj[name.slice(1)];
@@ -2200,6 +2209,132 @@ var zera = (function() {
         return ret;
     }
 
+    function compileKeyword(form, env) {
+        if (form.namespace()) {
+            return s('zera.core.keyword("', form.namespace(), '", "', form.name(), '")');
+        }
+        else {
+            return s('zera.core.keyword("', form.name(), '")');
+        }
+    }
+
+    function compileMap(form, env) {
+        var a = mapA(function(x) { return s(compile(x.key(), env), ', ', compile(x.val(), env)); }, form);
+        return s('zera.core.arrayMap(', a.join(', '), ')');
+    }
+
+    function compileVector(form, env) {
+        var a = mapA(function(x) { return compile(x, env); }, form);
+        return s('zera.core.vector(', a.join(', '), ')');
+    }
+
+    function compileArray(form, env) {
+        var a = mapA(function(x) { return compile(x, env); }, form);
+        return s('[', a.join(', '), ']');
+    }
+
+    function compileSet(form, env) {
+        var a = mapA(function(x) { return compile(x, env); }, form);
+        return s('zera.core.set([', a.join(', '), '])');
+    }
+
+    function compile(form_, env_) {
+        var env = env_ || top;
+        var recur = true;
+        var ret = null;
+        var form = macroexpand(form_);
+        while (recur) {
+            recur = false;
+            if (form == null || NIL_SYM.equals(form)) {
+                ret = "null";
+            }
+            else if (form === true) {
+                ret = "true";
+            }
+            else if (form === false) {
+                ret = "false";
+            }
+            else if (isNumber(form)) {
+                ret = s(form);
+            }
+            else if (isString(form)) {
+                ret = s('"', form, '"');
+            }
+            else if (isKeyword(form)) {
+                ret = compileKeyword(form); 
+            }
+            else if (isMap(form)) {
+                ret = compileMap(form, env);
+            }
+            else if (isVector(form)) {
+                ret = compileVector(form, env);
+            }
+            else if (isArray(form)) {
+                ret = compileArray(form, env);
+            }
+            else if (isSet(form)) {
+                ret = compileSet(form, env);
+            }
+            else if (isSymbol(form)) {
+                ret = compileSymbol(form, env);
+            }
+            else if (isCons(form)) {
+                if (form.isEmpty()) return form;
+                var tag = s(car(form));
+                switch (tag) {
+                    case 'quote':
+                        ret = evalQuote(form);
+                        break;
+                    case 'do':
+                        ret = evalDoBlock(form, env);
+                        break;
+                    case 'let':
+                        ret = evalLetBlock(form, env);
+                        break;
+                    case 'def':
+                        ret = evalDefinition(form, env);
+                        break;
+                    case 'var':
+                        ret = evalVar(form, env);
+                        break;
+                    case 'set!':
+                        ret = evalAssignment(form, env);
+                        break;
+                    case 'cond':
+                        ret = evalConditional(form, env);
+                        break;
+                    case 'fn':
+                        ret = evalFunction(form, env);
+                        break;
+                    case 'loop':
+                        ret = evalLoop(form, env);
+                        break;
+                    case 'recur':
+                        ret = evalRecursionPoint(form, env);
+                        break;
+                    case 'throw':
+                        ret = evalThrownException(form, env);
+                        break;
+                    case 'new':
+                        ret = evalClassInstantiation(form, env);
+                        break;
+                    case '.':
+                        ret = evalMemberAccess(form, env);
+                        break;
+                    case 'defmacro':
+                        ret = evalMacroDefinition(form, env);
+                        break;
+                    default:
+                        ret = evalApplication(form, env);
+                        break;
+                }
+            } else {
+                throw new Error(s('invalid form: "', form, '"'));
+            }
+        }
+        return ret;
+    }
+
     function isRegExp(x) {
         return Object.prototype.toString.call(x) === '[object RegExp]';
     }
@@ -2228,7 +2363,7 @@ var zera = (function() {
         if (isEmpty(l)) {
             return null;
         } else {
-            var a = isArray(l) ? a : consToArray(l);
+            var a = isArray(l) ? l : consToArray(l);
             var newA = [];
             var i;
             for (i = 0; i < a.length; i++) {
@@ -2308,6 +2443,7 @@ var zera = (function() {
     define(ZERA_NS, "ns-map", nsMap);
     define(ZERA_NS, "namespace?", isNamespace);
     define(ZERA_NS, "meta", meta);
+    define(ZERA_NS, "compile", compile);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "apply", apply);
     define(ZERA_NS, "macroexpand", macroexpand);
@@ -2327,6 +2463,8 @@ var zera = (function() {
     define(ZERA_NS, "set", createSet);
     define(ZERA_NS, "set?", isSet);
     define(ZERA_NS, "list?", isList);
+    define(ZERA_NS, "lazy-seq?", isLazySeq);
+    define(ZERA_NS, "lazy-seq", lazySeq);
     define(ZERA_NS, "seq", seq);
     define(ZERA_NS, "seq?", isSeq);
     define(ZERA_NS, "seqable?", isSeqable);
@@ -2423,105 +2561,161 @@ var zera = (function() {
     });
 
     // TODO: rewrite these to match the Clojure API
-    var lt = function(a, b) {
+    function lt (a, b) {
         if (arguments.length === 0) {
-            return lt;
-        } else if (arguments.length === 1) {
-            return function(b) {
-                return a < b;
-            };
-        } else {
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            return true;
+        }
+        else if (arguments.length === 2) {
             return a < b;
         }
-    };
+        else {
+            if (a < b) {
+                var i, ret,
+                    y = b,
+                    more = Array.prototype.slice.call(arguments, 2);
+                for (i = 0; i < more.length; i++) {
+                    ret = y < more[i];
+                    y = more[i];
+                    more = more.slice(1);
+                }
+                return ret;
+            }
+            return false;
+        }
+    }
     define(ZERA_NS, '<', lt);
 
-    var lteq = function(a, b) {
+    function lteq(a, b) {
         if (arguments.length === 0) {
-            return lteq;
-        } else if (arguments.length === 1) {
-            return function(b) {
-                return a <= b;
-            };
-        } else {
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            return true;
+        }
+        else if (arguments.length === 2) {
             return a <= b;
         }
-    };
+        else {
+            if (a <= b) {
+                var i, ret,
+                    y = b,
+                    more = Array.prototype.slice.call(arguments, 2);
+                for (i = 0; i < more.length; i++) {
+                    ret = y <= more[i];
+                    y = more[i];
+                    more = more.slice(1);
+                }
+                return ret;
+            }
+            return false;
+        }
+    }
     define(ZERA_NS, '<=', lteq);
 
     var gt = function(a, b) {
         if (arguments.length === 0) {
-            return gt;
-        } else if (arguments.length === 1) {
-            return function(b) {
-                return a > b;
-            };
-        } else {
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            return true;
+        }
+        else if (arguments.length === 2) {
             return a > b;
+        }
+        else {
+            if (a > b) {
+                var i, ret,
+                    y = b,
+                    more = Array.prototype.slice.call(arguments, 2);
+                for (i = 0; i < more.length; i++) {
+                    ret = y > more[i];
+                    y = more[i];
+                    more = more.slice(1);
+                }
+                return ret;
+            }
+            return false;
         }
     };
     define(ZERA_NS, '>', gt);
 
     var gteq = function(a, b) {
         if (arguments.length === 0) {
-            return gteq;
-        } else if (arguments.length === 1) {
-            return function(b) {
-                return a >= b;
-            };
-        } else {
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            return true;
+        }
+        else if (arguments.length === 2) {
             return a >= b;
+        }
+        else {
+            if (a >= b) {
+                var i, ret,
+                    y = b,
+                    more = Array.prototype.slice.call(arguments, 2);
+                for (i = 0; i < more.length; i++) {
+                    ret = y >= more[i];
+                    y = more[i];
+                    more = more.slice(1);
+                }
+                return ret;
+            }
+            return false;
         }
     };
     define(ZERA_NS, '>=', gteq);
 
-    var add = function() {
+    var add = function(x) {
+        if (x == null) return null;
         if (arguments.length === 0) {
-            return add;
-        } else if (arguments.length === 1) {
-            var x = num(arguments[0]);
-            return function() {
-                return add.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
-            };
-        } else {
-            var sum = 0;
-            var i;
+            return 0;
+        }
+        else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error('Only numbers can be added');
+            return x;
+        }
+        else {
+            var i, sum = 0;
             for (i = 0; i < arguments.length; i++) {
-                sum += num(arguments[i]);
+                sum += 1*arguments[i];
             }
             return sum;
         }
     };
     define(ZERA_NS, "+", add);
 
-    var sub = function() {
+    var sub = function(x) {
         if (arguments.length === 0) {
-            return sub;
-        } else if (arguments.length === 1) {
-            var x = -num(arguments[0]);
-            return function() {
-                return sub.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
-            };
-        } else {
-            var sum = 0;
-            var i;
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error('Only numbers can be subtracted');
+            return -x;
+        }
+        else {
+            var i, sum = 0;
             for (i = 0; i < arguments.length; i++) {
-                sum -= num(arguments[i]);
+                sum -= 1*arguments[i];
             }
             return sum;
         }
     };
     define(ZERA_NS, '-', sub);
 
-    var mult = function() {
+    var mult = function(x) {
+        if (x == null) return null;
         if (arguments.length === 0) {
-            return mult;
-        } else if (arguments.length === 1) {
-            var x = num(arguments[0]);
-            return function() {
-                return mult.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
-            };
-        } else {
+            return 1;
+        }
+        else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
+            return x;
+        }
+        else {
             var sum = 1;
             var i;
             for (i = 0; i < arguments.length; i++) {
@@ -2532,15 +2726,15 @@ var zera = (function() {
     };
     define(ZERA_NS, '*', mult);
 
-    var div = function() {
+    var div = function(x) {
         if (arguments.length === 0) {
-            return div;
-        } else if (arguments.length === 1) {
-            var x = num(arguments[0]);
-            return function() {
-                return div.apply(null, [].concat(x, Array.prototype.slice.call(arguments)));
-            };
-        } else {
+            throw new Error(s('Wrong number of arguments expected 1 or more, got: ', arguments.length));
+        }
+        else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
+            return 1 / x;
+        }
+        else {
             var sum = 1;
             var i;
             for (i = 0; i < arguments.length; i++) {
