@@ -1,4 +1,10 @@
 ; vim: ft=clojure
-(set! *ns* (the-ns 'zera.core))
+(defmacro ns [sym]
+  (list 'set! '*ns* (list 'the-ns (list 'quote sym))))
 
-(.log js/console "test")
+(ns zera.core)
+
+(def identity (fn [x] x))
+(def constantly (fn [x] (fn [] x)))
+
+(prn (identity 1))

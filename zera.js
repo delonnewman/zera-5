@@ -8,7 +8,20 @@ var zera = (function() {
     var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
     var isBrowser = typeof window !== 'undefined';
 
+    function isa(child, parent) {
+        if (child == null) return false;
+        if (child instanceof parent) return true;
+        var protocols = child.$zera$protocols;
+        if (protocols == null) return false;
+        return parent === protocols[parent.$zera$tag];
+    }
+
+    /**
+     * @interface
+     */
     function IMeta() {}
+    IMeta.$zera$isProtocol = true;
+    IMeta.$zera$tag = 'zera.lang.IMeta';
     IMeta.prototype.meta = function() {
         throw new Error('unimplemented');
     };
@@ -23,7 +36,14 @@ var zera = (function() {
         }
     }
 
-    function IObj(){}
+    /**
+     * @interface
+     * @extends {IMeta}
+     */
+    function IObj() {}
+    IObj.$zera$isProtocol = true;
+    IObj.$zera$tag = 'zera.lang.IObj';
+    IObj.$zera$protocols = {'zera.lang.IMeta': IMeta};
     IObj.prototype = Object.create(IMeta.prototype);
     IObj.prototype.withMeta = function(meta) {
         throw new Error('unimplemented');
@@ -32,17 +52,22 @@ var zera = (function() {
     function withMeta(x, meta) {
         if (x == null) return null;
         else if (isJSFn(x.withMeta)) {
-            return x.withMetaeta(meta);
+            return x.withMeta(meta);
         }
         else {
             throw new Error("Don't now how to add metadata to: " + x);
         }
     }
 
+    /**
+     * @abstract
+     */
     function AReference(meta) {
         this.$zera$meta = meta || arrayMap();
     }
 
+    AReference.$zera$tag = 'zera.lang.AReference';
+    AReference.$zera$isProtocol = true;
     AReference.prototype = Object.create(IMeta.prototype);
 
     AReference.prototype.meta = function() {
@@ -56,28 +81,69 @@ var zera = (function() {
 
     AReference.prototype.resetMeta = function(m) {
         this.$zera$meta = m;
-        return m;
+        return this.$zera$meta;
     };
 
+    function alterMeta(x, f, args) {
+        if (x == null) return null;
+        else if (isJSFn(x.alterMeta)) {
+            return x.alterMeta(f, args);
+        }
+        else {
+            throw new Error("Don't now how to add alter metadata for: " + x);
+        }
+    }
+
+    function resetMeta(x, newM) {
+        if (x == null) return null;
+        else if (isJSFn(x.resetMeta)) {
+            return x.resetMeta(newM);
+        }
+        else {
+            throw new Error("Don't now how to reset metadata for: " + x);
+        }
+    }
+
     // TODO: complete ARef implementation
+    /**
+     * @abstract
+     */
     function ARef(meta) {
-        AReference.call(this);
+        AReference.call(this, meta);
     }
 
     ARef.prototype = Object.create(AReference.prototype);
 
+    /**
+     * @interface
+     * @extends {IObj}
+     */
     function Named(){}
-    Named.prototype = Object.create(IObj.prototype);
+    Named.$zera$tag = 'zera.lang.Named';
+    Named.$zera$isProtocol = true;
+    Named.prototype.name = function() {
+        throw new Error('unimplemented');
+    };
 
+    Named.prototype.namespace = function() {
+        throw new Error('unimplemented');
+    };
+
+    /**
+     * @implements {Named, IObj}
+     */
     function Sym(ns, name, meta) {
         this.$zera$ns = ns;
         this.$zera$name = name;
         this.$zera$meta = meta || arrayMap();
+        this.$zera$protocols = {'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta, 'zera.lang.Named': Named}; 
     }
 
+    Sym.$zera$tag = 'zera.lang.Symbol';
     Sym.prototype = Object.create(Named.prototype);
 
     Sym.intern = function(rep) {
+        if (rep == null) throw new Error('Symbol reprentation cannot be nil');
         var i = rep.indexOf('/');
         if (i === -1 || rep === '/') {
             return new Sym(null, rep);
@@ -102,7 +168,7 @@ var zera = (function() {
         return str(this.$zera$ns, '/', this.$zera$name);
     };
 
-    Sym.prototype.isNamespaceQualified = function() {
+    Sym.prototype.isQualified = function() {
         return !!this.$zera$ns;
     };
 
@@ -185,10 +251,16 @@ var zera = (function() {
         return x instanceof Sym;
     }
 
+    /**
+     * @constructor
+     * @implements {Named}
+     */
     function Keyword(sym) {
         this.$zera$sym = sym;
+        this.$zera$protocols = {'zera.lang.Named': Named}; 
     }
 
+    Keyword.$zera$tag = 'zera.lang.Keyword';
     Keyword.prototype = Object.create(Named.prototype);
 
     Keyword.table = {};
@@ -218,7 +290,7 @@ var zera = (function() {
     };
 
     function isKeyword(x) {
-        return x instanceof Keyword;
+        return isa(x, Keyword);
     }
 
     function keyword() {
@@ -234,7 +306,7 @@ var zera = (function() {
     }
 
     function isNamed(x) {
-        return x instanceof Named;
+        return isa(x, Named);
     }
 
     function name(sym) {
@@ -251,11 +323,18 @@ var zera = (function() {
         }
     }
 
-    function Seq(){}
+    /**
+     * @interface
+     */
+    function Seq(meta) {
+        this.$zera$meta = meta;
+    }
+    Seq.prototype = Object.create(IObj.prototype);
 
     function seq(x) {
         if (x == null) return Cons.EMPTY;
         else if (isSeq(x)) return x;
+        else if (ArrayLike(x)) return arrayToCons(x);
         else if (isSeqable(x)) return x.seq();
         else {
             throw new Error('Not a valid Seq or Seqable');
@@ -263,26 +342,36 @@ var zera = (function() {
     }
 
     function isSeq(x) {
-        return x instanceof Seq || isArrayLike(x);
+        return isa(x, Seq);
     }
 
     function isSeqable(x) {
         if (x == null) return true;
+        if (isArrayLike(x)) return true;
         return isJSFn(x.seq);
     }
 
+    /**
+     * @interface
+     * @extends {Seq}
+     */
     function List(){}
     List.prototype = Object.create(Seq.prototype);
 
     function isList(x) {
-        return x instanceof List;
+        return isa(x, List);
     }
 
     // Cons
 
-    function Cons(car, cdr) {
+    /**
+     * @constructor
+     * @implements {Seq}
+     */
+    function Cons(meta, car, cdr) {
         this.$zera$car = car;
         this.$zera$cdr = cdr;
+        Seq.call(this, meta);
         if (car == null && cdr == null) {
             this.$zera$count = 0;
         }
@@ -296,11 +385,21 @@ var zera = (function() {
         else {
             this.$zera$count = cdr.count() + 1;
         }
+        this.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     }
 
+    Cons.$zera$tag = 'zera.lang.Cons';
     Cons.prototype = Object.create(Seq.prototype);
 
-    Cons.EMPTY = new Cons(null, null);
+    Cons.EMPTY = new Cons(null, null, null);
+
+    Cons.prototype.meta = function() {
+        return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
+    };
+
+    Cons.prototype.withMeta = function(meta) {
+        return new Cons(meta, this.$zera$car, this.$zera$cdr);
+    };
 
     Cons.prototype.first = function() {
         return this.$zera$car;
@@ -316,11 +415,11 @@ var zera = (function() {
 
     Cons.prototype.next = function() {
         var cdr = this.rest();
-        return cdr instanceof Cons ? cdr.first() : cdr;
+        return isEmpty(cdr) ? null : cdr;
     };
 
     Cons.prototype.cons = function(x) {
-        return new Cons(x, this);
+        return new Cons(this.$zera$meta, x, this);
     };
 
     Cons.prototype.conj = function(vals) {
@@ -367,18 +466,19 @@ var zera = (function() {
     };
 
     function cons(car, cdr) {
-        return new Cons(car, cdr);
+        return new Cons(null, car, cdr);
     }
 
     function car(cons) {
+        if (cons == null) return null;
         if (cons != null && isJSFn(cons.rest)) return cons.first();
-        return cons;
+        throw new Error(str('Not a valid Cons: ', prnStr(cons)));
     }
 
     function cdr(cons) {
+        if (cons == null) return null;
         if (cons != null && isJSFn(cons.rest)) return cons.rest();
-        p(cons);
-        return cons;
+        throw new Error(str('Not a valid Cons: ', prnStr(cons)));
     }
 
     function isCons(x) {
@@ -402,6 +502,10 @@ var zera = (function() {
         return xs;
     }
 
+    /**
+     * @constructor
+     * @implements {Seq}
+     */
     function LazySeq(seq, fn) {
         this.fn = fn == null ? null : fn;
         this._seq = seq == null ? null : seq;
@@ -548,71 +652,6 @@ var zera = (function() {
         return x != null && isNumber(x.length);
     }
 
-    function areduce(f) {
-        var i, init, xs;
-        if (arguments.length === 1) {
-            return function(init, xs) {
-                return areduce(f, init, xs);
-            };
-        } else if (arguments.length === 2) {
-            xs = arguments[1];
-            init = xs[0];
-            xs = xs.slice(1);
-            for (i = 0; i < xs.length; i++) {
-                init = f.call(null, init, xs[i]);
-            }
-            return init;
-        } else if (arguments.length === 3) {
-            init = arguments[1];
-            xs = arguments[2];
-            for (i = 0; i < xs.length; i++) {
-                init = f.call(null, init, xs[i]);
-            }
-            return init;
-        } else {
-            throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
-        }
-    }
-
-    function amap(f, xs) {
-        if (arguments.length === 1) {
-            return function(xs) {
-                return amap(f, xs);
-            };
-        }
-        else if (arguments.length === 2) {
-            var i, a = [];
-            for (i = 0; i < xs.length; i++) {
-                a.push(f.call(null, xs[i]));
-            }
-            return a;
-        }
-        else {
-            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
-        }
-    }
-
-    function afilter(f, xs) {
-        if (arguments.length === 1) {
-            return function(xs) {
-                return afilter(f, xs);
-            };
-        }
-        else if (arguments.length === 2) {
-            var a = [], i, pred;
-            for (i = 0; i < xs.length; i++) {
-                pred = f.call(null, xs[i]);
-                if (pred != null && pred !== false) {
-                    a.push(xs[i]);
-                }
-            }
-            return a;
-        }
-        else {
-            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
-        }
-    }
-
     function aget(a, i) {
         return a == null ? null : a[i];
     }
@@ -646,6 +685,9 @@ var zera = (function() {
 
     // Map Interface
     
+    /**
+     * @constructor
+     */
     function MapEntry(key, val) {
         this.$zera$key = key;
         this.$zera$val = val;
@@ -684,14 +726,24 @@ var zera = (function() {
         }
     }
     
+    /**
+     * @abstract
+     * @implements {Seq}
+     */
     function AMap(){}
     AMap.prototype = Object.create(Seq.prototype);
 
+    /**
+     * @constructor
+     * @extends {AMap}
+     */
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
-        this.$zera$meta = meta;
+        Seq.call(this, meta);
+        this.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     }
 
+    ArrayMap.$zera$tag = 'zera.lang.ArrayMap';
     ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap(null, []);
@@ -719,7 +771,7 @@ var zera = (function() {
     };
 
     ArrayMap.prototype.meta = function() {
-        return this.$zera$meta;
+        return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
     };
 
     ArrayMap.prototype.withMeta = function(meta) {
@@ -946,14 +998,17 @@ var zera = (function() {
 
     // Set
 
-    function ZSet(){}
-    ZSet.prototype = Object.create(IObj.prototype); 
+    function ASet(meta) {
+        Seq.call(this, meta);
+    }
+    ASet.prototype = Object.create(Seq.prototype); 
 
-    function APersistentSet(map) {
+    function APersistentSet(meta, map) {
         this.$zera$rep = map || arrayMap();
+        ASet.call(this, meta);
     }
 
-    APersistentSet.prototype = Object.create(ZSet.prototype);
+    APersistentSet.prototype = Object.create(ASet.prototype);
 
     APersistentSet.prototype.toString = function() {
         return str('#{', this.toArray().join(' '), '}');
@@ -980,7 +1035,7 @@ var zera = (function() {
     };
 
     APersistentSet.prototype.equals = function(o) {
-        return o instanceof ZSet && this.$zera$rep.equals(o.$zera$rep);
+        return o instanceof ASet && this.$zera$rep.equals(o.$zera$rep);
     };
 
     APersistentSet.prototype.contains = function(val) {
@@ -988,7 +1043,7 @@ var zera = (function() {
     };
 
     APersistentSet.prototype.meta = function() {
-        return this.$zera$meta;
+        return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
     };
 
     APersistentSet.prototype.first = function() {
@@ -1004,8 +1059,7 @@ var zera = (function() {
     };
 
     function HashSet(meta, map) {
-        this.$zera$meta = meta;
-        APersistentSet.call(this, map);
+        APersistentSet.call(this, meta, map);
     }
 
     HashSet.createFromArray = function(a) {
@@ -1056,7 +1110,7 @@ var zera = (function() {
     }
 
     function isSet(x) {
-        return x instanceof ZSet; // || Object.prototype.toString.call('[object Set]');
+        return x instanceof ASet; // || Object.prototype.toString.call('[object Set]');
     }
 
     function createSet(seq) {
@@ -1371,12 +1425,10 @@ var zera = (function() {
     }
 
     // TODO: complete Var implementation
-    function Var(namespace, name) {
-        this.$zera$ns         = namespace;
-        this.$zera$name       = name;
-        this.$zera$isDyanamic = false;
-        this.$zera$isMacro    = false;
-        ARef.call(this);
+    function Var(meta, namespace, name) {
+        this.$zera$ns   = namespace;
+        this.$zera$name = name;
+        ARef.call(this, meta);
     }
 
     Var.prototype = Object.create(ARef.prototype);
@@ -1392,9 +1444,20 @@ var zera = (function() {
         return this.$zera$value;
     };
 
+    Var.prototype.resetMeta = function(m) {
+        pt('resetting meta on var to', m);
+        var ret = ARef.prototype.resetMeta.call(this, m);
+        pt('var meta', this.$zera$meta);
+        return ret;
+    };
+
+    Var.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
     // TODO: add validation and watchers
     Var.prototype.set = function(value) {
-        if (this.$zera$value == null || this.$zera$isDynamic) {
+        if (this.$zera$value == null || this.isDynamic()) {
             this.$zera$value = value;
             return value;
         }
@@ -1404,21 +1467,21 @@ var zera = (function() {
     };
 
     Var.prototype.setDynamic = function() {
-        this.$zera$isDynamic = true;
+        this.$zera$meta = this.$zera$meta.assoc([Keyword.intern('dynamic'), true]);
         return this;
     };
 
     Var.prototype.isDynamic = function() {
-        return !!this.$zera$isDynamic;
+        return !!this.$zera$meta.find(Keyword.intern('dynamic'));
     };
 
     Var.prototype.setMacro = function() {
-        this.$zera$isMacro = true;
+        this.$zera$meta = this.$zera$meta.assoc([Keyword.intern('macro'), true]);
         return this;
     };
 
     Var.prototype.isMacro = function() {
-        return !!this.$zera$isMacro;
+        return !!this.$zera$meta.find(Keyword.intern('macro'));
     };
 
     Var.prototype.toString = function() {
@@ -1490,7 +1553,7 @@ var zera = (function() {
     Namespace.prototype.intern = function(sym) {
         if (!isSymbol(sym)) throw new Error('Namespace can only intern symbols');
         if (sym.namespace() != null) throw new Error('Cannot intern namespace-qualified symbol');
-        var v = new Var(this, sym);
+        var v = new Var(null, this, sym);
         this.$zera$mappings[sym] = v;
         return v;
     };
@@ -1578,13 +1641,16 @@ var zera = (function() {
         }
     }
 
-    function findVar(sym) {
+    function findVar(sym, returnNull) {
         var ERROR_UNDEFINED_VAR = new Error(str('Undefined variable: ', sym));
         var ns, v, scope, name = sym.name();
-        if (sym.isNamespaceQualified()) {
+        if (sym.isQualified()) {
             ns = Namespace.findOrDie(sym.namespace());
             v  = ns.mapping(name);
-            if (!v) throw ERROR_UNDEFINED_VAR;
+            if (!v) {
+                if (!returnNull) throw ERROR_UNDEFINED_VAR;
+                return null;
+            }
             return v;
         }
         else {
@@ -1593,6 +1659,7 @@ var zera = (function() {
             else {
                 v = ZERA_NS.mapping(name);
                 if (v) return v;
+                if (returnNull) return null;
                 throw ERROR_UNDEFINED_VAR;
             }
         }
@@ -1608,7 +1675,7 @@ var zera = (function() {
         var MACRO_ERROR = new Error(str('Macros cannot be evaluated in this context'));
         var ns, v, scope, name = sym.name();
         // 1) namespace-qualified
-        if (sym.isNamespaceQualified()) {
+        if (sym.isQualified()) {
             ns = Namespace.findOrDie(sym.namespace());
             v  = ns.mapping(name);
             if (!v) throw new Error(str('Undefined variable: ', sym));
@@ -1642,7 +1709,7 @@ var zera = (function() {
     }
 
     function set(env, name, value) {
-        if (!name.isNamespaceQualified()) {
+        if (!name.isQualified()) {
             var scope = lookup(env, name);
             if (scope) {
                 scope.vars[name] = value;
@@ -1665,8 +1732,8 @@ var zera = (function() {
 
         var i;
         for (i = 0; i < binds.length; i += 2) {
-            defineLexically(env, binds[i]);
-            defineLexically(env, binds[i], evaluate(binds[i + 1], env));
+            defineLexically(env, nth(binds, i));
+            defineLexically(env, nth(binds, i), evaluate(nth(binds, i + 1), env));
         }
         
         var x = car(body),
@@ -1686,7 +1753,10 @@ var zera = (function() {
         var value = car(cdr(rest));
         var ns = CURRENT_NS.get();
         var v = Var.intern(ns, name, evaluate(value, env));
-        if (name.meta()) v.resetMeta(name.meta());
+        if (name.meta()) {
+            pt('reset var meta data to:', name.meta());
+            v.resetMeta(name.meta());
+        }
         return v;
     }
 
@@ -1959,7 +2029,8 @@ var zera = (function() {
             } else if (name.endsWith('.')) {
                 return cons(NEW_SYM, cons(Sym.intern(name.replace(/\.$/, '')), cdr(form)));
             } else {
-                var v = findVar(sym);
+                var v = findVar(sym, true); // will return null on error rather than throw an exception
+                if (v == null) return form;
                 if (v.isMacro()) {
                     return macroexpand(apply(v.get(), cdr(form)));
                 }
@@ -2091,6 +2162,7 @@ var zera = (function() {
     function evalVar(form, env) {
         var exp = car(cdr(form));
         if (!isSymbol(exp)) throw new Error('Var name should be a Symbol, got: ' + prnStr(exp));
+        if (!exp.namespace()) throw new Error('Var name should be fully qualified');
         return Var.intern(Sym.intern(exp.namespace()), Sym.intern(exp.name()));
     }
     
@@ -2124,13 +2196,17 @@ var zera = (function() {
     }
 
     function evalMap(form, env) {
-        var seq = map(function(x) { return [evaluate(x.key(), env), evaluate(x.val(), env)]; }, form);
-        return into(ArrayMap.EMPTY, seq);
+        var seq = map(function(x) { return [evaluate(x.key(), env), evaluate(x.val(), env)]; }, form),
+            m = into(ArrayMap.EMPTY, seq);
+        if (form.meta()) return m.withMeta(form.meta());
+        return m;
     }
 
     function evalSet(form, env) {
-        var seq = map(function(x) { return evaluate(x, env); }, form);
-        return into(HashSet.EMPTY, seq);
+        var seq = map(function(x) { return evaluate(x, env); }, form),
+            s = into(HashSet.EMPTY, seq);
+        if (form.meta()) return s.withMeta(form.meta());
+        return s;
     }
 
     function isSelfEvaluating(form) {
@@ -2219,7 +2295,7 @@ var zera = (function() {
         return ret;
     }
 
-    var JS_GLOBAL_OBJECT = isNode ? 'global' : 'window';
+    var JS_GLOBAL_OBJECT = 'window'; //isNode ? 'global' : 'window';
 
     function compileKeyword(form, env) {
         if (form.namespace()) {
@@ -2251,9 +2327,7 @@ var zera = (function() {
     function compileSymbol(form, env) {
         var ns = form.namespace(),
             name = form.name();
-        p(ns);
         if ((ns && ns.startsWith('js')) || (!ns && lookup(env, name))) {
-            p('no ns');
             return str(encodeName(name));
         }
         else {
@@ -2263,6 +2337,7 @@ var zera = (function() {
     }
 
     function compileQuote(form_, env) {
+        if (!isCons(form_)) throw new Error('Malformed quote, expected: (quote value)');
         var a, form = car(cdr(form_));
         if (form == null) return "null";
         else if (form === true) return "true";
@@ -2374,11 +2449,12 @@ var zera = (function() {
             body = cdr(rest);
 
         // add names to function scope
-        var names = [];
+        var bind, names = [];
         for (i = 0; i < count(binds); i += 2) {
-            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
-            names.push(binds[i].name());
-            defineLexically(env, binds[i], true);
+            bind = nth(binds, i);
+            if (!isSymbol(bind)) throw new Error('Invalid binding name');
+            names.push(bind.name());
+            defineLexically(env, bind, true);
         }
         buff.push(names.join(', '));
         buff.push('){');
@@ -2441,14 +2517,16 @@ var zera = (function() {
         var ns = CURRENT_NS.get().name();
         if (name.namespace()) throw new Error('Cannot intern qualified symbol');
         else {
-            jsName = [JS_GLOBAL_OBJECT, compileSymbol(ns), name.name()].join('.');
+            jsName = compileSymbol(name);
         }
 
+        var quotedNS = list(Sym.intern('quote'), ns),
+            quotedName = list(Sym.intern('quote'), name);
         if (value == null) {
-            return str(jsName, ' = zera.core.Var.intern(', compileQuote(ns), ', ', compileQuote(name), ')');
+            return str(jsName, ' = zera.lang.Var.intern(', compileQuote(quotedNS), ', ', compileQuote(quotedName), ')');
         }
         else {
-            return str(jsName, ' = zera.core.Var.intern(', compileQuote(ns), ', ', compileQuote(name), ', ', compile(value), ')');
+            return str(jsName, ' = zera.lang.Var.intern(', compileQuote(quotedNS), ', ', compileQuote(quotedName), ', ', compile(value), ')');
         }
     }
 
@@ -2461,13 +2539,10 @@ var zera = (function() {
         if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
         if (!isSymbol(name)) throw new Error('Invalid assignment target');
         if (!name.namespace() && lookup(env, name)) {
-            return str(compileSymbol(name), ' = ', compile(value));
-        }
-        else if (name.namespace()) {
-            return str(compileSymbol(name), '.set(', compile(value), ')');
+            return str(encodeName(name.name()), ' = ', compile(value));
         }
         else {
-            throw new Error(str('Undefined variable: ', name));
+            return str(compileSymbol(name), '.set(', compile(value), ')');
         }
     }
 
@@ -2518,7 +2593,7 @@ var zera = (function() {
     function compileApplication(form, env) {
         var fn = car(form),
             args = cdr(form);
-        return str(compile(fn, env), '.apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
+        return str(compile(fn, env), '.get().apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
     }
 
     function compile(form_, env_) {
@@ -2605,7 +2680,7 @@ var zera = (function() {
                         ret = compileMemberAccess(form, env);
                         break;
                     case 'defmacro':
-                        ret = evalMacroDefinition(form, env);
+                        evalMacroDefinition(form, env);
                         break;
                     default:
                         ret = compileApplication(form, env);
@@ -2715,7 +2790,29 @@ var zera = (function() {
         return evaluate(readJSON(json));
     }
 
+    // primitive types
+    define(ZERA_NS, "zera.lang.IMeta", IMeta);
+    define(ZERA_NS, "zera.lang.IObj", IObj);
+    define(ZERA_NS, "zera.lang.AReference", AReference);
+    define(ZERA_NS, "zera.lang.ARef", ARef);
+    define(ZERA_NS, "zera.lang.Named", Named);
+    define(ZERA_NS, "zera.lang.Symbol", Sym);
+    define(ZERA_NS, "zera.lang.Keyword", Keyword);
+    define(ZERA_NS, "zera.lang.Seq", Seq);
+    define(ZERA_NS, "zera.lang.List", List);
+    define(ZERA_NS, "zera.lang.Cons", Cons);
+    define(ZERA_NS, "zera.lang.LazySeq", LazySeq);
+    define(ZERA_NS, "zera.lang.MapEntry", MapEntry);
+    define(ZERA_NS, "zera.lang.AMap", AMap);
+    define(ZERA_NS, "zera.lang.ArrayMap", ArrayMap);
+    define(ZERA_NS, "zera.lang.ASet", ASet);
+    define(ZERA_NS, "zera.lang.APersistentSet", APersistentSet);
+    define(ZERA_NS, "zera.lang.HashSet", HashSet);
+    define(ZERA_NS, "zera.lang.Var", Var);
+    define(ZERA_NS, "zera.lang.Namespace", Namespace);
+
     // primitive functions
+    define(ZERA_NS, "isa?", isa);
     define(ZERA_NS, "var?", isVar);
     define(ZERA_NS, "var-get", varGet);
     define(ZERA_NS, "var-set", varSet);
@@ -2726,6 +2823,9 @@ var zera = (function() {
     define(ZERA_NS, "ns-map", nsMap);
     define(ZERA_NS, "namespace?", isNamespace);
     define(ZERA_NS, "meta", meta);
+    define(ZERA_NS, "with-meta", withMeta);
+    define(ZERA_NS, "alter-meta", alterMeta);
+    define(ZERA_NS, "reset-meta", resetMeta);
     define(ZERA_NS, "compile", compile);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "read-string", readString);
@@ -2769,7 +2869,9 @@ var zera = (function() {
     define(ZERA_NS, "cons?", isCons);
     define(ZERA_NS, "pair?", isPair);
     define(ZERA_NS, "pair", pair);
+    define(ZERA_NS, "pr-str", prnStr);
     define(ZERA_NS, "prn-str", prnStr);
+    define(ZERA_NS, "pr", prn);
     define(ZERA_NS, "prn", prn);
     define(ZERA_NS, "println", p);
     define(ZERA_NS, "say", p);
@@ -2791,17 +2893,12 @@ var zera = (function() {
     define(ZERA_NS, "cons->array", consToArray);
     define(ZERA_NS, "array->cons", arrayToCons);
     define(ZERA_NS, "array?", isArray);
-    define(ZERA_NS, 'areduce', areduce);
-    define(ZERA_NS, 'amap', amap);
-    define(ZERA_NS, 'afilter', afilter);
     define(ZERA_NS, 'aset', aset);
     define(ZERA_NS, 'aget', aget);
     define(ZERA_NS, 'alength', alength);
     define(ZERA_NS, 'int-array', intArray);
     define(ZERA_NS, 'float-array', floatArray);
-    define(ZERA_NS, "array", function() {
-        return Array.prototype.slice.call(arguments);
-    });
+    define(ZERA_NS, "array", function() { return Array.prototype.slice.call(arguments); });
     define(ZERA_NS, "object->map", objectToMap);
     define(ZERA_NS, "object?", isObject);
     define(ZERA_NS, "read-js", readJS);
@@ -3043,7 +3140,7 @@ var zera = (function() {
         };
     }
 
-    define(ZERA_NS, '*platform*', Sym.intern('js'));
+    define(ZERA_NS, '*platform*', Keyword.intern('js'));
 
     var JS_NS = Namespace.findOrCreate(Sym.intern('js'));
 
@@ -3108,6 +3205,7 @@ var zera = (function() {
         'WebAssembly',
         'window',
         'document',
+        'navigator',
         'location',
         'localStorage',
         'console',
@@ -3119,7 +3217,11 @@ var zera = (function() {
 
     if (isBrowser) {
         var DOM_NS = Namespace.findOrCreate(Sym.intern('js.dom'));
-        define(ZERA_NS, '*platform*', Sym.intern('js/browser'));
+        define(ZERA_NS, '*platform*', Keyword.intern('js/browser'));
+        define(ZERA_NS, '*platform-info*', arrayMap(
+            Keyword.intern('platform/name'), navigator.userAgent,
+            Keyword.intern('platform/version'), navigator.userAgent
+        ));
         [
             'Attr',
             'ByteString',
@@ -3239,7 +3341,11 @@ var zera = (function() {
 
     if (isNode) {
         var NODE_NS = Namespace.findOrCreate(Sym.intern('js.node'));
-        define(ZERA_NS, '*platform*', Sym.intern("js/node"));
+        define(ZERA_NS, '*platform*', Keyword.intern("js/node"));
+        define(ZERA_NS, '*platform-info*', arrayMap(
+            Keyword.intern('platform/name'), "node",
+            Keyword.intern('platform/version'), process.version
+        ));
         [
             'Buffer',
             '__dirname',
@@ -3437,11 +3543,11 @@ var zera = (function() {
         }
         
         var x = _read(r, true, null, true, opts);
-        if (x instanceof IMeta) {
+        if (isa(x, IMeta)) {
             if (isSeq(x)) {
                 meta = meta.assoc([LINE_KEY, line, COLUMN_KEY, column]);
             }
-            if (x instanceof AReference) {
+            if (isa(x, AReference)) {
                 x.resetMeta(meta);
                 return x;
             }
@@ -3449,7 +3555,7 @@ var zera = (function() {
             var xmeta = x.meta();
             for (var s = meta.entries(); s !== null; s = s.next()) {
                 var kv = s.first();
-                xmeta = xmeta.assoc([kv.key(), kv.val()]);
+                xmeta = xmeta.assoc([key(kv), val(kv)]);
             }
             return x.withMeta(xmeta);
         }
@@ -3679,6 +3785,20 @@ var zera = (function() {
         }
     }
 
+    function compileString(s) {
+        var r = new PushBackReader(s);
+        var res, ret, buff = [], cEnv = env();
+        while (true) {
+            res = read(r, {eofIsError: false, eofValue: null});
+            if (res != null) {
+                ret = compile(res, cEnv);
+                if (ret != null) buff.push(ret);
+            }
+            if (res == null) break;
+        }
+        return buff.join(';\n');
+    }
+
     /*evalJS(
         ['defmacro', 'defn', ['name', 'args', '&', 'body'],
             ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
@@ -3709,9 +3829,9 @@ var zera = (function() {
             Cons: Cons,
             LazySeq: LazySeq,
             MapEntry: MapEntry,
-            Map: AMap,
+            AMap: AMap,
             ArrayMap: ArrayMap,
-            Set: ZSet,
+            ASet: ASet,
             APersistentSet: APersistentSet,
             HashSet: HashSet,
             Var: Var,
@@ -3724,6 +3844,7 @@ var zera = (function() {
         core: {
             set: set,
             keyword: keyword,
+            symbol: symbol,
             list: list,
             arrayMap: arrayMap,
             isSymbol: isSymbol,
@@ -3732,14 +3853,15 @@ var zera = (function() {
             isMap: isMap,
             isSeq: isSeq,
             str: str,
-            prn: prn,
+            prn: Var.intern(symbol('zera.core'), symbol('prn'), prn),
             prnStr: prnStr,
             ok: ok,
             is: is,
-            equals: equals
+            equals: equals,
+            eval: evaluate,
+            the__MINUS__ns: Var.intern(symbol('zera.core'), symbol('the-ns'), theNS),
+            __STAR__ns__STAR__: CURRENT_NS,
         },
-        CURRENT_NS: CURRENT_NS,
-        eval: evaluate,
         evalJS: evalJS,
         evalJSON: evalJSON,
         readJS: readJS,
@@ -3761,6 +3883,10 @@ var zera = (function() {
 
         api.evalFile = function(file) {
             return evalString(fs.readFileSync(file).toString());
+        };
+
+        api.compileFile = function(file) {
+            return compileString(fs.readFileSync(file).toString());
         };
 
         module.exports = api;
