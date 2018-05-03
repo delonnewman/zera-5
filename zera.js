@@ -212,6 +212,11 @@ var zera = (function() {
         return str(':', this.$zera$sym);
     };
 
+    Keyword.prototype.equals = function(o) {
+        if (o == null || !isKeyword(o)) return false;
+        return this.namespace() === o.namespace() && this.name() === o.name();
+    };
+
     function isKeyword(x) {
         return x instanceof Keyword;
     }
@@ -366,13 +371,14 @@ var zera = (function() {
     }
 
     function car(cons) {
-        if (cons == null) return null;
-        return cons.first();
+        if (cons != null && isJSFn(cons.rest)) return cons.first();
+        return cons;
     }
 
     function cdr(cons) {
-        if (cons == null) return null;
-        return cons.rest();
+        if (cons != null && isJSFn(cons.rest)) return cons.rest();
+        p(cons);
+        return cons;
     }
 
     function isCons(x) {
@@ -1638,7 +1644,10 @@ var zera = (function() {
     function set(env, name, value) {
         if (!name.isNamespaceQualified()) {
             var scope = lookup(env, name);
-            if (scope) return scope.vars[name];
+            if (scope) {
+                scope.vars[name] = value;
+                return scope.vars[name];
+            }
         }
         var v = findVar(name);
         return v.set(value);
@@ -1686,6 +1695,7 @@ var zera = (function() {
         var rest = cdr(form);
         var name = car(rest);
         var value = car(cdr(rest));
+        if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
         return set(env, name, evaluate(value, env));
     }
 
@@ -2209,12 +2219,90 @@ var zera = (function() {
         return ret;
     }
 
+    var JS_GLOBAL_OBJECT = isNode ? 'global' : 'window';
+
     function compileKeyword(form, env) {
         if (form.namespace()) {
             return str('zera.core.keyword("', form.namespace(), '", "', form.name(), '")');
         }
         else {
             return str('zera.core.keyword("', form.name(), '")');
+        }
+    }
+
+    var SPECIALS = {
+        '+': '__PLUS__',
+        '-': '__MINUS__',
+        '!': '__BANG__',
+        '?': '__QEST__',
+        '*': '__STAR__',
+        '>': '__GT__',
+        '<': '__LT__',
+        '=': '__EQ__'
+    };
+
+    function encodeName(name) {
+        return name.split('').map(function(x) { return SPECIALS[x] ? SPECIALS[x] : x; }).join('');
+    }
+
+    // TODO: We'll map namespaces to JS modules
+    // For example, zera.core/+ will map to zera.core.__PLUS__
+    // and zera.core/map will map to zera.core.map
+    function compileSymbol(form, env) {
+        var ns = form.namespace(),
+            name = form.name();
+        p(ns);
+        if ((ns && ns.startsWith('js')) || (!ns && lookup(env, name))) {
+            p('no ns');
+            return str(encodeName(name));
+        }
+        else {
+            if (!ns) ns = CURRENT_NS.get().name();
+            return str(JS_GLOBAL_OBJECT, '.', ns, '.', encodeName(name));
+        }
+    }
+
+    function compileQuote(form_, env) {
+        var a, form = car(cdr(form_));
+        if (form == null) return "null";
+        else if (form === true) return "true";
+        else if (form === false) return "false";
+        else if (isNumber(form)) return str(form);
+        else if (isString(form)) return str('"', form, '"');
+        else if (isKeyword(form)) return compileKeyword(form);
+        else if (isSymbol(form)) {
+            if (form.namespace()) {
+                return str('zera.core.symbol("', form.namespace(), '", "', form.name(), '"');
+            }
+            else {
+                return str('zera.core.symbol("', form.name(), '")');
+            }
+        }
+        else if (isCons(form)) {
+            if (isPair(form)) {
+                return str('zera.core.cons(', compileQuote(car(form)), ', ', compileQuote(cdr(form)), ')');
+            }
+            a = mapA(function(x) { return compileQuote(x, env); }, form);
+            return str('zera.core.list(', a.join(', '), ')');
+        }
+        else if (isMap(form)) {
+            a = mapA(function(x) { return str(compileQuote(x.key(), env), ', ', compileQuote(x.val(), env)); }, form);
+            return str('zera.core.arrayMap(', a.join(', '), ')');
+        }
+        else if (isSet(form)) {
+            a = mapA(function(x) { return compileQuote(x, env); }, form);
+            return str('zera.core.set([', a.join(', '), '])');
+        }
+        else if (isVector(form)) {
+            a = mapA(function(x) { return compileQuote(x, env); }, form);
+            return str('zera.core.vector(', a.join(', '), ')');
+        }
+        else if (isArray(form)) {
+            a = mapA(function(x) { return compile(x, env); }, form);
+            return str('[', a.join(', '), ']');
+        }
+        else {
+            throw new Error(str("Don't know how to quote: ", prnStr(form)));
         }
     }
 
@@ -2236,6 +2324,201 @@ var zera = (function() {
     function compileSet(form, env) {
         var a = mapA(function(x) { return compile(x, env); }, form);
         return str('zera.core.set([', a.join(', '), '])');
+    }
+
+    function compileConditional(form, env) {
+        var i,
+            buff = ['(function(){'],
+            preds = reverse(pair(cdr(form))); // TODO: make pair preserve order
+
+        if (count(preds) % 2 === 1) throw new Error('The number of conditions should be even');
+
+        var a = mapA(function(x) {
+            var pred = car(x), exp = cdr(x);
+            if (isKeyword(pred) && Keyword.intern('else').equals(pred)) {
+                return ['true', compile(exp, env)];
+            }
+            return [compile(pred, env), compile(exp, env)];
+        }, preds);
+
+        for (i = 0; i < a.length; i++) {
+            buff.push('if (');
+            buff.push(a[i][0]);
+            buff.push(') { return ');
+            buff.push(a[i][1]);
+            buff.push('; } ');
+        }
+
+        buff.push('}())');
+
+        return buff.join('');
+    }
+
+    function compileDoBlock(form, env) {
+        var buff = ['(function(){'],
+            body = cdr(form);
+
+        var a = mapA(function(x) { return compile(x, env); }, body);
+        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        buff.push(a.join('; '));
+        buff.push('}())');
+
+        return buff.join('');
+    }
+
+    function compileFunction(form, env) {
+        var i,
+            buff = ['(function('],
+            rest = cdr(form),
+            binds = car(rest),
+            body = cdr(rest);
+
+        // add names to function scope
+        var names = [];
+        for (i = 0; i < count(binds); i += 2) {
+            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
+            names.push(binds[i].name());
+            defineLexically(env, binds[i], true);
+        }
+        buff.push(names.join(', '));
+        buff.push('){');
+
+        // body
+        var a = mapA(function(x) { return compile(x, env); }, body);
+        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        buff.push(a.join('; '));
+        buff.push('})');
+
+        return buff.join('');
+    }
+
+    function compileLetBlock(form, env) {
+        var i,
+            buff = ['(function('],
+            rest = cdr(form),
+            binds = car(rest),
+            body = cdr(rest);
+
+        // add names to function scope
+        var names = [];
+        for (i = 0; i < count(binds); i += 2) {
+            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
+            names.push(binds[i].name());
+            defineLexically(env, binds[i], true);
+        }
+        buff.push(names.join(', '));
+        buff.push('){');
+
+        // body
+        var a = mapA(function(x) { return compile(x, env); }, body);
+        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        buff.push(a.join('; '));
+        buff.push('}(');
+
+        // add values to function scope
+        var values = [];
+        for (i = 0; i < count(binds); i += 2) {
+            values.push(compile(binds[i + 1]));
+        }
+        buff.push(values.join(', '));
+        buff.push('))');
+
+        return buff.join('');
+    }
+
+    function compileLoop(form, env) {
+        throw new Error('TODO');
+    }
+
+    function compileRecursionPoint(form, env) {
+        throw new Error('TODO');
+    }
+
+    function compileDefinition(form, env) {
+        var name = car(cdr(form)), value = car(cdr(cdr(form))), jsName;
+        if (!isSymbol(name)) throw new Error('definition name must be a symbol');
+
+        var ns = CURRENT_NS.get().name();
+        if (name.namespace()) throw new Error('Cannot intern qualified symbol');
+        else {
+            jsName = [JS_GLOBAL_OBJECT, compileSymbol(ns), name.name()].join('.');
+        }
+
+        if (value == null) {
+            return str(jsName, ' = zera.core.Var.intern(', compileQuote(ns), ', ', compileQuote(name), ')');
+        }
+        else {
+            return str(jsName, ' = zera.core.Var.intern(', compileQuote(ns), ', ', compileQuote(name), ', ', compile(value), ')');
+        }
+    }
+
+    function compileVar(form, env) {
+        throw new Error('TODO');
+    }
+
+    function compileAssignment(form, env) {
+        var name = car(cdr(form)), value = car(cdr(cdr(form)));
+        if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
+        if (!isSymbol(name)) throw new Error('Invalid assignment target');
+        if (!name.namespace() && lookup(env, name)) {
+            return str(compileSymbol(name), ' = ', compile(value));
+        }
+        else if (name.namespace()) {
+            return str(compileSymbol(name), '.set(', compile(value), ')');
+        }
+        else {
+            throw new Error(str('Undefined variable: ', name));
+        }
+    }
+
+    function compileThrownException(form, env) {
+        var exp = car(cdr(form));
+        return str('throw ', compile(exp, env));
+    }
+
+    function compileClassInstantiation(form, env) {
+        var exp = car(cdr(form)),
+            args = cdr(cdr(form));
+        return str('new ', compile(exp, env), '(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
+    }
+
+    function compileMemberAccess(form, env) {
+        throw new Error('Incomplete');
+        var obj = compile(car(cdr(form)), env);
+        var member = car(cdr(cdr(form)));
+        var val;
+        if (isSymbol(member)) {
+            var smember = member.toString();
+            val = obj[smember];
+            if (smember.startsWith('-')) {
+                return obj[smember.slice(1)];
+            } else if (isJSFn(val)) {
+                return val.call(obj);
+            } else {
+                return val;
+            }
+        } else if (isCons(member)) {
+            var name = str(car(member));
+            val = obj[name];
+            if (name.startsWith('-')) {
+                return obj[name.slice(1)];
+            } else if (isJSFn(val)) {
+                var args = mapA(function(x) {
+                    return evaluate(x, env);
+                }, cdr(member));
+                return val.apply(obj, args);
+            } else {
+                throw new Error(str('invalid member access: "', prnStr(form), '"'));
+            }
+        } else {
+            throw new Error(str('invalid member access: "', prnStr(form), '"'));
+        }
+    }
+
+    function compileApplication(form, env) {
+        var fn = car(form),
+            args = cdr(form);
+        return str(compile(fn, env), '.apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
     }
 
     function compile(form_, env_) {
@@ -2283,49 +2566,49 @@ var zera = (function() {
                 var tag = str(car(form));
                 switch (tag) {
                     case 'quote':
-                        ret = evalQuote(form);
+                        ret = compileQuote(form);
                         break;
                     case 'do':
-                        ret = evalDoBlock(form, env);
+                        ret = compileDoBlock(form, env);
                         break;
                     case 'let':
-                        ret = evalLetBlock(form, env);
+                        ret = compileLetBlock(form, env);
                         break;
                     case 'def':
-                        ret = evalDefinition(form, env);
+                        ret = compileDefinition(form, env);
                         break;
                     case 'var':
-                        ret = evalVar(form, env);
+                        ret = compileVar(form, env);
                         break;
                     case 'set!':
-                        ret = evalAssignment(form, env);
+                        ret = compileAssignment(form, env);
                         break;
                     case 'cond':
-                        ret = evalConditional(form, env);
+                        ret = compileConditional(form, env);
                         break;
                     case 'fn':
-                        ret = evalFunction(form, env);
+                        ret = compileFunction(form, env);
                         break;
                     case 'loop':
-                        ret = evalLoop(form, env);
+                        ret = compileLoop(form, env);
                         break;
                     case 'recur':
-                        ret = evalRecursionPoint(form, env);
+                        ret = compileRecursionPoint(form, env);
                         break;
                     case 'throw':
-                        ret = evalThrownException(form, env);
+                        ret = compileThrownException(form, env);
                         break;
                     case 'new':
-                        ret = evalClassInstantiation(form, env);
+                        ret = compileClassInstantiation(form, env);
                         break;
                     case '.':
-                        ret = evalMemberAccess(form, env);
+                        ret = compileMemberAccess(form, env);
                         break;
                     case 'defmacro':
                         ret = evalMacroDefinition(form, env);
                         break;
                     default:
-                        ret = evalApplication(form, env);
+                        ret = compileApplication(form, env);
                         break;
                 }
             } else {
@@ -2361,7 +2644,7 @@ var zera = (function() {
 
     function mapA(f, l) {
         if (isEmpty(l)) {
-            return null;
+            return [];
         } else {
             var a = isArray(l) ? l : consToArray(l);
             var newA = [];
@@ -2445,6 +2728,7 @@ var zera = (function() {
     define(ZERA_NS, "meta", meta);
     define(ZERA_NS, "compile", compile);
     define(ZERA_NS, "eval", evaluate);
+    define(ZERA_NS, "read-string", readString);
     define(ZERA_NS, "apply", apply);
     define(ZERA_NS, "macroexpand", macroexpand);
     define(ZERA_NS, "nil?", isNil);
