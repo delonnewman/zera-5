@@ -3,6 +3,10 @@
   (fn [delim col]
     (cond (empty? col) ""
           :else (reduce (fn [s x] (str s delim x)) "" col))))
+ 
+(def memoize
+  (let [memo (atom {})]
+    (fn [f])))
 
 (def html
   (fn [form]
@@ -19,5 +23,5 @@
             :else
               (throw (js/Error. (str "Invalid form: " (prn-str f))))))))
 
-(p (html ['a {:href "#"} "This is a test"]))
+(say (html ['a {:href "#"} "This is a test"]))
 ;(prn (join-str " " [1 2 3]))

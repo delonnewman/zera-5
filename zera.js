@@ -108,11 +108,74 @@ var zera = (function() {
     /**
      * @abstract
      */
-    function ARef(meta) {
+    function ARef(meta, value, validator) {
         AReference.call(this, meta);
+        this.$zera$watchers = arrayMap();
+        this.$zera$validator = validator;
+        this.$zera$value = value;
+    }
+
+    function processWatchers(ref, old, knew) {
+        var s, f,
+            watchers = ref.$zera$watchers;
+        if (isEmpty(watchers)) return;
+        for (s = watchers.entries(); s != null; s = s.next()) {
+            var kv = s.first();
+            f = kv.val();
+            if (f != null && (isFn(f) || isInvocable(f))) apply(f, list(kv.key(), ref, old, knew));
+            else {
+                throw new Error('A watcher must be a function of 4 arguments');
+            }
+        }
     }
 
     ARef.prototype = Object.create(AReference.prototype);
+
+    ARef.prototype.deref = function() {
+        return this.$zera$value;
+    };
+
+    ARef.prototype.validate = function(value) {
+        var v = this.$zera$validator;
+        if (v != null && (isFn(v) || isInvocable(v))) {
+            if (!apply(v, list(value ? value : this.$zera$value))) throw new Error('Not a valid value for this atom');
+        }
+    };
+
+    ARef.prototype.addWatch = function(key, f) {
+        this.$zera$watchers = this.$zera$watchers.assoc([key,  f]);
+        return this;
+    };
+
+    ARef.prototype.removeWatch = function(key) {
+        this.$zera$watchers = this.$zera$watchers.dissoc(key);
+        return this;
+    };
+
+    ARef.prototype.setValidator = function(f) {
+        this.$zera$validator = f;
+        return this;
+    };
+
+    function addWatch(ref, key, f) {
+        if (ref instanceof ARef) return ref.addWatch(key, f);
+        throw new Error('Can only add watchers to ARef instances (e.g. atoms and vars)');
+    }
+
+    function removeWatch(ref, key, f) {
+        if (ref instanceof ARef) return ref.removeWatch(key, f);
+        throw new Error('Can only remove watchers from ARef instances (e.g. atoms and vars)');
+    }
+
+    function setValidator(ref, key, f) {
+        if (ref instanceof ARef) return ref.setValidator(key, f);
+        throw new Error('Can only set validators for ARef instances (e.g. atoms and vars)');
+    }
+
+    function deref(ref) {
+        if (ref instanceof ARef) return ref.deref();
+        throw new Error('Can only dereference ARef instances (e.g. atoms and vars)');
+    }
 
     /**
      * @interface
@@ -329,7 +392,20 @@ var zera = (function() {
     function Seq(meta) {
         this.$zera$meta = meta;
     }
+
     Seq.prototype = Object.create(IObj.prototype);
+
+    Seq.prototype.first = function() {
+        throw new Error('unimplmented');
+    };
+
+    Seq.prototype.rest = function() {
+        throw new Error('unimplmented');
+    };
+
+    Seq.prototype.cons = function(x) {
+        throw new Error('unimplmented');
+    };
 
     function seq(x) {
         if (x == null) return Cons.EMPTY;
@@ -1312,7 +1388,7 @@ var zera = (function() {
         } else if (isJSFn(x)) {
             return str('#js/function "', x.toString(), '"');
         } else if (isArrayLike(x)) {
-            if (x.hasOwnProperty('toString')) {
+            if (x.toString) {
                 return x.toString();
             }
             else {
@@ -1368,7 +1444,7 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object Number]';
     }
 
-    function isAtom(x) {
+    function isAtomic(x) {
         return isBoolean(x) || isNumber(x) || isString(x) || isKeyword(x) || x == null;
     }
 
@@ -1453,10 +1529,11 @@ var zera = (function() {
         return this.$zera$meta;
     };
 
-    // TODO: add validation and watchers
     Var.prototype.set = function(value) {
+        this.validate(value);
         if (this.$zera$value == null || this.isDynamic()) {
             this.$zera$value = value;
+            processWatchers(this, this.$zera$value, value);
             return value;
         }
         else {
@@ -1502,6 +1579,66 @@ var zera = (function() {
     function varSet(v, value) {
         if (isVar(v)) return v.set(value);
         throw new Error('var-set can only be used on Vars');
+    }
+
+    function Atom(meta, value, validator) {
+        ARef.call(this, meta, value, validator);
+    }
+
+    Atom.prototype = Object.create(ARef.prototype);
+
+    Atom.prototype.reset = function(newVal) {
+        this.validate(newVal);
+        var oldVal = this.$zera$value;
+        this.$zera$value = newVal;
+        processWatchers(this, oldVal, newVal);
+        return this;
+    };
+
+    Atom.prototype.swap = function(f) {
+        if (!isFn(f) && !isInvocable(f)) throw new Error('Can only swap atomic value with a function');
+        var oldVal = this.$zera$value,
+            newVal = apply(f, list(oldVal));
+        this.validate(newVal);
+        this.$zera$value = newVal;
+        processWatchers(this, oldVal, newVal);
+        return this;
+    };
+
+    Atom.prototype.compareAndSet = function(oldVal, newVal) {
+        if (equals(this.$zera$value, oldVal)) {
+            this.validate(newVal);
+            this.$zera$value = newVal;
+            processWatchers(this, oldVal, newVal);
+        }
+        return this;
+    };
+
+    Atom.prototype.toString = function() {
+        return str('#<Atom value: ', prnStr(this.$zera$value), '>');
+    };
+
+    function isAtom(x) {
+        return x instanceof Atom;
+    }
+
+    function atom(x) {
+        return new Atom(null, x);
+    }
+
+    function reset(atom, value) {
+        if (isAtom(atom)) return atom.reset(value);
+        throw new Error('Can only reset the value of Atoms');
+    }
+
+    function swap(atom, f) {
+        if (isAtom(atom)) return atom.swap(f);
+        throw new Error('Can only reset the value of Atoms');
+    }
+
+    function compareAndSet(atom, oldVal, newVal) {
+        if (isAtom(atom)) return atom.compareAndSet(oldVal, newVal);
+        throw new Error('Can only compare and set the value of Atoms');
     }
 
     // TODO: complete Namespace implementation
@@ -1932,7 +2069,7 @@ var zera = (function() {
     prn(bindArguments(list('x', cons('y', 'ys')), list(1, 2, 3, 4, 5)));
     */
 
-    // add capture variables using pair notation
+    // FIXME: fix '&' support
     function apply(x, args) {
         if (isArray(x)) return x[car(args)];
         if (isInvocable(x)) {
@@ -1990,7 +2127,6 @@ var zera = (function() {
         return apply(fn, args_);
     }
 
-    // FIXME: fix '&' support
     // TODO: add destructuring
     // TODO: add variable validation, capture variable values from environment
     // TODO: add recur support
@@ -2209,7 +2345,7 @@ var zera = (function() {
     }
 
     function isSelfEvaluating(form) {
-        return isAtom(form) || isJSFn(form);
+        return isAtomic(form) || isJSFn(form);
     }
 
     var top = env();
@@ -2858,6 +2994,15 @@ var zera = (function() {
     define(ZERA_NS, "var?", isVar);
     define(ZERA_NS, "var-get", varGet);
     define(ZERA_NS, "var-set", varSet);
+    define(ZERA_NS, "add-watch", addWatch);
+    define(ZERA_NS, "remove-watch", removeWatch);
+    define(ZERA_NS, "set-validator!", setValidator);
+    define(ZERA_NS, "deref", deref);
+    define(ZERA_NS, "atom", atom);
+    define(ZERA_NS, "atom?", isAtom);
+    define(ZERA_NS, "reset!", reset);
+    define(ZERA_NS, "swap!", swap);
+    define(ZERA_NS, "compare-and-set!", compareAndSet);
     define(ZERA_NS, "the-ns", theNS);
     define(ZERA_NS, "ns-name", nsName);
     define(ZERA_NS, "create-ns", createNS);
@@ -2954,6 +3099,7 @@ var zera = (function() {
     });
 
     define(ZERA_NS, "=", equals);
+    define(ZERA_NS, "not=", function(a, b) { return !equals(a, b); });
 
     define(ZERA_NS, "assert", function(x) {
         if (x == null || x === false) throw new Error(str('Assert failed: ', prnStr(x)));
@@ -3094,10 +3240,10 @@ var zera = (function() {
     define(ZERA_NS, '>=', gteq);
 
     var add = function(x) {
-        if (x == null) return null;
         if (arguments.length === 0) {
             return 0;
         }
+        else if (x == null) return null;
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be added');
             return x;
