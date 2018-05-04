@@ -1441,7 +1441,7 @@ var zera = (function() {
     }
 
     function isNumber(x) {
-        return Object.prototype.toString.call(x) === '[object Number]';
+        return !isNaN(x) && Object.prototype.toString.call(x) === '[object Number]';
     }
 
     function isAtomic(x) {
