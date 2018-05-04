@@ -1445,9 +1445,7 @@ var zera = (function() {
     };
 
     Var.prototype.resetMeta = function(m) {
-        pt('resetting meta on var to', m);
         var ret = ARef.prototype.resetMeta.call(this, m);
-        pt('var meta', this.$zera$meta);
         return ret;
     };
 
@@ -1507,6 +1505,7 @@ var zera = (function() {
     }
 
     // TODO: complete Namespace implementation
+    // TODO: make function for exporting Namespace mappings to a JS module e.g. zera.core = Namespace.findOrDie('zera.core').toJSModule();
     function Namespace(name) {
         if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
@@ -1754,7 +1753,6 @@ var zera = (function() {
         var ns = CURRENT_NS.get();
         var v = Var.intern(ns, name, evaluate(value, env));
         if (name.meta()) {
-            pt('reset var meta data to:', name.meta());
             v.resetMeta(name.meta());
         }
         return v;
@@ -1992,6 +1990,7 @@ var zera = (function() {
         return apply(fn, args_);
     }
 
+    // FIXME: fix '&' support
     // TODO: add destructuring
     // TODO: add variable validation, capture variable values from environment
     // TODO: add recur support
@@ -2096,7 +2095,7 @@ var zera = (function() {
                             throw new Error(str('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
                         }
                         for (i = 0; i < names.length; i++) {
-                            define(scope, names[i], e.args[i]);
+                            defineLexically(scope, names[i], e.args[i]);
                         }
                         continue loop;
                     } else {
@@ -2295,7 +2294,7 @@ var zera = (function() {
         return ret;
     }
 
-    var JS_GLOBAL_OBJECT = 'window'; //isNode ? 'global' : 'window';
+    var JS_GLOBAL_OBJECT = Var.intern(ZERA_NS, Sym.intern('*js-global-object*'), isNode ? 'global' : 'window').setDynamic();
 
     function compileKeyword(form, env) {
         if (form.namespace()) {
@@ -2324,15 +2323,19 @@ var zera = (function() {
     // TODO: We'll map namespaces to JS modules
     // For example, zera.core/+ will map to zera.core.__PLUS__
     // and zera.core/map will map to zera.core.map
-    function compileSymbol(form, env) {
-        var ns = form.namespace(),
+    function compileSymbol(form, env, opts_) {
+        var opts = opts_ ? opts_ : {},
+            ns = form.namespace(),
             name = form.name();
         if ((ns && ns.startsWith('js')) || (!ns && lookup(env, name))) {
             return str(encodeName(name));
         }
         else {
             if (!ns) ns = CURRENT_NS.get().name();
-            return str(JS_GLOBAL_OBJECT, '.', ns, '.', encodeName(name));
+            if (opts.returnVar === true) {
+                return str(JS_GLOBAL_OBJECT.get(), '.', ns, '.', encodeName(name));
+            }
+            return str(JS_GLOBAL_OBJECT.get(), '.', ns, '.', encodeName(name), '.get()');
         }
     }
 
@@ -2441,6 +2444,7 @@ var zera = (function() {
         return buff.join('');
     }
 
+    // TODO: add '&' support
     function compileFunction(form, env) {
         var i,
             buff = ['(function('],
@@ -2502,12 +2506,46 @@ var zera = (function() {
         return buff.join('');
     }
 
+    // TODO: complete loop implementation
     function compileLoop(form, env) {
-        throw new Error('TODO');
+        var i,
+            buff = ['(function('],
+            rest = cdr(form),
+            binds = car(rest),
+            body = cdr(rest);
+
+        // add names to function scope
+        var names = [];
+        for (i = 0; i < count(binds); i += 2) {
+            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
+            names.push(binds[i].name());
+            defineLexically(env, binds[i], true);
+        }
+        buff.push(names.join(', '));
+        buff.push('){');
+
+        // body
+        var a = mapA(function(x) { return compile(x, env); }, body);
+        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        buff.push(a.join('; '));
+        buff.push('}(');
+
+        // add values to function scope
+        var values = [];
+        for (i = 0; i < count(binds); i += 2) {
+            values.push(compile(binds[i + 1]));
+        }
+        buff.push(values.join(', '));
+        buff.push('))');
+
+        return buff.join('');
     }
 
+    // TODO: should detect tail position
     function compileRecursionPoint(form, env) {
-        throw new Error('TODO');
+        var args = cdr(form);
+        if (isEmpty(args)) throw new Error('recur requires at least one argument');
+        return str('throw new zera.lang.RecursionPoint(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
     }
 
     function compileDefinition(form, env) {
@@ -2515,9 +2553,9 @@ var zera = (function() {
         if (!isSymbol(name)) throw new Error('definition name must be a symbol');
 
         var ns = CURRENT_NS.get().name();
-        if (name.namespace()) throw new Error('Cannot intern qualified symbol');
+        if (name.isQualified()) throw new Error('Cannot intern qualified symbol');
         else {
-            jsName = compileSymbol(name);
+            jsName = [JS_GLOBAL_OBJECT.get(), CURRENT_NS.get().name(), name.name()].join('.');
         }
 
         var quotedNS = list(Sym.intern('quote'), ns),
@@ -2531,7 +2569,10 @@ var zera = (function() {
     }
 
     function compileVar(form, env) {
-        throw new Error('TODO');
+        var sym = car(cdr(form));
+        if (!isSymbol(sym)) throw new Error('Malformed var expression expecting: (var symbol)');
+        if (!sym.isQualified()) throw new Error('Var name should be fully qualified');
+        return str('zera.lang.Var.intern(zera.core.symbol("', sym.namespace(), '"), zera.core.symbol("', sym.name(), '"))');
     }
 
     function compileAssignment(form, env) {
@@ -2539,10 +2580,10 @@ var zera = (function() {
         if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
         if (!isSymbol(name)) throw new Error('Invalid assignment target');
         if (!name.namespace() && lookup(env, name)) {
-            return str(encodeName(name.name()), ' = ', compile(value));
+            return str(encodeName(name.name()), ' = ', compile(value, env));
         }
         else {
-            return str(compileSymbol(name), '.set(', compile(value), ')');
+            return str(compileSymbol(name, env, {returnVar: true}), '.set(', compile(value, env), ')');
         }
     }
 
@@ -2557,6 +2598,7 @@ var zera = (function() {
         return str('new ', compile(exp, env), '(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
     }
 
+    // TODO: complete member access implementation
     function compileMemberAccess(form, env) {
         throw new Error('Incomplete');
         var obj = compile(car(cdr(form)), env);
@@ -2593,7 +2635,7 @@ var zera = (function() {
     function compileApplication(form, env) {
         var fn = car(form),
             args = cdr(form);
-        return str(compile(fn, env), '.get().apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
+        return str(compile(fn, env), '.apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
     }
 
     function compile(form_, env_) {
@@ -3835,7 +3877,8 @@ var zera = (function() {
             APersistentSet: APersistentSet,
             HashSet: HashSet,
             Var: Var,
-            Namespace: Namespace
+            Namespace: Namespace,
+            RecursionPoint: RecursionPoint
         },
         reader: {
             PushBackReader: PushBackReader,
@@ -3861,7 +3904,10 @@ var zera = (function() {
             eval: evaluate,
             the__MINUS__ns: Var.intern(symbol('zera.core'), symbol('the-ns'), theNS),
             __STAR__ns__STAR__: CURRENT_NS,
+            __STAR__js__MINUS__global__MINUS__object__STAR__: JS_GLOBAL_OBJECT,
         },
+        JS_GLOBAL_OBJECT: JS_GLOBAL_OBJECT,
+        CURRENT_NS: CURRENT_NS,
         evalJS: evalJS,
         evalJSON: evalJSON,
         readJS: readJS,
@@ -3888,6 +3934,8 @@ var zera = (function() {
         api.compileFile = function(file) {
             return compileString(fs.readFileSync(file).toString());
         };
+
+        global.zera = api;
 
         module.exports = api;
     }

@@ -4,7 +4,25 @@
 
 (ns zera.core)
 
+(prn *js-global-object*)
+
+; FIXME: this is causing an error with 'apply' when run through the interpreter
+;(prn #'zera.core/+)
+
+(def inc (fn [x] (+ 1 x)))
+
+(loop [i 1]
+  (cond (= i 10) i
+        :else
+          (do
+            (prn i)
+            (recur (+ 1 i)))))
+
 (def identity (fn [x] x))
 (def constantly (fn [x] (fn [] x)))
 
+(def two (constantly 2))
+
 (prn (identity 1))
+(prn (two))
+(prn (inc 4))

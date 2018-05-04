@@ -1,2 +1,4 @@
 *.sw*
 node_modules/
+out/core.js
+out/out.js
