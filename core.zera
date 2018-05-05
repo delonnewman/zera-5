@@ -2,27 +2,100 @@
 (defmacro ns [sym]
   (list 'set! '*ns* (list 'the-ns (list 'quote sym))))
 
-(ns zera.core)
-
-(prn *js-global-object*)
-
 ; FIXME: this is causing an error with 'apply' when run through the interpreter
 ;(prn #'zera.core/+)
 
-(def inc (fn [x] (+ 1 x)))
+(ns zera.core)
 
-(loop [i 1]
-  (cond (= i 10) i
-        :else
-          (do
-            (prn i)
-            (recur (+ 1 i)))))
+(defmacro defn [x & xs]
+  (list 'def x (cons 'fn xs)))
 
-(def identity (fn [x] x))
-(def constantly (fn [x] (fn [] x)))
+(defmacro comment [& xs] nil)
 
-(def two (constantly 2))
+(defmacro if
+  ([pred conse] (list 'cond pred conse))
+  ([pred conse alt] (list 'cond pred conse :else alt))) 
 
-(prn (identity 1))
-(prn (two))
-(prn (inc 4))
+(defmacro if-not
+  ([pred conse] (list 'cond (list 'not pred) conse))
+  ([pred conse alt] (list 'cond (list 'not pred) conse :else alt)))
+
+(defmacro when [pred & acts]
+  (list 'cond pred (cons 'do acts)))
+
+(defmacro when-not [pred & acts]
+  (list 'cond (list 'not pred) (cons 'do acts)))
+
+(defmacro if-let
+  ([bind x] (list 'if-let bind x nil))
+  ([bind x y]
+   (when-not (= (count bind) 2)
+      (throw (js/Error. "Bindings must have exactly two elements")))
+   (list 'let bind
+         (list 'if (first bind) x y))))
+
+(defmacro when-let
+  [bind & forms]
+  (when-not (= (count bind) 2)
+     (throw "Bindings must have exactly two elements"))
+  (list 'let bind
+        (cons 'when (cons (first bind) forms))))
+
+(defmacro or
+  ([] nil)
+  ([a] a)
+  ([& forms]
+   (let [or* (first forms)]
+     (list 'if or* or* (cons 'or (rest forms))))))
+
+(defmacro and
+  ([] true)
+  ([a] a)
+  ([&forms]
+   (let [and* (first forms)]
+     (list 'if and* (cons 'and (rest forms)) and*))))
+
+(defmacro ->
+  [x & forms]
+  (loop [x* x, forms* forms]
+    (if (empty? forms*)
+      x*
+      (let [form (first forms*)
+            threaded (if (seq? form)
+                       (list (first form) x* (first (rest form)))
+                       (list form x*))]
+        (recur threaded (rest forms*))))))
+
+(defmacro ->>
+  [x & forms]
+  (loop [x* x, forms* forms]
+    (if (empty? forms*)
+      x*
+      (let [form (first forms*)
+            threaded (if (seq? form)
+                       (list (first form) (first (rest form)) x*)
+                       (list form x*))]
+        (recur threaded (rest forms*))))))
+
+(defmacro lazy-seq
+  [& body]
+  (list 'new zera.lang.LazySeq nil (cons 'fn (cons [] body))))
+
+; TODO: add concat
+(defmacro dotimes
+  [bindings & body]
+  (if-not (and (vector? bindings) (= (count bindings) 2))
+    (throw (js/Error. "bindings should be a vector with two elements")))
+  (let [var (bindings 0)
+        init (bindings 1)]
+    (list 'loop [var 0]
+          (cons 'when
+                (cons (list '< var init)
+                      (concat body [(list 'recur (list '+ var 1))])))
+          init)))
+
+(defn inc [x] (+ 1 x))
+(defn dec [x] (- x 1))
+
+(defn identity [x] x)
+(defn constantly [x] (fn [] x))

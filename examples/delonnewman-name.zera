@@ -2,26 +2,43 @@
 (def join-str
   (fn [delim col]
     (cond (empty? col) ""
-          :else (reduce (fn [s x] (str s delim x)) "" col))))
- 
-(def memoize
+          :else (reduce (fn [s x] (str s delim x)) "" col)))) 
+
+; memoize functions of one argument
+(def memoize1
   (let [memo (atom {})]
-    (fn [f])))
+    (fn [f]
+      (fn [x]
+        (let [x_ (@memo x)]
+          (cond x_ x_
+                :else
+                  (do
+                    (swap! memo assoc x (f x))
+                    (@memo x))))))))
 
 (def html
-  (fn [form]
-    (loop [f form]
+  (memoize1
+    (fn [f]
       (cond (nil? f) ""
             (= true f) "true"
             (= false f) "false"
             (list? f) (reduce str (map html f))
             (array? f)
-              (let [x (first f)
+              (let [x (name (first f))
                     y (first (rest f))]
+                (prn y)
+                (prn (rest f))
                 (cond (map? y) (str "<" x (join-str " " (map (fn [x*] (str (name (key x*)) "=\"" (val x*) "\"")) y)) ">" (join-str " " (rest (rest f))) "</" x ">")
-                      :else (str "<" (first f) ">" (join-str " " (rest f)) "</" (first f) ">")))
+                      :else (str "<" x ">" (join-str " " (rest f)) "</" x ">")))
             :else
               (throw (js/Error. (str "Invalid form: " (prn-str f))))))))
 
-(say (html ['a {:href "#"} "This is a test"]))
+(def layout
+  [:html {:lang "en"}
+   [:head
+    [:meta {:charset "utf-8"}]
+    [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge"}]
+    ]])
+
+(say (html layout))
 ;(prn (join-str " " [1 2 3]))

@@ -410,7 +410,7 @@ var zera = (function() {
     function seq(x) {
         if (x == null) return Cons.EMPTY;
         else if (isSeq(x)) return x;
-        else if (ArrayLike(x)) return arrayToCons(x);
+        else if (isArrayLike(x)) return arrayToCons(x);
         else if (isSeqable(x)) return x.seq();
         else {
             throw new Error('Not a valid Seq or Seqable');
@@ -541,13 +541,18 @@ var zera = (function() {
         }
     };
 
-    function cons(car, cdr) {
-        return new Cons(null, car, cdr);
+    function cons(x, col) {
+        if (col == null) return Cons.EMPTY.cons(x);
+        else if (isSeq(col)) return col.cons(x);
+        else if (isSeqable(col)) {
+            return seq(col).cons(x);
+        }
+        return new Cons(null, x, col);
     }
 
     function car(cons) {
         if (cons == null) return null;
-        if (cons != null && isJSFn(cons.rest)) return cons.first();
+        if (cons != null && isJSFn(cons.first)) return cons.first();
         throw new Error(str('Not a valid Cons: ', prnStr(cons)));
     }
 
@@ -682,7 +687,7 @@ var zera = (function() {
 
     function range(x, y, z) {
         var start, stop, step;
-        if (arguments.length === 1) {
+       if (arguments.length === 1) {
             start = 0;
             stop  = x;
             step  = 1;
@@ -707,6 +712,12 @@ var zera = (function() {
             else {
                 return cons(start, range(start + step, stop, step));
             }
+        });
+    }
+
+    function repeat(n) {
+        return lazySeq(function() {
+            return cons(n, repeat(n));
         });
     }
 
@@ -875,6 +886,10 @@ var zera = (function() {
         var entries = this.entries();
         if (count(entries) === 0) return Cons.EMPTY;
         return cdr(this.entries());
+    };
+
+    ArrayMap.prototype.cons = function(entry) {
+        return this.conj([entry]);
     };
 
     ArrayMap.prototype.conj = function(entries) {
@@ -1172,7 +1187,7 @@ var zera = (function() {
 
     HashSet.prototype.cons = function(x) {
         if (this.contains(x)) return this;
-        return new HashSet(this.meta(), this.$zera$rep.assoc(x));
+        return new HashSet(this.meta(), this.$zera$rep.assoc([x, x]));
     };
 
     function contains(s, v) {
@@ -1287,6 +1302,15 @@ var zera = (function() {
         }
     }
 
+    function second(xs) {
+        return first(rest(xs));
+    }
+
+    function concat(a, b) {
+        return lazySeq(function() {
+        });
+    }
+
     function isEmpty(x) {
         if (x == null) return true;
         else if (isJSFn(x.isEmpty)) return x.isEmpty();
@@ -1316,6 +1340,105 @@ var zera = (function() {
         }
         return init;
     }
+
+    function AFn(meta) {
+        this.$zera$meta = meta;
+    }
+    
+    AFn.prototype = Object.create(IObj.prototype);
+
+    AFn.prototype.invoke = function() {
+        throw new Error('unimplemented');
+    };
+
+    AFn.prototype.call = function(obj) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return this.invoke.apply(this, args);
+    };
+
+    AFn.prototype.apply = function(obj, args) {
+        return this.invoke.apply(this, args);
+    };
+
+    function Fn(meta, env, arglists, bodies) {
+        AFn.call(this, meta);
+        this.$zera$env = env;
+        this.$zera$arglists = arglists;
+        this.$zera$bodies = bodies;
+    }
+
+    Fn.prototype = Object.create(AFn.prototype);
+
+    Fn.prototype.toString = function() {
+        return str('#<Fn arglists: ', prnStr(Object.values(this.$zera$arglists)), ', bodies: ', prnStr(Object.values(this.$zera$bodies)), '>');
+    };
+
+    Fn.prototype.analyze = function() {
+
+    };
+
+    Fn.prototype.invoke = function() {
+        var i, ret,
+            args = Array.prototype.slice.call(arguments),
+            argc = args.length,
+            bodies = this.$zera$bodies,
+            env = this.$zera$env,
+            body = bodies[argc],
+            names = this.$zera$arglists[argc];
+        
+        if (body == null) {
+            for (i = (argc * -1); i <= 0; i++) {
+                body = bodies[i];
+                if (body != null) {
+                    names = this.$zera$arglists[i];
+                    break;
+                }
+            }
+            if (body == null) throw new Error(str('Wrong number of arguments, got: ', args.length));
+        }
+
+        loop:
+            while (true) {
+                try {
+                    var namec = calculateArity(names);
+                    argc = count(args);
+                    if (namec < 0 && argc < (Math.abs(namec) - 1)) {
+                        throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
+                    } else if (namec > 0 && namec !== argc) {
+                        throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
+                    }
+            
+                    // bind arguments
+                    var binds = bindArguments(names, consToArray(args));
+                    for (i = 0; i < binds.length; i++) {
+                        var name = binds[i][0];
+                        var value = binds[i][1];
+                        defineLexically(env, name, value);
+                    }
+
+                    // evaluate body
+                    var exp = car(body),
+                        exprs = cdr(body);
+                    while (exp != null) {
+                        ret = evaluate(exp, env);
+                        exp = car(exprs);
+                        exprs = cdr(exprs);
+                    }
+                    break;
+                }
+                  catch (e) {
+                    //p(e.args);
+                    if (e instanceof RecursionPoint) {
+                        args_ = e.args;
+                        continue loop;
+                    }
+                    else {
+                        throw e;
+                    }
+                }
+            }
+        return ret;
+    };
 
     // TODO: look into transducers
     function map(f, xs) {
@@ -1595,10 +1718,10 @@ var zera = (function() {
         return this;
     };
 
-    Atom.prototype.swap = function(f) {
+    Atom.prototype.swap = function(f, args) {
         if (!isFn(f) && !isInvocable(f)) throw new Error('Can only swap atomic value with a function');
         var oldVal = this.$zera$value,
-            newVal = apply(f, list(oldVal));
+            newVal = apply(f, cons(oldVal, args));
         this.validate(newVal);
         this.$zera$value = newVal;
         processWatchers(this, oldVal, newVal);
@@ -1632,7 +1755,8 @@ var zera = (function() {
     }
 
     function swap(atom, f) {
-        if (isAtom(atom)) return atom.swap(f);
+        var args = Array.prototype.slice.call(arguments, 2);
+        if (isAtom(atom)) return atom.swap(f, args);
         throw new Error('Can only reset the value of Atoms');
     }
 
@@ -2016,60 +2140,35 @@ var zera = (function() {
         return a;
     }
 
-    function bindArguments(names, values) {
-        if (isPair(names)) {
-            if (isEmpty(car(names))) {
-                return [
-                    [cdr(names), values]
-                ];
-            } else {
-                return [
-                    [car(names), car(values)],
-                    [cdr(names), cdr(values)]
-                ];
-            }
-        } else {
-            var i, binds = [];
-            var names_ = consToArray(names);
-            var values_ = consToArray(values);
-            for (i = 0; i < names_.length; i++) {
-                if (isPair(names_[i])) {
-                    binds.push([car(names_[i]), values_[i]]);
-                    binds.push([cdr(names_[i]), arrayToCons(values_.slice(i + 1))]);
-                } else {
-                    binds.push([names_[i], values_[i]]);
-                }
-            }
-            return binds;
-        }
+    function isAmp(x) {
+        return equals(x, AMP_SYM);
     }
 
     function calculateArity(args) {
-        if (isPair(args)) {
-            if (isEmpty(car(args))) return -1;
-            else {
-                return -2;
-            }
-        }
-        var args_ = consToArray(args);
-        var argc = args_.length;
-        var i;
-        for (i = 0; i < argc; i++) {
-            if (isPair(args_[i])) {
-                return -1 * argc;
-            }
+        var argc = args.length,
+            i = args.findIndex(isAmp);
+        if (i !== -1) {
+            argc = -1 * (argc - 1);
         }
         return argc;
     }
 
-    /*
-    prn(bindArguments(list('x'), list(1)));
-    prn(bindArguments(list('x', 'y'), list(1, 2)));
-    prn(bindArguments(cons('x', 'xs'), list(1, 2)));
-    prn(bindArguments(list('x', cons('y', 'ys')), list(1, 2, 3, 4, 5)));
-    */
+    function bindArguments(names, values) {
+        var i, xs, capture = false, args = [];
+        for (i = 0; i < names.length; i++) {
+            if (capture === true) {
+                xs = values.slice(i - 1, values.length);
+                args.push([names[i], list.apply(null, xs)]);
+                break;
+            }
+            else {
+                args.push([names[i], values[i]]);
+            }
+            if (equals(names[i], AMP_SYM)) capture = true;
+        }
+        return args;
+    }
 
-    // FIXME: fix '&' support
     function apply(x, args) {
         if (isArray(x)) return x[car(args)];
         if (isInvocable(x)) {
@@ -2078,6 +2177,7 @@ var zera = (function() {
         if (!isFn(x)) {
             throw new Error(str('Not a valid function: ', prnStr(x), ''));
         }
+
         var fn = car(x);
         var env = cdr(x);
         var rest = cdr(fn);
@@ -2086,31 +2186,47 @@ var zera = (function() {
 
         if (isEmpty(body)) return null;
 
-        var namec = calculateArity(names);
-        var argc = count(args);
-        if (namec < 0 && argc < (Math.abs(namec) - 1)) {
-            throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
-        } else if (namec > 0 && namec !== argc) {
-            throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
-        }
+        var ret = null, args_ = args;
+        loop:
+            while (true) {
+                try {
+                    var namec = calculateArity(names);
+                    var argc = count(args_);
+                    if (namec < 0 && argc < (Math.abs(namec) - 1)) {
+                        throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
+                    } else if (namec > 0 && namec !== argc) {
+                        throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
+                    }
+            
+                    // bind arguments
+                    var binds = bindArguments(names, consToArray(args_));
+                    for (var i = 0; i < binds.length; i++) {
+                        var name = binds[i][0];
+                        var value = binds[i][1];
+                        defineLexically(env, name, value);
+                    }
 
-        // bind arguments
-        var binds = bindArguments(names, args);
-        for (var i = 0; i < binds.length; i++) {
-            var name = binds[i][0];
-            var value = binds[i][1];
-            defineLexically(env, name, value);
-        }
-
-        // evaluate body
-        var ret = null,
-            exp = car(body),
-            exprs = cdr(body);
-        while (exp != null) {
-            ret = evaluate(exp, env);
-            exp = car(exprs);
-            exprs = cdr(exprs);
-        }
+                    // evaluate body
+                    var exp = car(body),
+                        exprs = cdr(body);
+                    while (exp != null) {
+                        ret = evaluate(exp, env);
+                        exp = car(exprs);
+                        exprs = cdr(exprs);
+                    }
+                    break;
+                }
+                  catch (e) {
+                    //p(e.args);
+                    if (e instanceof RecursionPoint) {
+                        args_ = e.args;
+                        continue loop;
+                    }
+                    else {
+                        throw e;
+                    }
+                }
+            }
         return ret;
     }
 
@@ -2131,12 +2247,28 @@ var zera = (function() {
     // TODO: add variable validation, capture variable values from environment
     // TODO: add recur support
     // TODO: add multibody function support
+    // (fn ([x] x)
+    //     ([x & xs] (cons x xs)))
     function evalFunction(form, env_) {
-        var rest = cdr(form),
-            names = car(rest),
-            body = cdr(rest);
-        if (!isVector(names)) throw new Error(str('function arguments should be a vector, got: ', prnStr(form)));
-        return cons(form, env(env_));
+        var xs = cdr(form),
+            names = car(xs),
+            body = cdr(xs);
+        if (isCons(names)) {
+            var arglists = mapA(first, xs),
+                bodies = mapA(rest, xs),
+                arglists_ = {},
+                bodies_ = {};
+            for (var i = 0; i < arglists.length; i++) {
+                var arity = calculateArity(arglists[i]);
+                arglists_[arity] = arglists[i];
+                bodies_[arity] = bodies[i];
+            }
+            return new Fn(null, env(env_), arglists_, bodies_);
+        }
+        else if (isVector(names)) {
+            return new Fn(null, env(env_), [names], [body]);
+        }
+        throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
     }
 
     function evalMacroDefinition(form, env) {
@@ -2691,7 +2823,7 @@ var zera = (function() {
         var ns = CURRENT_NS.get().name();
         if (name.isQualified()) throw new Error('Cannot intern qualified symbol');
         else {
-            jsName = [JS_GLOBAL_OBJECT.get(), CURRENT_NS.get().name(), name.name()].join('.');
+            jsName = [JS_GLOBAL_OBJECT.get(), CURRENT_NS.get().name(), encodeName(name.name())].join('.');
         }
 
         var quotedNS = list(Sym.intern('quote'), ns),
@@ -3035,7 +3167,6 @@ var zera = (function() {
     define(ZERA_NS, "set?", isSet);
     define(ZERA_NS, "list?", isList);
     define(ZERA_NS, "lazy-seq?", isLazySeq);
-    define(ZERA_NS, "lazy-seq", lazySeq);
     define(ZERA_NS, "seq", seq);
     define(ZERA_NS, "seq?", isSeq);
     define(ZERA_NS, "seqable?", isSeqable);
@@ -3049,6 +3180,7 @@ var zera = (function() {
     define(ZERA_NS, "filter", filter);
     define(ZERA_NS, "take", take);
     define(ZERA_NS, "range", range);
+    define(ZERA_NS, "repeat", repeat);
     define(ZERA_NS, "first", first);
     define(ZERA_NS, "rest", rest);
     define(ZERA_NS, "next", next);
@@ -4007,6 +4139,8 @@ var zera = (function() {
         lang: {
             IMeta: IMeta,
             IObj: IObj,
+            AFn: AFn,
+            Fn: Fn,
             AReference: AReference,
             ARef: ARef,
             Named: Named,
@@ -4024,7 +4158,8 @@ var zera = (function() {
             HashSet: HashSet,
             Var: Var,
             Namespace: Namespace,
-            RecursionPoint: RecursionPoint
+            RecursionPoint: RecursionPoint,
+            env: env
         },
         reader: {
             PushBackReader: PushBackReader,
@@ -4080,6 +4215,8 @@ var zera = (function() {
         api.compileFile = function(file) {
             return compileString(fs.readFileSync(file).toString());
         };
+
+        define(ZERA_NS, 'load-file', api.evalFile);
 
         global.zera = api;
 
