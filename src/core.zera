@@ -51,7 +51,7 @@
 (defmacro and
   ([] true)
   ([a] a)
-  ([&forms]
+  ([& forms]
    (let [and* (first forms)]
      (list 'if and* (cons 'and (rest forms)) and*))))
 
@@ -99,3 +99,34 @@
 
 (defn identity [x] x)
 (defn constantly [x] (fn [] x))
+
+(defn pt [tag & xs]
+  (say (pr-str tag) (reduce str (map pr-str xs))))
+
+(defmacro echo [x]
+  (list 'pt (list 'quote x) x))
+
+(def memoize
+  (let [memo (atom {})]
+    (fn [f]
+      (fn [& args]
+        (let [x (@memo args)]
+          (if x x
+            (do
+              (swap! memo assoc args (apply f args))
+              (@memo args))))))))
+
+(defn map-list
+  [f xs]
+  (if (empty? xs)
+    xs
+    (cons (f (first xs)) (map-list f (rest xs)))))
+
+(defn map-seq
+  [f xs]
+  (lazy-seq
+    (if (empty? xs)
+      nil
+      (cons (f (first xs)) (map-seq f (rest xs))))))
+
+(prn (meta (fn [x] x)))

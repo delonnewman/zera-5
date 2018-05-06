@@ -277,6 +277,7 @@ var zera = (function() {
     var DOT_SYM = Sym.intern('.');
     var MACRO_SYM = Sym.intern('defmacro');
     var AMP_SYM = Sym.intern('&');
+    var THE_VAR = Sym.intern('var');
 
     var SPECIAL_FORMS = {
         'nil': true,
@@ -519,10 +520,11 @@ var zera = (function() {
             return false;
         }
         else if (isCons(o)) {
+            if (count(o) !== this.count()) return false;
             var xa  = this.first();
             var xb  = o.first();
-            var xsa = this.rest();
-            var xsb = o.rest();
+            var xsa = this;
+            var xsb = o;
             while (!isEmpty(xsa) && !isEmpty(xsb)) {
                 if (xa !== xb) {
                     return false;
@@ -759,6 +761,7 @@ var zera = (function() {
         else if (isSeq(x)) {
             return new Int32Array(consToArray(x));
         }
+        throw new Error(str("Don't know how to convert ", prnStr(x), " into an Int32Array"));
     }
 
     function floatArray(x) {
@@ -768,6 +771,7 @@ var zera = (function() {
         else if (isSeq(x)) {
             return new Float32Array(consToArray(x));
         }
+        throw new Error(str("Don't know how to convert ", prnStr(x), " into an Float32Array"));
     }
 
     // Map Interface
@@ -942,6 +946,7 @@ var zera = (function() {
                 return val;
             }
         }
+        return null;
     };
 
     ArrayMap.prototype.apply = function(x, args) {
@@ -1360,6 +1365,10 @@ var zera = (function() {
         return this.invoke.apply(this, args);
     };
 
+    AFn.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
     function Fn(meta, env, arglists, bodies) {
         AFn.call(this, meta);
         this.$zera$env = env;
@@ -1491,13 +1500,13 @@ var zera = (function() {
             } else if (isEmpty(x)) {
                 return '()';
             } else {
-                var y = car(x);
-                var ys = cdr(x);
+                var y;
+                var ys = x;
                 var buffer = [];
-                while (y != null) { // FIXME: should be able to tolerate nil (i.e. null) values
-                    buffer.push(prnStr(y));
+                while (!isEmpty(ys)) {
                     y = car(ys);
                     ys = cdr(ys);
+                    buffer.push(prnStr(y));
                 }
                 return str('(', buffer.join(' '), ')');
             }
@@ -2263,10 +2272,10 @@ var zera = (function() {
                 arglists_[arity] = arglists[i];
                 bodies_[arity] = bodies[i];
             }
-            return new Fn(null, env(env_), arglists_, bodies_);
+            return new Fn(form.meta(), env(env_), arglists_, bodies_);
         }
         else if (isVector(names)) {
-            return new Fn(null, env(env_), [names], [body]);
+            return new Fn(form.meta(), env(env_), [names], [body]);
         }
         throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
     }
@@ -3212,6 +3221,7 @@ var zera = (function() {
     define(ZERA_NS, "cons->array", consToArray);
     define(ZERA_NS, "array->cons", arrayToCons);
     define(ZERA_NS, "array?", isArray);
+    define(ZERA_NS, "vector?", isVector);
     define(ZERA_NS, 'aset', aset);
     define(ZERA_NS, 'aget', aget);
     define(ZERA_NS, 'alength', alength);
@@ -3807,8 +3817,12 @@ var zera = (function() {
     }
 
     function listReader(r, openparen, opts) {
+        var meta = arrayMap(
+            Keyword.intern('line'), r.line(),
+            Keyword.intern('column'), r.column()
+        );
         var a = readDelimitedList(')', r, true, opts);
-        return list.apply(null, a);
+        return list.apply(null, a).withMeta(meta);
     }
 
     function unmatchedDelimiterReader(r, delim, opts) {
@@ -3906,8 +3920,6 @@ var zera = (function() {
             return list(sym, x);
         };
     }
-
-    var THE_VAR = Sym.intern('var');
 
     function varReader(r, quote, opts) {
         var x = _read(r, true, null, true, opts);
@@ -4185,7 +4197,7 @@ var zera = (function() {
             eval: evaluate,
             the__MINUS__ns: Var.intern(symbol('zera.core'), symbol('the-ns'), theNS),
             __STAR__ns__STAR__: CURRENT_NS,
-            __STAR__js__MINUS__global__MINUS__object__STAR__: JS_GLOBAL_OBJECT,
+            __STAR__js__MINUS__global__MINUS__object__STAR__: JS_GLOBAL_OBJECT
         },
         JS_GLOBAL_OBJECT: JS_GLOBAL_OBJECT,
         CURRENT_NS: CURRENT_NS,
