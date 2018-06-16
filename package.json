@@ -2,7 +2,7 @@
   "name": "zera",
   "version": "0.0.1",
   "description": "",
-  "main": "zera.js",
+  "main": "./index.js",
   "dependencies": {
     "yargs": "^8.0.2"
   },

@@ -708,7 +708,7 @@ var zera = (function() {
             throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
         return lazySeq(function() {
-            if (start === stop) {
+            if (start === stop + step) {
                 return null;
             }
             else {
@@ -1403,7 +1403,10 @@ var zera = (function() {
                     break;
                 }
             }
-            if (body == null) throw new Error(str('Wrong number of arguments, got: ', args.length));
+            if (body == null) {
+                console.log(this);
+                throw new Error(str('Wrong number of arguments, got: ', args.length));
+            }
         }
 
         loop:
@@ -2268,6 +2271,9 @@ var zera = (function() {
                 arglists_ = {},
                 bodies_ = {};
             for (var i = 0; i < arglists.length; i++) {
+                if (!isVector(arglists[i])) {
+                    throw new Error('A multi-body function should have a body of lists where the first element is a vector, got: ' + prnStr(form));
+                }
                 var arity = calculateArity(arglists[i]);
                 arglists_[arity] = arglists[i];
                 bodies_[arity] = bodies[i];
@@ -2681,12 +2687,13 @@ var zera = (function() {
         return str('zera.core.set([', a.join(', '), '])');
     }
 
+    // TODO: detect, 'recur' and 'throw' in tail position
     function compileConditional(form, env) {
         var i,
             buff = ['(function(){'],
             preds = reverse(pair(cdr(form))); // TODO: make pair preserve order
 
-        if (count(preds) % 2 === 1) throw new Error('The number of conditions should be even');
+        if (count(preds) % 2 === 0) throw new Error('The number of conditions should be even');
 
         var a = mapA(function(x) {
             var pred = car(x), exp = cdr(x);
@@ -2709,6 +2716,7 @@ var zera = (function() {
         return buff.join('');
     }
 
+    // TODO: detect, 'recur' and 'throw' in tail position
     function compileDoBlock(form, env) {
         var buff = ['(function(){'],
             body = cdr(form);
@@ -2721,6 +2729,7 @@ var zera = (function() {
         return buff.join('');
     }
 
+    // TODO: detect, 'recur' and 'throw' in tail position
     // TODO: add '&' support
     function compileFunction(form, env) {
         var i,
@@ -2749,6 +2758,7 @@ var zera = (function() {
         return buff.join('');
     }
 
+    // TODO: detect, 'recur' and 'throw' in tail position
     function compileLetBlock(form, env) {
         var i,
             buff = ['(function('],
@@ -4212,7 +4222,7 @@ var zera = (function() {
     if (isNode) {
         var fs = require('fs');
 
-        api.evalJSONFile = function(file) {
+        api.loadJSONFile = function(file) {
             var ret = null;
             JSON.parse(fs.readFileSync(file).toString()).forEach(function(line) {
                 ret = evalJS(line);
@@ -4220,7 +4230,7 @@ var zera = (function() {
             return ret;
         };
 
-        api.evalFile = function(file) {
+        api.loadFile = function(file) {
             return evalString(fs.readFileSync(file).toString());
         };
 
@@ -4228,7 +4238,7 @@ var zera = (function() {
             return compileString(fs.readFileSync(file).toString());
         };
 
-        define(ZERA_NS, 'load-file', api.evalFile);
+        define(ZERA_NS, 'load-file', api.loadFile);
 
         global.zera = api;
 

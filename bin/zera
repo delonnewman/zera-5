@@ -3,7 +3,9 @@
 const fs = require('fs');
 const readline = require('readline');
 const argv = require('yargs').argv;
-const zera  = require(__dirname + '/../zera.js');
+
+// load Zera runtime and core library
+require(__dirname + '/../index.js');
 const z = zera.core;
 
 function interactive() {
@@ -49,7 +51,7 @@ else if (argv.c || argv.compile) {
 }
 else if (process.argv.length >= 3) {
   try {
-    zera.evalFile([process.cwd(), process.argv[2]].join('/'));
+    zera.loadFile([process.cwd(), process.argv[2]].join('/'));
     process.exitCode = 0;
   }
   catch (e) {
