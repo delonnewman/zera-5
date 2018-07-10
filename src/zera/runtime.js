@@ -658,7 +658,7 @@ var zera = (function() {
     LazySeq.prototype.toString = function() {
         var buff = [];
         var seq = this, x;
-        while (seq.next()) {
+        while (seq !== null) {
             x = seq.first();
             seq = seq.next();
             buff.push(prnStr(x));
@@ -708,7 +708,7 @@ var zera = (function() {
             throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
         }
         return lazySeq(function() {
-            if (start === stop + step) {
+            if (start === stop) {
                 return null;
             }
             else {
@@ -721,10 +721,6 @@ var zera = (function() {
         return lazySeq(function() {
             return cons(n, repeat(n));
         });
-    }
-
-    function isPair(x) {
-        return isCons(x) && !isCons(cdr(x)) && cdr(x) != null;
     }
 
     function isNil(x) {
@@ -799,6 +795,21 @@ var zera = (function() {
         return list(this.val());
     };
 
+    MapEntry.prototype.nth = function(n) {
+        if (n === 0) return this.key();
+        else if (n === 1) return this.val();
+        else {
+            return null;
+        }
+    };
+
+    MapEntry.prototype.apply = function(obj, args) {
+        if (args.length !== 1) {
+            throw new Error(str('Wrong number of arguments got: ', args.length, ', expected: 1'));
+        }
+        return this.nth(args[0]);
+    };
+
     MapEntry.prototype.toString = function() {
         return str('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
     };
@@ -809,8 +820,11 @@ var zera = (function() {
 
     function mapEntry(x) {
         if (isMapEntry(x)) return x;
-        else if (isArray(x) && x.length == 2) {
+        else if (isArray(x) && x.length === 2) {
             return new MapEntry(x[0], x[1]);
+        }
+        else if (isVector(x) && x.count() === 2) {
+            return new MapEntry(nth(x, 0), nth(x, 1));
         }
         else {
             throw new Error(str("Don't know how to coerce '", prnStr(x), "' into a zera.MapEntry"));
@@ -1228,15 +1242,100 @@ var zera = (function() {
     }
 
     // Vectors
-    
+    // TODO: make Vector an abstract interface for PersistentVector and TransientVector
+    function Vector(meta, rep) {
+        Seq.call(this, meta);
+        this.rep = rep == null ? [] : rep;
+    }
+
+    Vector.prototype = Object.create(Seq.prototype);
+
+    Vector.EMPTY = new Vector(null, []);
+
+    Vector.prototype.toString = function() {
+        return str('[', this.rep.map(prnStr).join(' '), ']');
+    };
+
+    Vector.prototype.toArray = function() {
+        return this.rep;
+    };
+
+    // IMeta
+    Vector.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
+    // Seq
+    Vector.prototype.seq = function() {
+        return this;
+    };
+
+    Vector.prototype.first = function() {
+        return this.rep[0];
+    };
+
+    Vector.prototype.next = function() {
+        if (this.rep.length === 0) {
+            return null;
+        }
+        return arrayToCons(this.rep.slice(1));
+    };
+
+    Vector.prototype.rest = function() {
+        var xs = this.next();
+        return xs === null ? Cons.EMPTY : xs;
+    };
+
+    Vector.prototype.count = function() {
+        return this.rep.length;
+    };
+
+    Vector.prototype.find = function(k) {
+        return this.rep[k];
+    };
+
+    Vector.prototype.nth = Vector.prototype.find;
+
+    Vector.prototype.conj = function(x) {
+        return new Vector(null, this.rep.concat(x));
+    };
+
+    // Array
+    Vector.prototype.indexOf = function(v) {
+        return this.rep.indexOf(v);
+    };
+
+    Vector.prototype.findIndex = function(f) {
+        return this.rep.findIndex(f);
+    };
+
+    // Fn
+    Vector.prototype.apply = function(obj, args) {
+        if (args.length !== 1) {
+            throw new Error(str('Wrong number of arguments got: ', args.length, ', expected: 1'));
+        }
+        return this.find(args[0]);
+    };
+
     function nth(v, n) {
         if (isArray(v)) return v[n];
+        else if (isJSFn(v.nth)) return v.nth(n);
         else {
             throw new Error(str("Don't know how to get the nth element from: ", prnStr(v)));
         }
     }
 
-    var isVector = isArray;
+    function isVector(x) {
+        return x instanceof Vector;
+    }
+
+    function vector() {
+        return new Vector(null, Array.prototype.slice.call(arguments));
+    }
+
+    function vec(seq) {
+        
+    }
 
     // Collection interface
     
@@ -1498,17 +1597,15 @@ var zera = (function() {
         } else if (isEnv(x)) {
             return 'env';
         } else if (isCons(x)) {
-            if (isPair(x)) {
-                return str('(', prnStr(car(x)), " & ", prnStr(cdr(x)), ')');
-            } else if (isEmpty(x)) {
+            if (isEmpty(x)) {
                 return '()';
             } else {
                 var y;
                 var ys = x;
                 var buffer = [];
-                while (!isEmpty(ys)) {
-                    y = car(ys);
-                    ys = cdr(ys);
+                while (ys !== null) {
+                    y = first(ys);
+                    ys = next(ys);
                     buffer.push(prnStr(y));
                 }
                 return str('(', buffer.join(' '), ')');
@@ -1540,6 +1637,14 @@ var zera = (function() {
 
     function isBoolean(x) {
         return Object.prototype.toString.call(x) === '[object Boolean]';
+    }
+
+    function isTrue(x) {
+        return x === true;
+    }
+
+    function isFalse(x) {
+        return x === false;
     }
 
     // symbols can be quoted with ":", "'" or by surrounding in "'s
@@ -1577,6 +1682,29 @@ var zera = (function() {
 
     function isNumber(x) {
         return !isNaN(x) && Object.prototype.toString.call(x) === '[object Number]';
+    }
+
+    var isInteger = function() {
+        if (Number.isInteger) {
+            return Number.isInteger;
+        }
+        else {
+            return function(x) {
+                return !isNaN(x) && x === parseInt(Number(x)) && !isNaN(parseInt(x, 10));
+            };
+        }
+    }();
+
+    function isPositive(x) {
+        return x > 0;
+    }
+
+    function isNegative(x) {
+        return x < 0;
+    }
+
+    function isZero(x) {
+        return x === 0;
     }
 
     function isAtomic(x) {
@@ -1782,6 +1910,7 @@ var zera = (function() {
     function Namespace(name) {
         if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
+        // TODO: should these be maps in atoms?
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
     }
@@ -1815,7 +1944,7 @@ var zera = (function() {
     };
 
     Namespace.prototype.mappings = function() {
-        return this.$zera$mappings;
+        return objectToMap(this.$zera$mappings);
     };
 
     Namespace.prototype.mapping = function(sym) {
@@ -1834,6 +1963,36 @@ var zera = (function() {
         return str('#<Namespace name: ', this.$zera$name, '>');
     };
 
+    Namespace.prototype.getAliases = function() {
+        return objectToMap(this.$zera$aliases);
+    };
+
+    Namespace.prototype.addAlias = function(sym, ns) {
+        if (sym == null || ns == null) {
+            throw new Error('Expecting Symbol + Namespace');
+        }
+
+        if (!this.$zera$aliases[sym]) {
+            this.$zera$aliases[sym] = ns;
+        }
+    };
+
+    Namespace.prototype.lookupAlias = function(sym) {
+        return this.$zera$aliases[sym];
+    };
+
+    Namespace.prototype.removeAlias = function(alias) {
+        delete this.$zera$aliases[alias];
+    };
+
+    Namespace.prototype.toJSModule = function() {
+        return mapO(
+            function(v, k) { return v.get(); },
+            this.$zera$mappings,
+            zeraNameToJS
+        );
+    };
+
     function theNS(ns) {
         if (isNamespace(ns)) return ns;
         return Namespace.findOrDie(ns);
@@ -1849,7 +2008,7 @@ var zera = (function() {
     }
 
     function createNS(sym) {
-        return new Namespace(sym);
+        return Namespace.findOrCreate(sym);
     }
 
     function findNS(sym) {
@@ -1858,11 +2017,23 @@ var zera = (function() {
 
     function nsMap(sym) {
         var ns = theNS(sym);
-        return objectToMap(ns.mappings());
+        return ns.mappings();
     }
 
     var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
     var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*'), ZERA_NS).setDynamic();
+
+    function alias(sym, ns) {
+        return CURRENT_NS.get().addAlias(sym, ns);   
+    }
+
+    function nsAliases(ns) {
+        return theNS(ns).getAliases();
+    }
+
+    function nsUnalias(ns, sym) {
+        return theNS(ns).removeAlias(sym);
+    }
 
     function env(parent) {
         if (parent) {
@@ -1917,7 +2088,8 @@ var zera = (function() {
         var ERROR_UNDEFINED_VAR = new Error(str('Undefined variable: ', sym));
         var ns, v, scope, name = sym.name();
         if (sym.isQualified()) {
-            ns = Namespace.findOrDie(sym.namespace());
+            ns = CURRENT_NS.get().lookupAlias(sym.namespace());
+            ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
             v  = ns.mapping(name);
             if (!v) {
                 if (!returnNull) throw ERROR_UNDEFINED_VAR;
@@ -1948,7 +2120,8 @@ var zera = (function() {
         var ns, v, scope, name = sym.name();
         // 1) namespace-qualified
         if (sym.isQualified()) {
-            ns = Namespace.findOrDie(sym.namespace());
+            ns = CURRENT_NS.get().lookupAlias(sym.namespace());
+            ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
             v  = ns.mapping(name);
             if (!v) throw new Error(str('Undefined variable: ', sym));
             if (v.isMacro()) throw MACRO_ERROR;
@@ -2001,6 +2174,7 @@ var zera = (function() {
         if (!isVector(binds) && count(binds) % 2 === 0) {
             throw new Error('Bindings should be a vector with an even number of elements');
         }
+        binds = binds.toArray();
 
         var i;
         for (i = 0; i < binds.length; i += 2) {
@@ -2058,21 +2232,21 @@ var zera = (function() {
 
     function pair(xs) {
         if (isNil(xs)) {
-            return Cons.EMPTY;
+            return Vector.EMPTY;
         } else if (count(xs) == 1) {
             return xs;
         } else {
             var xs_ = xs,
-                x = car(xs_),
-                y = car(cdr(xs_)),
-                l = Cons.EMPTY;
-            while (x && y) {
-                l = cons(cons(x, y), l);
-                xs_ = cdr(cdr(xs_));
-                x = car(xs_);
-                y = car(cdr(xs_));
+                x = first(xs_),
+                y = first(rest(xs_)),
+                v = Vector.EMPTY;
+            while (xs_ !== null) {
+                v = v.conj(vector(x, y));
+                xs_ = next(rest(xs_));
+                x = first(xs_);
+                y = first(rest(xs_));
             }
-            return l;
+            return v;
         }
     }
 
@@ -2124,15 +2298,15 @@ var zera = (function() {
     }
 
     function isFn(x) {
-        if (isPair(x)) {
-            var tag = first(first(x));
-            return tag != null && tag.toString() === 'fn';
-        }
-        return false;
+        return x instanceof Fn;
     }
 
     function isJSFn(x) {
         return Object.prototype.toString.call(x) === '[object Function]';
+    }
+
+    function isFunction(x) {
+        return isFn(x) && isJSFn(x);
     }
 
     function isInvocable(x) {
@@ -2274,14 +2448,15 @@ var zera = (function() {
                 if (!isVector(arglists[i])) {
                     throw new Error('A multi-body function should have a body of lists where the first element is a vector, got: ' + prnStr(form));
                 }
-                var arity = calculateArity(arglists[i]);
-                arglists_[arity] = arglists[i];
+                var arglist = arglists[i].toArray();
+                var arity = calculateArity(arglist);
+                arglists_[arity] = arglist;
                 bodies_[arity] = bodies[i];
             }
             return new Fn(form.meta(), env(env_), arglists_, bodies_);
         }
         else if (isVector(names)) {
-            return new Fn(form.meta(), env(env_), [names], [body]);
+            return new Fn(form.meta(), env(env_), [names.toArray()], [body]);
         }
         throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
     }
@@ -2460,11 +2635,13 @@ var zera = (function() {
         return ret;
     }
 
-    function evalVector(form, env) {
+    function evalArray(form, env) {
         return form.map(function(x) { return evaluate(x, env); });
     }
 
-    var evalArray = evalVector;
+    function evalVector(form, env) {
+        return new Vector(form.meta(), evalArray(form.toArray(), env));
+    }
 
     // TODO: add a toTrasient method to all Seq's
     function into(to, from) {
@@ -2475,6 +2652,16 @@ var zera = (function() {
             from_ = rest(from_);
         }
         return to_;
+    }
+
+    function intoArray(from) {
+        var to = [],
+            from_ = seq(from);
+        while (first(from_) != null) {
+            to.push(first(from_));
+            from_ = rest(from_);
+        }
+        return to;
     }
 
     function evalMap(form, env) {
@@ -2600,7 +2787,8 @@ var zera = (function() {
     };
 
     function encodeName(name) {
-        return name.split('').map(function(x) { return SPECIALS[x] ? SPECIALS[x] : x; }).join('');
+        //return name.split('').map(function(x) { return SPECIALS[x] ? SPECIALS[x] : x; }).join('');
+        return zeraNameToJS(name);
     }
 
     // TODO: We'll map namespaces to JS modules
@@ -2616,9 +2804,9 @@ var zera = (function() {
         else {
             if (!ns) ns = CURRENT_NS.get().name();
             if (opts.returnVar === true) {
-                return str(JS_GLOBAL_OBJECT.get(), '.', ns, '.', encodeName(name));
+                return str(ns, '.', encodeName(name));
             }
-            return str(JS_GLOBAL_OBJECT.get(), '.', ns, '.', encodeName(name), '.get()');
+            return str(ns, '.', encodeName(name));
         }
     }
 
@@ -2640,9 +2828,6 @@ var zera = (function() {
             }
         }
         else if (isCons(form)) {
-            if (isPair(form)) {
-                return str('zera.core.cons(', compileQuote(car(form)), ', ', compileQuote(cdr(form)), ')');
-            }
             a = mapA(function(x) { return compileQuote(x, env); }, form);
             return str('zera.core.list(', a.join(', '), ')');
         }
@@ -2689,11 +2874,12 @@ var zera = (function() {
 
     // TODO: detect, 'recur' and 'throw' in tail position
     function compileConditional(form, env) {
-        var i,
+        var i, preds,
             buff = ['(function(){'],
-            preds = reverse(pair(cdr(form))); // TODO: make pair preserve order
+            conds = rest(form);
 
-        if (count(preds) % 2 === 0) throw new Error('The number of conditions should be even');
+        if (count(conds) % 2 !== 0) throw new Error('The number of conditions should be even');
+        preds = pair(conds);
 
         var a = mapA(function(x) {
             var pred = car(x), exp = cdr(x);
@@ -2760,7 +2946,7 @@ var zera = (function() {
 
     // TODO: detect, 'recur' and 'throw' in tail position
     function compileLetBlock(form, env) {
-        var i,
+        var i, bind,
             buff = ['(function('],
             rest = cdr(form),
             binds = car(rest),
@@ -2769,9 +2955,10 @@ var zera = (function() {
         // add names to function scope
         var names = [];
         for (i = 0; i < count(binds); i += 2) {
-            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
-            names.push(binds[i].name());
-            defineLexically(env, binds[i], true);
+            bind = nth(binds, i);
+            if (!isSymbol(bind)) throw new Error('Invalid binding name');
+            names.push(bind.name());
+            defineLexically(env, bind, true);
         }
         buff.push(names.join(', '));
         buff.push('){');
@@ -2795,7 +2982,7 @@ var zera = (function() {
 
     // TODO: complete loop implementation
     function compileLoop(form, env) {
-        var i,
+        var i, bind,
             buff = ['(function('],
             rest = cdr(form),
             binds = car(rest),
@@ -2804,9 +2991,10 @@ var zera = (function() {
         // add names to function scope
         var names = [];
         for (i = 0; i < count(binds); i += 2) {
-            if (!isSymbol(binds[i])) throw new Error('Invalid binding name');
-            names.push(binds[i].name());
-            defineLexically(env, binds[i], true);
+            bind = nth(binds, i);
+            if (!isSymbol(bind)) throw new Error('Invalid binding name');
+            names.push(bind.name());
+            defineLexically(env, bind, true);
         }
         buff.push(names.join(', '));
         buff.push('){');
@@ -2842,16 +3030,14 @@ var zera = (function() {
         var ns = CURRENT_NS.get().name();
         if (name.isQualified()) throw new Error('Cannot intern qualified symbol');
         else {
-            jsName = [JS_GLOBAL_OBJECT.get(), CURRENT_NS.get().name(), encodeName(name.name())].join('.');
+            jsName = [ns, encodeName(name.name())].join('.');
         }
 
-        var quotedNS = list(Sym.intern('quote'), ns),
-            quotedName = list(Sym.intern('quote'), name);
         if (value == null) {
-            return str(jsName, ' = zera.lang.Var.intern(', compileQuote(quotedNS), ', ', compileQuote(quotedName), ')');
+            return str(jsName, ' = null');
         }
         else {
-            return str(jsName, ' = zera.lang.Var.intern(', compileQuote(quotedNS), ', ', compileQuote(quotedName), ', ', compile(value), ')');
+            return str(jsName, ' = ', compile(value));
         }
     }
 
@@ -2870,7 +3056,7 @@ var zera = (function() {
             return str(encodeName(name.name()), ' = ', compile(value, env));
         }
         else {
-            return str(compileSymbol(name, env, {returnVar: true}), '.set(', compile(value, env), ')');
+            return str(compileSymbol(name, env), ' = ', compile(value, env));
         }
     }
 
@@ -2922,7 +3108,7 @@ var zera = (function() {
     function compileApplication(form, env) {
         var fn = car(form),
             args = cdr(form);
-        return str(compile(fn, env), '.apply(null, [', mapA(function(x) { return compile(x, env); }, args).join(', '), '])');
+        return str(compile(fn, env), '(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
     }
 
     function compile(form_, env_) {
@@ -3060,6 +3246,53 @@ var zera = (function() {
         }
     }
 
+    function mapO(f, obj, keyXForm) {
+        var i, key, val, key_, keys = Object.keys(obj), o = {};
+        for (i = 0; i < keys.length; i++) {
+            key  = keys[i];
+            key_ = isJSFn(keyXForm) ? keyXForm.call(null, key) : key;
+            val  = obj[key];
+            o[key_] = f.call(null, val, key, key_);
+        }
+        return o;
+    }
+
+    function cap(x) {
+        if (x.length === 0) return x;
+        return str(x[0].toUpperCase(), x.slice(1));
+    }
+
+    var names = {
+        '=': 'eq',
+        'not=': 'noteq',
+        '<': 'lt',
+        '>': 'gt',
+        '<=': 'lteq',
+        '>=': 'gteq',
+        '+': 'add',
+        '-': 'sub',
+        '*': 'mult',
+        '/': 'div'
+    };
+
+    function zeraNameToJS(x) {
+        if (names[x]) return names[x];
+        var prefix = null, parts;
+        if (x.endsWith('?')) {
+            prefix = 'is';
+            x = x.slice(0, x.length - 1);
+        }
+        else if (x.endsWith('!')) {
+            x = x.slice(0, x.length - 1);
+        }
+        else if (x.startsWith('*') && x.endsWith('*')) {
+            return x.slice(0, x.length - 1).slice(1).split('-').map(function(s) { return s.toUpperCase(); }).join('_');
+        }
+        if (x.indexOf("->") !== -1) parts = x.split("->").reduce(function(a, x) { return [].concat(a, "to", x); });
+        else parts = prefix ? [].concat(prefix, x.split('-')) : x.split('-');
+        return [].concat(parts[0], parts.slice(1).map(cap)).join('');
+    }
+
     function readJS(exp) {
         var i;
         if (isString(exp)) {
@@ -3129,6 +3362,7 @@ var zera = (function() {
     define(ZERA_NS, "zera.lang.Keyword", Keyword);
     define(ZERA_NS, "zera.lang.Seq", Seq);
     define(ZERA_NS, "zera.lang.List", List);
+    define(ZERA_NS, "zera.lang.Vector", Vector);
     define(ZERA_NS, "zera.lang.Cons", Cons);
     define(ZERA_NS, "zera.lang.LazySeq", LazySeq);
     define(ZERA_NS, "zera.lang.MapEntry", MapEntry);
@@ -3143,6 +3377,8 @@ var zera = (function() {
     // primitive functions
     define(ZERA_NS, "isa?", isa);
     define(ZERA_NS, "var?", isVar);
+    define(ZERA_NS, "fn?", isFunction);
+    define(ZERA_NS, "invokable?", isInvocable);
     define(ZERA_NS, "var-get", varGet);
     define(ZERA_NS, "var-set", varSet);
     define(ZERA_NS, "add-watch", addWatch);
@@ -3159,7 +3395,9 @@ var zera = (function() {
     define(ZERA_NS, "create-ns", createNS);
     define(ZERA_NS, "find-ns", findNS);
     define(ZERA_NS, "ns-map", nsMap);
-    define(ZERA_NS, "namespace?", isNamespace);
+    define(ZERA_NS, "alias", alias);
+    define(ZERA_NS, "ns-aliases", nsAliases);
+    define(ZERA_NS, "ns-unalias", nsUnalias);
     define(ZERA_NS, "meta", meta);
     define(ZERA_NS, "with-meta", withMeta);
     define(ZERA_NS, "alter-meta", alterMeta);
@@ -3195,6 +3433,7 @@ var zera = (function() {
     define(ZERA_NS, "cdr", cdr);
     define(ZERA_NS, "map", map);
     define(ZERA_NS, "into", into);
+    define(ZERA_NS, "into-array", intoArray);
     define(ZERA_NS, "reduce", reduce);
     define(ZERA_NS, "filter", filter);
     define(ZERA_NS, "take", take);
@@ -3205,7 +3444,6 @@ var zera = (function() {
     define(ZERA_NS, "next", next);
     define(ZERA_NS, "conj", conj);
     define(ZERA_NS, "cons?", isCons);
-    define(ZERA_NS, "pair?", isPair);
     define(ZERA_NS, "pair", pair);
     define(ZERA_NS, "pr-str", prnStr);
     define(ZERA_NS, "prn-str", prnStr);
@@ -3215,6 +3453,8 @@ var zera = (function() {
     define(ZERA_NS, "say", p);
     define(ZERA_NS, "str", str);
     define(ZERA_NS, "boolean?", isBoolean);
+    define(ZERA_NS, "true?", isTrue);
+    define(ZERA_NS, "false?", isFalse);
     define(ZERA_NS, "string?", isString);
     define(ZERA_NS, "symbol?", isSymbol);
     define(ZERA_NS, "symbol", symbol);
@@ -3223,8 +3463,12 @@ var zera = (function() {
     define(ZERA_NS, "name", name);
     define(ZERA_NS, "namespace", namespace);
     define(ZERA_NS, "number?", isNumber);
+    define(ZERA_NS, "integer?", isInteger);
     define(ZERA_NS, "even?", isEven);
     define(ZERA_NS, "odd?", isOdd);
+    define(ZERA_NS, "positive?", isPositive);
+    define(ZERA_NS, "negative?", isNegative);
+    define(ZERA_NS, "zero?", isZero);
     define(ZERA_NS, "num", num);
     define(ZERA_NS, "is", is);
     define(ZERA_NS, "ok", ok);
@@ -3232,6 +3476,8 @@ var zera = (function() {
     define(ZERA_NS, "array->cons", arrayToCons);
     define(ZERA_NS, "array?", isArray);
     define(ZERA_NS, "vector?", isVector);
+    define(ZERA_NS, "vector", vector);
+    define(ZERA_NS, "nth", nth);
     define(ZERA_NS, 'aset', aset);
     define(ZERA_NS, 'aget', aget);
     define(ZERA_NS, 'alength', alength);
@@ -3483,6 +3729,7 @@ var zera = (function() {
     define(ZERA_NS, '*platform*', Keyword.intern('js'));
 
     var JS_NS = Namespace.findOrCreate(Sym.intern('js'));
+    define(JS_NS, 'fn?', isJSFn);
 
     // import js stuff
     [
@@ -3840,7 +4087,8 @@ var zera = (function() {
     }
 
     function vectorReader(r, openbracket, opts) {
-        return readDelimitedList(']', r, true, opts);
+        var a = readDelimitedList(']', r, true, opts);
+        return new Vector(null, a);
     }
 
     function mapReader(r, openbracket, opts) {
@@ -4187,28 +4435,7 @@ var zera = (function() {
             PushBackReader: PushBackReader,
             readString: readString
         },
-        core: {
-            set: set,
-            keyword: keyword,
-            symbol: symbol,
-            list: list,
-            arrayMap: arrayMap,
-            isSymbol: isSymbol,
-            isString: isString,
-            isKeyword: isKeyword,
-            isMap: isMap,
-            isSeq: isSeq,
-            str: str,
-            prn: Var.intern(symbol('zera.core'), symbol('prn'), prn),
-            prnStr: prnStr,
-            ok: ok,
-            is: is,
-            equals: equals,
-            eval: evaluate,
-            the__MINUS__ns: Var.intern(symbol('zera.core'), symbol('the-ns'), theNS),
-            __STAR__ns__STAR__: CURRENT_NS,
-            __STAR__js__MINUS__global__MINUS__object__STAR__: JS_GLOBAL_OBJECT
-        },
+        core: ZERA_NS.toJSModule(),
         JS_GLOBAL_OBJECT: JS_GLOBAL_OBJECT,
         CURRENT_NS: CURRENT_NS,
         evalJS: evalJS,

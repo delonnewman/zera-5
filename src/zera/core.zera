@@ -1,6 +1,6 @@
 ; vim: ft=clojure
 (defmacro ns [sym]
-  (list 'set! '*ns* (list 'the-ns (list 'quote sym))))
+  (list 'set! '*ns* (list 'create-ns (list 'quote sym))))
 
 ; FIXME: this is causing an error with 'apply' when run through the interpreter
 ;(prn #'zera.core/+)
@@ -128,5 +128,7 @@
     (if (empty? xs)
       nil
       (cons (f (first xs)) (map-seq f (rest xs))))))
+
+(defn second [x] (first (rest x)))
 
 ;(prn (meta (fn [x] x)))
