@@ -312,7 +312,7 @@ var zera = (function() {
     }
 
     function isSymbol(x) {
-        return x instanceof Sym;
+        return isa(x, Sym);
     }
 
     /**
@@ -351,6 +351,17 @@ var zera = (function() {
     Keyword.prototype.equals = function(o) {
         if (o == null || !isKeyword(o)) return false;
         return this.namespace() === o.namespace() && this.name() === o.name();
+    };
+
+    // Invokable
+    Keyword.prototype.apply = function(x, args) {
+        if (args.length !== 1) throw new Error('Keywords expect one and only one argument');
+        if (isJSFn(args[0].apply)) {
+            return args[0].apply(null, [this]);
+        }
+        else {
+            throw new Error('Symbols expect and argument this is invokable');
+        }
     };
 
     function isKeyword(x) {
@@ -565,7 +576,7 @@ var zera = (function() {
     }
 
     function isCons(x) {
-        return x instanceof Cons;
+        return isa(x, Cons);
     }
 
     // make a list out of conses
@@ -671,7 +682,7 @@ var zera = (function() {
     }
 
     function isLazySeq(x) {
-        return x instanceof LazySeq;
+        return isa(x, LazySeq);
     }
 
     function take(n, xs) {
@@ -751,21 +762,21 @@ var zera = (function() {
     }
 
     function intArray(x) {
-        if (isNumber(x)) {
+        if (isNumber(x) || isArray(x)) {
             return new Int32Array(x);
         }
         else if (isSeq(x)) {
-            return new Int32Array(consToArray(x));
+            return new Int32Array(intoArray(x));
         }
         throw new Error(str("Don't know how to convert ", prnStr(x), " into an Int32Array"));
     }
 
     function floatArray(x) {
-        if (isNumber(x)) {
+        if (isNumber(x) || isArray(x)) {
             return new Float32Array(x);
         }
         else if (isSeq(x)) {
-            return new Float32Array(consToArray(x));
+            return new Float32Array(intoArray(x));
         }
         throw new Error(str("Don't know how to convert ", prnStr(x), " into an Float32Array"));
     }
@@ -842,6 +853,7 @@ var zera = (function() {
      * @constructor
      * @extends {AMap}
      */
+    // TODO: add IHashEq
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
         Seq.call(this, meta);
@@ -894,16 +906,15 @@ var zera = (function() {
 
     ArrayMap.prototype.first = function() {
         return new MapEntry(this.$zera$array[0], this.$zera$array[1]);
+        return first(this.entries());
     };
 
     ArrayMap.prototype.next = function() {
-        return cdr(this.entries());
+        return next(this.entries());
     };
 
     ArrayMap.prototype.rest = function() {
-        var entries = this.entries();
-        if (count(entries) === 0) return Cons.EMPTY;
-        return cdr(this.entries());
+        return rest(this.entries());
     };
 
     ArrayMap.prototype.cons = function(entry) {
@@ -1125,7 +1136,7 @@ var zera = (function() {
     };
 
     APersistentSet.prototype.toArray = function() {
-        return consToArray(this.seq());
+        return intoArray(this.seq());
     };
 
     APersistentSet.prototype.get = function(key) {
@@ -1333,8 +1344,15 @@ var zera = (function() {
         return new Vector(null, Array.prototype.slice.call(arguments));
     }
 
-    function vec(seq) {
-        
+    function vec(s) {
+        var v = Vector.EMPTY,
+            s_ = seq(s), x;
+        while (s_ !== null) {
+            x = first(s_);
+            s_ = next(s_);
+            v = v.conj(x);
+        }
+        return v;
     }
 
     // Collection interface
@@ -1520,7 +1538,7 @@ var zera = (function() {
                     }
             
                     // bind arguments
-                    var binds = bindArguments(names, consToArray(args));
+                    var binds = bindArguments(names, intoArray(args));
                     for (i = 0; i < binds.length; i++) {
                         var name = binds[i][0];
                         var value = binds[i][1];
@@ -2257,16 +2275,6 @@ var zera = (function() {
         }
     }
 
-    function objectToPairs(obj) {
-        var keys = obj.getOwnPropertyNames();
-        var l = Nil,
-            i;
-        for (i = 0; i < keys.length; i++) {
-            l = cons(cons(keys[i], obj[keys[i]]), l);
-        }
-        return l;
-    }
-
     function objectToMap(obj) {
         if (obj == null) return ArrayMap.EMPTY;
         var keys = Object.getOwnPropertyNames(obj);
@@ -2320,19 +2328,6 @@ var zera = (function() {
         return isJSFn(x.apply);
     }
 
-    function consToArray(cons) {
-        if (isArray(cons)) return cons;
-        var x = car(cons);
-        var xs = cdr(cons);
-        var a = [];
-        while (x != null) {
-            a.push(x);
-            x = car(xs);
-            xs = cdr(xs);
-        }
-        return a;
-    }
-
     function isAmp(x) {
         return equals(x, AMP_SYM);
     }
@@ -2363,9 +2358,9 @@ var zera = (function() {
     }
 
     function apply(x, args) {
-        if (isArray(x)) return x[car(args)];
+        if (isArray(x)) return x[first(args)];
         if (isInvocable(x)) {
-            return x.apply(null, consToArray(args));
+            return x.apply(null, intoArray(args));
         }
         else {
             throw new Error(str('Not a valid function: ', prnStr(x), ''));
@@ -2379,9 +2374,8 @@ var zera = (function() {
     function evalApplication(form, env) {
         var fn = evaluate(car(form), env);
         var args = cdr(form);
-        var a = car(args);
-        var as = cdr(args);
-        var args_ = list.apply(null, mapA(function(x) { return evaluate(x, env); }, args));
+        var a = mapA(function(x) { return evaluate(x, env); }, args);
+        var args_ = list.apply(null, a);
         return apply(fn, args_);
     }
 
@@ -2477,7 +2471,7 @@ var zera = (function() {
 
         // bind variables & collect names
         var i;
-        var binds_ = consToArray(binds);
+        var binds_ = intoArray(binds);
         var names = [],
             name, value, evaled;
         for (i = 0; i < binds_.length; i += 2) {
@@ -2610,13 +2604,13 @@ var zera = (function() {
     }
 
     function intoArray(from) {
-        var to = [],
-            from_ = seq(from);
-        while (first(from_) != null) {
-            to.push(first(from_));
-            from_ = rest(from_);
+        var a = [],
+            s = seq(from);
+        while (s !== null) {
+            a.push(first(s));
+            s = next(s);
         }
-        return to;
+        return a;
     }
 
     function evalMap(form, env) {
@@ -2758,15 +2752,12 @@ var zera = (function() {
         }
         else {
             if (!ns) ns = CURRENT_NS.get().name();
-            if (opts.returnVar === true) {
-                return str(ns, '.', encodeName(name));
-            }
             return str(ns, '.', encodeName(name));
         }
     }
 
     function compileQuote(form_, env) {
-        if (!isCons(form_)) throw new Error('Malformed quote, expected: (quote value)');
+        if (!isCons(form_)) throw new Error(str('Malformed quote, expected: (quote value), got: ', prnStr(form_)));
         var a, form = car(cdr(form_));
         if (form == null) return "null";
         else if (form === true) return "true";
@@ -2808,7 +2799,9 @@ var zera = (function() {
     }
 
     function compileMap(form, env) {
-        var a = mapA(function(x) { return str(compile(x.key(), env), ', ', compile(x.val(), env)); }, form);
+        var a = mapA(function(x) {
+            return str(compile(x.key(), env), ', ', compile(x.val(), env));
+        }, form);
         return str('zera.core.arrayMap(', a.join(', '), ')');
     }
 
@@ -2827,6 +2820,23 @@ var zera = (function() {
         return str('zera.core.set([', a.join(', '), '])');
     }
 
+    function isRecur(x) {
+        return isCons(x) && RECUR_SYM.equals(first(x));
+    }
+
+    function isThrow(x) {
+        return isCons(x) && THROW_SYM.equals(first(x));
+    }
+
+    function compileTailPosition(x, env) {
+        if (isRecur(x) || isThrow(x)) {
+            return compile(x, env);
+        }
+        else {
+            return str('return ', compile(x, env));
+        }
+    }
+
     // TODO: detect, 'recur' and 'throw' in tail position
     function compileConditional(form, env) {
         var i, preds,
@@ -2837,17 +2847,17 @@ var zera = (function() {
         preds = pair(conds);
 
         var a = mapA(function(x) {
-            var pred = car(x), exp = cdr(x);
+            var pred = nth(x, 0), exp = nth(x, 1);
             if (isKeyword(pred) && Keyword.intern('else').equals(pred)) {
-                return ['true', compile(exp, env)];
+                return ['true', compileTailPosition(exp, env)]; // tail position
             }
-            return [compile(pred, env), compile(exp, env)];
+            return [compile(pred, env), compileTailPosition(exp, env)]; // tail position
         }, preds);
 
         for (i = 0; i < a.length; i++) {
             buff.push('if (');
             buff.push(a[i][0]);
-            buff.push(') { return ');
+            buff.push(') { ');
             buff.push(a[i][1]);
             buff.push('; } ');
         }
@@ -2857,13 +2867,35 @@ var zera = (function() {
         return buff.join('');
     }
 
+    function alast(a) {
+        if (a.length === 0) return null;
+        else if (a.length === 1) return a[0];
+        else {
+            return a[a.length - 1];
+        }
+    }
+
+    function ahead(a) {
+        if (a.length === 0 || a.length === 1) return [];
+        else {
+            return a.slice(0, a.length - 1);
+        }
+    }
+
+    function compileBody(body_, env) {
+        var body = intoArray(body_),
+            last = alast(body),
+            head = ahead(body);
+        return mapA(function(x) { return compile(x, env); }, head)
+                .concat(compileTailPosition(last, env));
+    }
+
     // TODO: detect, 'recur' and 'throw' in tail position
     function compileDoBlock(form, env) {
         var buff = ['(function(){'],
-            body = cdr(form);
+            body = rest(form);
 
-        var a = mapA(function(x) { return compile(x, env); }, body);
-        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        var a = compileBody(body, env);
         buff.push(a.join('; '));
         buff.push('}())');
 
@@ -2891,8 +2923,7 @@ var zera = (function() {
         buff.push('){');
 
         // body
-        var a = mapA(function(x) { return compile(x, env); }, body);
-        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        var a = compileBody(body, env);
         buff.push(a.join('; '));
         buff.push('})');
 
@@ -2919,15 +2950,14 @@ var zera = (function() {
         buff.push('){');
 
         // body
-        var a = mapA(function(x) { return compile(x, env); }, body);
-        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        var a = compileBody(body, env);
         buff.push(a.join('; '));
         buff.push('}(');
 
         // add values to function scope
         var values = [];
         for (i = 0; i < count(binds); i += 2) {
-            values.push(compile(binds[i + 1]));
+            values.push(compile(nth(binds, i + 1)));
         }
         buff.push(values.join(', '));
         buff.push('))');
@@ -2955,15 +2985,14 @@ var zera = (function() {
         buff.push('){');
 
         // body
-        var a = mapA(function(x) { return compile(x, env); }, body);
-        a[a.length - 1] = str('return ', a[a.length - 1], ';');
+        var a = compileBody(body, env);
         buff.push(a.join('; '));
         buff.push('}(');
 
         // add values to function scope
         var values = [];
         for (i = 0; i < count(binds); i += 2) {
-            values.push(compile(binds[i + 1]));
+            values.push(compile(nth(binds, i + 1)));
         }
         buff.push(values.join(', '));
         buff.push('))');
@@ -3175,34 +3204,30 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object Object]';
     }
 
-    // FIXME: doesn't work for negative values
     function isEven(x) {
         return x % 2 === 0;
     }
 
-    // FIXME: doesn't work for negative values
     function isOdd(x) {
-        return x % 2 === 1;
+        return Math.abs(x % 2) === 1;
     }
 
     function dropLast(l) {
         return reverse(cdr(reverse(l)));
     }
 
+    // Fn -> Seqable -> Array
     function mapA(f, l) {
         if (isEmpty(l)) {
             return [];
-        } else {
-            var a = isArray(l) ? l : consToArray(l);
-            var newA = [];
-            var i;
-            for (i = 0; i < a.length; i++) {
-                newA.push(apply(f, list(a[i])));
-            }
-            return newA;
+        }
+        else {
+            return intoArray(seq(l)).map(f);
         }
     }
 
+    // Function -> Object -> Object
+    // Function -> Object -> Function -> Object
     function mapO(f, obj, keyXForm) {
         var i, key, val, key_, keys = Object.keys(obj), o = {};
         for (i = 0; i < keys.length; i++) {
@@ -3370,6 +3395,7 @@ var zera = (function() {
     define(ZERA_NS, "array-map", arrayMap);
     define(ZERA_NS, "array-map?", isArrayMap);
     define(ZERA_NS, "map?", isMap);
+    define(ZERA_NS, "map-entry?", isMapEntry);
     define(ZERA_NS, "entries", entries);
     define(ZERA_NS, "get", get);
     define(ZERA_NS, "assoc", assoc);
@@ -3429,11 +3455,10 @@ var zera = (function() {
     define(ZERA_NS, "num", num);
     define(ZERA_NS, "is", is);
     define(ZERA_NS, "ok", ok);
-    define(ZERA_NS, "cons->array", consToArray);
-    define(ZERA_NS, "array->cons", arrayToCons);
     define(ZERA_NS, "array?", isArray);
     define(ZERA_NS, "vector?", isVector);
     define(ZERA_NS, "vector", vector);
+    define(ZERA_NS, "vec", vec);
     define(ZERA_NS, "nth", nth);
     define(ZERA_NS, 'aset', aset);
     define(ZERA_NS, 'aget', aget);
@@ -3900,6 +3925,7 @@ var zera = (function() {
             'global',
             'process',
             'setImmediate',
+            'require'
         ].forEach(symbolImporter(NODE_NS));
     }
 
