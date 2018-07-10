@@ -1566,24 +1566,29 @@ var zera = (function() {
         }
     }
 
+    function isFalsy(x) {
+        return x === false || x == null;
+    }
+
     // TODO: use LazySeq
     function filter(f, xs) {
-        if (arguments.length === 1) {
-            return function(xs) {
-                return filter(f, xs);
-            };
-        }
-        else if (arguments.length === 2) {
-            return reverse(reduce(function(ys, x) {
-                var pred = apply(f, list(x));
-                if (pred != null && pred !== false) {
-                    return conj(ys, x);
+        if (arguments.length === 2) {
+            return lazySeq(function() {
+                if (isEmpty(xs)) {
+                    return null;
                 }
-                return ys;
-            }, null, xs));
+                var x = first(xs),
+                    pred = apply(f, list(x));
+                if (isFalsy(pred)) {
+                    return filter(f, rest(xs));
+                }
+                else {
+                    return cons(x, filter(f, rest(xs)));
+                }
+            });
         }
         else {
-            throw new Error(str('Expected 1 or 2 arguments, got: ', arguments.length));
+            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
         }
     }
 
@@ -1624,7 +1629,11 @@ var zera = (function() {
                 return x.toString();
             }
             else {
-                return str('#js/object {', Array.prototype.slice.call(x).map(function(x, i) { return str(i, ' ', prnStr(x)); }).join(', '), '}');
+                return str('#js/object {',
+                    Array.prototype.slice.call(x)
+                        .map(function(x, i) { return str(i, ' ', prnStr(x)); })
+                        .join(', '),
+                    '}');
             }
         } else {
             return "" + x;
@@ -3220,10 +3229,12 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object Object]';
     }
 
+    // FIXME: doesn't work for negative values
     function isEven(x) {
         return x % 2 === 0;
     }
 
+    // FIXME: doesn't work for negative values
     function isOdd(x) {
         return x % 2 === 1;
     }
