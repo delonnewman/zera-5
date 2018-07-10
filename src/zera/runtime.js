@@ -1914,8 +1914,6 @@ var zera = (function() {
         throw new Error('Can only compare and set the value of Atoms');
     }
 
-    // TODO: complete Namespace implementation
-    // TODO: make function for exporting Namespace mappings to a JS module e.g. zera.core = Namespace.findOrDie('zera.core').toJSModule();
     function Namespace(name) {
         if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
@@ -2369,60 +2367,9 @@ var zera = (function() {
         if (isInvocable(x)) {
             return x.apply(null, consToArray(args));
         }
-        if (!isFn(x)) {
+        else {
             throw new Error(str('Not a valid function: ', prnStr(x), ''));
         }
-
-        var fn = car(x);
-        var env = cdr(x);
-        var rest = cdr(fn);
-        var names = car(rest);
-        var body = cdr(rest);
-
-        if (isEmpty(body)) return null;
-
-        var ret = null, args_ = args;
-        loop:
-            while (true) {
-                try {
-                    var namec = calculateArity(names);
-                    var argc = count(args_);
-                    if (namec < 0 && argc < (Math.abs(namec) - 1)) {
-                        throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
-                    } else if (namec > 0 && namec !== argc) {
-                        throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
-                    }
-            
-                    // bind arguments
-                    var binds = bindArguments(names, consToArray(args_));
-                    for (var i = 0; i < binds.length; i++) {
-                        var name = binds[i][0];
-                        var value = binds[i][1];
-                        defineLexically(env, name, value);
-                    }
-
-                    // evaluate body
-                    var exp = car(body),
-                        exprs = cdr(body);
-                    while (exp != null) {
-                        ret = evaluate(exp, env);
-                        exp = car(exprs);
-                        exprs = cdr(exprs);
-                    }
-                    break;
-                }
-                  catch (e) {
-                    //p(e.args);
-                    if (e instanceof RecursionPoint) {
-                        args_ = e.args;
-                        continue loop;
-                    }
-                    else {
-                        throw e;
-                    }
-                }
-            }
-        return ret;
     }
 
     function pt(tag, val) {
@@ -2441,7 +2388,6 @@ var zera = (function() {
     // TODO: add destructuring
     // TODO: add variable validation, capture variable values from environment
     // TODO: add recur support
-    // TODO: add multibody function support
     // (fn ([x] x)
     //     ([x & xs] (cons x xs)))
     function evalFunction(form, env_) {
