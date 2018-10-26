@@ -1,4 +1,4 @@
-; vim ft=clojure
+; vim: ft=clojure
 (ns meta-circular)
 
 (defn atom? [x]
