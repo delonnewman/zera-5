@@ -1,0 +1,285 @@
+; vim: ft=clojure
+(ns zera.compiler.js)
+(alias 'jc *ns*)
+
+(def ^:dynamic *indent-str* "    ")
+
+;; Identifier
+(defn ident
+  [x]
+  (str x))
+
+;; Literals
+
+; TODO: add string escaping, unicode, etc.
+(defn string
+  [x]
+  (str "\"" x "\""))
+
+(defn boolean
+  [x]
+  (if-not (boolean? x) (throw (js/Error. "a boolean value is required")))
+  (str x))
+
+(defn null [] "null")
+
+(defn number
+  [x]
+  (unless (number? x) (throw (js/Error. "a numerical value is required")))
+  (str x))
+
+(defn regexp
+  [pattern flags]
+  (str "/" pattern "/" flags))
+
+(defn program
+  [x &xs]
+  (if (empty? xs)
+    (str x ";")
+    (str (join ";\n" (cons x xs)) ";")))
+
+(defn block
+  [x &xs]
+  (if (empty? xs)
+    (str "{ " x "; }")
+    (str "{\n" *indent-str* (join (str ";\n" *indent-str*) (cons x xs)) ";\n}")))
+
+;; Control flow
+(defn return
+  [x]
+  (str "return " x))
+
+(defn break
+  ([] "break")
+  ([x] (str "break " x)))
+
+(defn continue
+  ([] "continue")
+  ([x] (str "continue " x)))
+
+;; Choice
+(defn if-statement
+  ([predicate consequent]
+   (str "if (" predicate ") " consequent))
+  ([predicate consequent alternate]
+   (str "if (" predicate ") " consequent " else " alternate))
+  ([predicate consequent &pairs]
+   (unless (even? (count pairs)) (throw (js/Error. "an even number of pairs are required")))
+   (let [paired (partition 2 pairs)
+         else? (fn [x] (= (first x) :else))
+         else (first (filter else? paired))
+         chain (join "" (map (fn [xs] (str "else if (" (first xs) ") " (second xs))) (remove else? paired)))]
+     (if else
+       (str "if (" predicate ") " consequent " " chain " else " (second else))
+       (str "if (" predicate ") " consequent chain)))))
+
+(defn statement
+  [x]
+  (str x ";"))
+
+;; Exceptions
+(defn throw-statement
+  [x]
+  (str "throw " x))
+
+(defn try-statement
+  ([block] (str "try " block)) 
+  ([block handler]
+   (str "try " block " catch " handler))
+  ([block handler finalizer]
+   (str "try " block " catch " handler " finally " finalizer)))
+
+(defn catch-clause
+  [param &body]
+  (str "(" param ") " (apply block body)))
+
+;; Expressions
+(defn this [] "this")
+
+(defn array-expression
+  [&xs]
+  (str "[" (join ", " xs) "]"))
+
+(defn object-expression
+  [&properties]
+  (unless (even? (count properties)) (throw (js/Error. "an even number of pairs are required")))
+  (str "{"
+       (->> (partition 2 properties)
+            (map (fn [xs] (str (first xs) ":" (second xs))))
+            (join ", ")) "}"))
+
+(defn function-expression
+  [args &body]
+  (str "function (" (join ", " args) ") " (apply block body)))
+
+(def unary-operators #{"-" "+" "!" "~" "typeof" "void" "delete"})
+
+(defn unary-expression
+  [op arg]
+  (unless (unary-operators op) (throw (js/Error (str "invalid unary operator: " op))))
+  (if (or (= op "typeof") (= op "void") (= op "delete"))
+    (str op " " arg)
+    (str op arg)))
+
+(def update-operators #{"--" "++"})
+
+(defn update-expression
+  [op arg]
+  (unless (update-operators op) (throw (js/Error (str "invalid update operator: " op))))
+  (str op arg))
+
+(def binary-operators #{"==" "!=" "===" "!==" "<" "<=" ">" ">=" "<<" ">>" ">>>" "+" "-" "*" "/" "%" "|" "^" "&" "in" "instanceof"})
+
+(defn binary-expression
+  [op left right]
+  (unless (binary-operators op) (throw (js/Error (str "invalid binary operator: " op))))
+  (str left " " op " " right))
+
+(def assignment-operators #{"=" "+=" "-=" "*=" "/=" "%=" "<<=" ">>=" ">>>=" "|=" "^=" "&="})
+
+(defn assignment-expression
+  [op left right]
+  (unless (assignment-operators op) (throw (js/Error (str "invalid assignment operator: " op))))
+  (str left " " op " " right))
+
+(def logical-operators #{"||" "&&"})
+
+(defn logical-expression
+  [op left right]
+  (unless (logical-operators op) (throw (js/Error (str "invalid logical operator: " op))))
+  (str left " " op " " right))
+
+(defn member-expression
+  ([obj property]
+   (member-expression obj property false))
+  ([obj property computed]
+   (if computed
+     (str obj "[" property "]")
+     (str obj "." property))))
+
+(defn conditional-expression
+  [predicate consequent alternate]
+  (str predicate " ? " consequent " : " alternate))
+
+(defn call-expression
+  [callee args]
+  (str callee "(" (join ", " args) ")"))
+
+(defn new-expression
+  [callee args]
+  (str "new " callee "(" (join ", " args) ")"))
+
+(defn paren
+  [x]
+  (str "(" x ")"))
+
+(defn var
+  ([x] (str "var " x))
+  ([x y] (str "var " x " = " y))
+  ([x y &pairs]
+   (unless (even? (count pairs)) (throw (js/Error. "an even number of pairs are required")))
+   (str "var " x " = " y ", "
+        (->> (partition 2 pairs)
+             (map (fn [xs] (str (first xs) " = " (second xs))))
+             (join ", ")))))
+
+;; special forms
+(def *special-forms*
+  '#{def
+     quote
+     fn
+     cond
+     .
+     loop
+     recur
+     set!
+     defmacro
+     throw
+     try
+     catch
+     finally
+     new
+     deftype
+     defprotocol})
+
+(defmacro def
+  ([x]
+   (list 'var x))
+  ([x y]
+   (list 'var x y)))
+
+(defmacro quote
+  [x]
+  (cond (symbol? x) (list 'str "zera.core.symbol(" (list 'namespace x) ", " (list 'name x) ")")
+        (keyword? x) (str "zera.core.keyword(" (namespace x) (name x) ")")
+        (list? x) (str "zera.core.list(" (join ", " x) ")")
+        (vector? x) (str "zera.core.vector(" (join ", " x) ")")
+        (set? x) (str "zera.core.set([" (join ", " x) "])")
+        (map? x) (str "zera.core.hashMap(" (join ", " (map (fn [x] (str (x 0) ", " (x 1))) x)))
+        :else (str x)))
+
+(comment
+(prn (compile/def x))
+(prn (compile/def x 1))
+
+(prn (compile/quote 1))
+(prn (compile/quote (1 2 3)))
+
+; literals
+(is (= "\"This is a test\"" (string "This is a test")))
+(is (= "true" (boolean true)))
+(is (= "false" (boolean false)))
+(is (= "null" (null)))
+(is (= "/.*/g" (regexp ".*" "g")))
+
+; var
+(is (= "var x" (var (ident "x"))))
+(is (= "var x = 1" (var (ident "x") 1)))
+(is (= "var x = 1, y = 2" (var (ident "x") 1 (ident "y") 2)))
+(is (= "var x = 1, y = 2, z = 3" (var (ident "x") 1 (ident "y") 2 (ident "z") 3)))
+
+; program
+(is (= "var x = 1;" (program (var (ident "x") (number 1)))))
+(is (= "var x = 1;\nvar y = 2;"
+ (program
+   (var (ident "x") (number 1))
+   (var (ident "y") (number 2)))))
+
+; control flow
+(is (= "break" (break)))
+(is (= "break test") (break (ident "test")))
+(is (= "continue" (continue)))
+(is (= "continue test" (continue (ident "test"))))
+
+; choice
+(p (if-statement 1 (statement 2) :else (statement 3)))
+(p (if-statement 1 (statement 2) 3 (statement 4) :else (statement 5)))
+(p (if-statement 1 (block 2) :else (block 3)))
+(p (if-statement 1 (block 2) 3 (block 4) :else (block 5)))
+
+; exceptions
+(is (= "throw \"test\"" (throw-statement (string "test"))))
+
+; function-expression
+(is (= "function (x) { return x; }"
+ (function-expression
+    [(ident "x")]
+    (return (ident "x")))))
+
+(p
+ (try-statement
+   (block (throw-statement (string "test")))
+   (catch-clause (ident "e")
+      (ident "e"))
+   (block "e")))
+         
+(p (array-expression 1 2 3 4))
+(p (object-expression "a" 1 "b" 2 "c" 3))
+
+(p
+ (module
+   1
+   2
+   3
+   (return 4)))
+)

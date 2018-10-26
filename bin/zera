@@ -15,8 +15,9 @@ function interactive() {
     removeHistoryDuplicates: true,
     terminal: true
   });
-  
-  rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "> "));
+
+  zera.CURRENT_NS.set(z.createNs(z.symbol('user')));
+  rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "=> "));
   rl.prompt();
 
   rl.on('line', function(line) {
@@ -28,8 +29,8 @@ function interactive() {
       }
       else {
         var res = zera.evalString(input);
-        console.log(z.str("=> ", z.prnStr(res)));
-        rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "> "));
+        console.log(z.prnStr(res));
+        rl.setPrompt(z.str(zera.CURRENT_NS.get().name(), "=> "));
       }
     }
     catch (e) {

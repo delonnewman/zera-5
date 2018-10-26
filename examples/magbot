@@ -1,0 +1,698 @@
+#!/usr/bin/env zera
+; vim: ft=clojure
+(ns magbot)
+
+;; For fetching media from jw.org feeds
+;; The original version in Perl can be found here: https://raw.githubusercontent.com/delonnewman/magbot/master/magbot
+
+;; (see https://8thlight.com/blog/colin-jones/2010/12/05/clojure-libs-and-namespaces-require-use-import-and-ns.html)
+
+(js.node/npm-install "js-yaml")
+
+;; Dependencies
+;; TODO: add :install directive that can be added to import, to indempotetly install npm packages
+(js.node/import
+  ["js-yaml" :as yaml]
+  ["https" :as https]
+  ["rss-parser" :as rss])
+
+;; YAML
+(defn <-yaml [yaml-str]
+  (->ws (.safeLoad yaml yaml-str)))
+
+(defn ->yaml [data]
+  (.safeDump yaml (->js data)))
+
+;; HTTP
+(defn getstore [file url]
+  (let [buffer (array)]
+    (.get https url
+          (fn [res]
+            (.on res "data"
+                 (fn [chunk]
+                   ;(say "receiving chunk of " file " from " url)
+                   (.push buffer chunk)))
+            (.on res "error"
+                 (fn [error]
+                   (.error js/console error)))
+            (.on res "end"
+                 (fn []
+                   (say "=> Done with: '" file "'")
+                   (spit file (-> js.node/Buffer (.concat buffer)))))))))
+
+;(getstore "http://google.com" "google.txt")
+;(getstore "test.mp3" "https://download-a.akamaihd.net/files/media_magazines/9a/wp_E_201711_01.mp3")
+
+;; filesystem operations
+(def mkdir        js.node/mkdir)
+(def file-exists? js.node/file-exists?)
+(def slurp        js.node/slurp)
+(def spit         js.node/spit)
+(def basename     js.node/basename)
+(def extname      js.node/extname)
+(def dirname      js.node/dirname)
+
+;; Config
+(def HOME        (:HOME *env*))
+(def CONFIG_FILE (str HOME "/.magbot/config"))
+(def LOG_FILE    (str HOME "/.magbot/log"))
+(def DEFAULTS
+  {:mags
+    {:w  {:E #{:epub :mp3}}
+     :wp {:E #{:epub :mp3}}
+     :g  {:E #{:epub :mp3}}}
+   :dir
+    {:audio (str HOME "/Podcasts")
+     :pub   (str HOME "/Reading")}})
+
+(def ROOT_URL "https://apps.jw.org/E_RSSMEDIAMAG")
+
+(def MAGS_CODES
+  {:g  "Awake!"
+   :w  "Watchtower"
+   :wp "Watchtower (Public Edition)"
+   :ws "Watchtower (Simplified)"})
+
+(def MAGS_DAYS
+  {:g  ""
+   :w  "15"
+   :wp "01"})
+
+(def FORMATS
+  {:mp3  :audio
+   :epub :pub
+   :pdf  :pub
+   :brl  :pub
+   :rtf  :pub})
+
+(def FORMATS_EXTENTIONS
+  {:mp3  ".mp3"
+   :epub ".epub"
+   :pdf  ".pdf"
+   :brl  ".brl"
+   :rtf  ".rtf"})
+
+(def LANGUAGES
+  {"ABB" "Abbey"
+   "ABK" "Abkhaz"
+   "AC"  "Acholi"
+   "AD"  "Adyghe"
+   "AF"  "Afrikaans"
+   "AJG" "Aja"
+   "AKA" "Akha"
+   "AL"  "Albanian"
+   "ALT" "Altai"
+   "ALU" "Alur"
+   "ASL" "American Sign Language"
+   "AM"  "Amharic"
+   "AI"  "Amis"
+   "AMG" "Amuzgo (Guerrero)"
+   "LAS" "Angolan Sign Language"
+   "A"   "Arabic"
+   "LSA" "Argentinean Sign Language"
+   "ARH" "Arhuaco"
+   "REA" "Armenian"
+   "R"   "Armenian (West)"
+   "AE"  "Assamese"
+   "ATI" "Attié"
+   "AKN" "Aukan"
+   "AUS" "Australian Sign Language"
+   "AGR" "Awajun"
+   "AP"  "Aymara"
+   "AJR" "Azerbaijani"
+   "AJ"  "Azerbaijani (Cyrillic)"
+   "AO"  "Baoule"
+   "BAK" "Bashkir"
+   "BQ"  "Basque"
+   "BS"  "Bassa (Cameroon)"
+   "BA"  "Bassa (Liberia)"
+   "AK"  "Batak (Karo)"
+   "BTK" "Batak (Simalungun)"
+   "BT"  "Batak (Toba)"
+   "BZK" "Belize Kriol"
+   "BE"  "Bengali"
+   "ET"  "Bété"
+   "IK"  "Biak"
+   "BI"  "Bicol"
+   "LM" "Bislama"
+   "BVL" "Bolivian Sign Language"
+   "BO" "Boulou"
+   "LSB" "Brazilian Sign Language"
+   "BSL" "British Sign Language"
+   "BL" "Bulgarian"
+   "CQ" "Cakchiquel (Western)"
+   "CB" "Cambodian"
+   "AN" "Catalan"
+   "CV" "Cebuano"
+   "CN" "Chichewa"
+   "SCH" "Chilean Sign Language"
+   "HK" "Chin (Hakha)"
+   "CNS" "Chinese Cantonese (Simplified)"
+   "CHC" "Chinese Cantonese (Traditional)"
+   "CHS" "Chinese Mandarin (Simplified)"
+   "CH" "Chinese Mandarin (Traditional)"
+   "CSL" "Chinese Sign Language"
+   "CG" "Chitonga"
+   "CT" "Chitonga (Malawi)"
+   "CGW" "Chitonga (Zimbabwe)"
+   "TB" "Chitumbuka"
+   "YA" "Chiyao"
+   "CK" "Chokwe"
+   "CHL" "Chol"
+   "CLT" "Chontal (Tabasco)"
+   "CPI" "Chopi"
+   "CO" "Chuabo"
+   "TE" "Chuukese"
+   "CU" "Chuvash"
+   "CW" "Cibemba"
+   "CIN" "Cinyanja"
+   "LSC" "Colombian Sign Language"
+   "CMG" "Comorian (Ngazidja)"
+   "C" "Croatian"
+   "CBS" "Cuban Sign Language"
+   "B" "Czech"
+   "CSE" "Czech Sign Language"
+   "DMR" "Damara"
+   "DG" "Dangme"
+   "D" "Danish"
+   "DK" "Dayak Ngaju"
+   "DGR" "Digor"
+   "DA" "Douala"
+   "LF" "Drehu"
+   "KAD" "Dusun"
+   "O" "Dutch"
+   "SEC" "Ecuadorian Sign Language"
+   "ED" "Edo"
+   "EF" "Efik"
+   "EMB" "Emberá (Catío)"
+   "E" "English"
+   "ST" "Estonian"
+   "EW" "Ewe"
+   "FGN" "Fang"
+   "FR" "Faroese"
+   "FN" "Fijian"
+   "FSL" "Filipino Sign Language"
+   "FI" "Finnish"
+   "FID" "Finnish Sign Language"
+   "FO" "Fon"
+   "F" "French"
+   "LSF" "French Sign Language"
+   "GA" "Ga"
+   "GZ" "Gagauz"
+   "GZR" "Gagauz (Roman)"
+   "GLC" "Galician"
+   "GRF" "Garifuna"
+   "GE" "Georgian"
+   "X" "German"
+   "DGS" "German Sign Language"
+   "GTN" "Gitonga"
+   "G" "Greek"
+   "GSL" "Greek Sign Language"
+   "GL" "Greenlandic"
+   "GCR" "Guadeloupean Creole"
+   "GBM" "Guambiano"
+   "GI" "Guarani"
+   "GIB" "Guarani (Bolivia)"
+   "GUR" "Guéré"
+   "GNC" "Guianese Creole"
+   "GU" "Gujarati"
+   "EG" "Gun"
+   "CR" "Haitian Creole"
+   "HMA" "Hamshen (Armenian)"
+   "HMS" "Hamshen (Cyrillic)"
+   "HA" "Hausa"
+   "Q" "Hebrew"
+   "HR" "Herero"
+   "HV" "Hiligaynon"
+   "HI" "Hindi"
+   "MO" "Hiri Motu"
+   "HM" "Hmong (White)"
+   "HCH" "Huichol"
+   "H" "Hungarian"
+   "HDF" "Hungarian Sign Language"
+   "HSK" "Hunsrik"
+   "IA" "Iban"
+   "IG" "Ibanag"
+   "IC" "Icelandic"
+   "IB" "Igbo"
+   "IL" "Iloko"
+   "INS" "Indian Sign Language"
+   "IN" "Indonesian"
+   "INI" "Indonesian Sign Language"
+   "IS" "Isoko"
+   "I" "Italian"
+   "ISL" "Italian Sign Language"
+   "J" "Japanese"
+   "JSL" "Japanese Sign Language"
+   "JA" "Javanese"
+   "JL" "Jula"
+   "KBR" "Kabardin-Cherkess"
+   "KAB" "Kabiye"
+   "KBV" "Kabuverdianu"
+   "KBY" "Kabyle"
+   "AH" "Kachin"
+   "KLZ" "Kalanga (Zimbabwe)"
+   "KA" "Kannada"
+   "KYK" "Kanyok"
+   "BAL" "Karachay-Balkar"
+   "KR" "Karen (S'gaw)"
+   "AZ" "Kazakh"
+   "AZA" "Kazakh (Arabic)"
+   "KSI" "Kenyan Sign Language"
+   "KHK" "Khakass"
+   "KB" "Kikamba"
+   "KD" "Kikaonde"
+   "KG" "Kikongo"
+   "KGL" "Kikongo ya Leta"
+   "KQ" "Kikuyu"
+   "KU" "Kiluba"
+   "KIM" "Kimbundu"
+   "KIN" "Kinande"
+   "YW" "Kinyarwanda"
+   "KZ" "Kirghiz"
+   "GB" "Kiribati"
+   "RU" "Kirundi"
+   "KI" "Kisi"
+   "KSN" "Kisonge"
+   "KIT" "Kituba"
+   "MK" "Kongo"
+   "KT" "Konkani (Roman)"
+   "KO" "Korean"
+   "KSL" "Korean Sign Language"
+   "OS" "Kosraean"
+   "KP" "Kpelle"
+   "KRI" "Krio"
+   "KHN" "Kuhane (Subiya)"
+   "RD" "Kurdish Kurmanji"
+   "RDU" "Kurdish Kurmanji (Caucasus)"
+   "RDC" "Kurdish Kurmanji (Cyrillic)"
+   "WG" "Kwangali"
+   "KY" "Kwanyama"
+   "LAH" "Lahu"
+   "AB" "Lamba"
+   "LA" "Laotian"
+   "LR" "Lari"
+   "LT" "Latvian"
+   "LGA" "Lega"
+   "LND" "Lendu"
+   "LHK" "Lhukonzo"
+   "LI" "Lingala"
+   "L" "Lithuanian"
+   "LE" "Lomwe"
+   "LU" "Luganda"
+   "LD" "Lunda"
+   "LO" "Luo"
+   "LV" "Luvale"
+   "MC" "Macedonian"
+   "MAC" "Macua"
+   "MCS" "Macushi"
+   "MWM" "Makhuwa-Meetto"
+   "MG" "Malagasy"
+   "MSL" "Malawi Sign Language"
+   "ML" "Malay"
+   "MY" "Malayalam"
+   "MT" "Maltese"
+   "MZ" "Mam"
+   "MWL" "Mambwe-Lungu"
+   "MNO" "Mano"
+   "MPD" "Mapudungun"
+   "MR" "Marathi"
+   "MAR" "Mari"
+   "MQN" "Marquesian (Nuku Hiva)"
+   "MH" "Marshallese"
+   "MSH" "Mashi"
+   "CE" "Mauritian Creole"
+   "MAY" "Maya"
+   "MAZ" "Mazatec (Huautla)"
+   "MBK" "Mbukushu"
+   "MBD" "Mbunda"
+   "ME" "Mende"
+   "LSM" "Mexican Sign Language"
+   "MGL" "Mingrelian"
+   "MX" "Mixe"
+   "LS" "Mizo"
+   "KHA" "Mongolian"
+   "MM" "Moore"
+   "MTU" "Motu"
+   "BU" "Myanmar"
+   "NHC" "Nahuatl (Central)"
+   "NHG" "Nahuatl (Guerrero)"
+   "NHH" "Nahuatl (Huasteca)"
+   "NHT" "Nahuatl (Northern Puebla)"
+   "SLN" "Namibian Sign Language"
+   "NV" "Navajo"
+   "NDA" "Ndau"
+   "NBL" "Ndebele"
+   "NBZ" "Ndebele (Zimbabwe)"
+   "OD" "Ndonga"
+   "NP" "Nepali"
+   "NGB" "Ngabere"
+   "NGL" "Ngangela"
+   "NGN" "Ngbandi (Northern)"
+   "NMB" "Ngiemboon"
+   "NI" "Nias"
+   "NGP" "Nigerian Pidgin"
+   "NN" "Niuean"
+   "N" "Norwegian"
+   "NK" "Nyaneka"
+   "NYU" "Nyungwe"
+   "NZ" "Nzema"
+   "OI" "Odia"
+   "OKP" "Okpe"
+   "OA" "Oromo"
+   "OSS" "Ossetian"
+   "OT" "Otetela"
+   "PAZ" "Páez"
+   "PU" "Palauan"
+   "PN" "Pangasinan"
+   "PAA" "Papiamento (Aruba)"
+   "PA" "Papiamento (Curaçao)"
+   "LSP" "Paraguayan Sign Language"
+   "PMN" "Pemon"
+   "XPA" "Pennsylvania German"
+   "PR" "Persian"
+   "SPE" "Peruvian Sign Language"
+   "PRA" "Piaroa"
+   "PCM" "Pidgin (Cameroon)"
+   "P" "Polish"
+   "PDF" "Polish Sign Language"
+   "PMR" "Pomeranian"
+   "PP" "Ponapean"
+   "T" "Portuguese"
+   "LGP" "Portuguese Sign Language"
+   "PJ" "Punjabi"
+   "PJN" "Punjabi (Shahmukhi)"
+   "LSQ" "Quebec Sign Language"
+   "QUN" "Quechua (Ancash)"
+   "QUA" "Quechua (Ayacucho)"
+   "QUB" "Quechua (Bolivia)"
+   "QU" "Quechua (Cuzco)"
+   "QUL" "Quechua (Huallaga Huánuco)"
+   "QUH" "Quechua (Huaylla Wanca)"
+   "QIC" "Quichua (Chimborazo)"
+   "QII" "Quichua (Imbabura)"
+   "QIP" "Quichua (Pastaza)"
+   "QCS" "Quichua (Salasaca)"
+   "QIT" "Quichua (Tena)"
+   "RA" "Rarotongan"
+   "RCR" "Réunion Creole"
+   "M" "Romanian"
+   "LMG" "Romanian Sign Language"
+   "RMS" "Romany (Eastern Slovakia)"
+   "RMK" "Romany (Kalderash, Russia)"
+   "RM" "Romany (Macedonia)"
+   "RMC" "Romany (Macedonia) Cyrillic"
+   "RME" "Romany (Serbia)"
+   "RMG" "Romany (Southern Greece)"
+   "RMV" "Romany (Vlax, Russia)"
+   "RNY" "Rumanyo"
+   "RR" "Runyankore"
+   "U" "Russian"
+   "RSL" "Russian Sign Language"
+   "RT" "Rutoro"
+   "SM" "Samoan"
+   "SGA" "Sanga"
+   "SGR" "Sangir"
+   "SG" "Sango"
+   "SRM" "Saramaccan"
+   "SEN" "Sena"
+   "SE" "Sepedi"
+   "SB" "Serbian"
+   "SBO" "Serbian (Roman)"
+   "SU" "Sesotho (Lesotho)"
+   "SSA" "Sesotho (South Africa)"
+   "TN" "Setswana"
+   "SC" "Seychelles Creole"
+   "SHC" "Shipibo-Conibo"
+   "CA" "Shona"
+   "SHU" "Shuar"
+   "DM" "Sidama"
+   "SK" "Silozi"
+   "SN" "Sinhala"
+   "V" "Slovak"
+   "VSL" "Slovak Sign Language"
+   "SV" "Slovenian"
+   "SP" "Solomon Islands Pidgin"
+   "SAS" "South African Sign Language"
+   "S" "Spanish"
+   "LSE" "Spanish Sign Language"
+   "SR" "Sranantongo"
+   "SD" "Sunda"
+   "SW" "Swahili"
+   "ZS" "Swahili (Congo)"
+   "SWI" "Swati"
+   "Z" "Swedish"
+   "TBW" "Taabwa"
+   "TG" "Tagalog"
+   "TH" "Tahitian"
+   "TSL" "Taiwanese Sign Language"
+   "TJ" "Tajiki"
+   "TAL" "Talian"
+   "TL" "Tamil"
+   "TND" "Tandroy"
+   "TNK" "Tankarana"
+   "TRH" "Tarahumara (Central)"
+   "TAT" "Tatar"
+   "TU" "Telugu"
+   "TTP" "Tetun Dili"
+   "SI" "Thai"
+   "TCN" "Ticuna"
+   "TI" "Tigrinya"
+   "TV" "Tiv"
+   "TLN" "Tlapanec"
+   "TJO" "Tojolabal"
+   "MP" "Tok Pisin"
+   "TO" "Tongan"
+   "TOT" "Totonac"
+   "SH" "Tshiluba"
+   "AW" "Tshwa"
+   "TS" "Tsonga"
+   "TK" "Turkish"
+   "TMR" "Turkmen"
+   "TM" "Turkmen (Cyrillic)"
+   "VL" "Tuvaluan"
+   "VI" "Tuvinian"
+   "TW" "Twi"
+   "TYW" "Tyrewuju"
+   "TZE" "Tzeltal"
+   "TZO" "Tzotzil"
+   "UM" "Udmurt"
+   "UGA" "Uighur (Arabic)"
+   "UG" "Uighur (Cyrillic)"
+   "K" "Ukrainian"
+   "UB" "Umbundu"
+   "UD" "Urdu"
+   "UR" "Urhobo"
+   "DR" "Uruund"
+   "UZ" "Uzbek"
+   "VLC" "Valencian"
+   "VE" "Venda"
+   "LSV" "Venezuelan Sign Language"
+   "VZ" "Vezo"
+   "VT" "Vietnamese"
+   "WA" "Wallisian"
+   "WRO" "Warao"
+   "SA" "Waray-Waray"
+   "WY" "Wayuunaiki"
+   "W" "Welsh"
+   "WCH" "Wichi"
+   "WL" "Wolaita"
+   "XV" "Xavante"
+   "XO" "Xhosa"
+   "YCB" "Yacouba"
+   "YK" "Yakutsk"
+   "YP" "Yapese"
+   "BM" "Yemba"
+   "YMB" "Yombe"
+   "YR" "Yoruba"
+   "ZN" "Zande"
+   "ZPG" "Zapotec (Guevea)"
+   "ZPI" "Zapotec (Isthmus)"
+   "ZPX" "Zapotec (Ixtlán)"
+   "ZPL" "Zapotec (Lachiguiri)"
+   "ZPV" "Zapotec (Villa Alta)"
+   "ZSL" "Zimbabwe Sign Language"
+   "ZU" "Zulu"})
+
+(def EXTENTIONS_FORMATS
+  (->> FORMATS_EXTENTIONS
+       (map (fn [x] [(x 1) (x 0)]))
+       (into (hash-map))))
+
+(defn config []
+  "read from config file"
+  (let [dir (dirname CONFIG_FILE)]
+    (unless (file-exists? dir) (mkdir dir))
+    (if (file-exists? CONFIG_FILE)
+      (<-yaml (slurp CONFIG_FILE))
+      (do
+        (spit CONFIG_FILE (->yaml DEFAULTS))
+        (<-yaml (slurp CONFIG_FILE))))))
+
+(def DIR  ((config) "dir"))
+(def MAGS ((config) "mags"))
+
+(defn root-dir [x]
+  (let [fmt (:media/format x)
+        type (or (FORMATS fmt) (FORMATS x))]
+    (unless type (throw (js/Error (str "Cannot find root directory for: " (inspect x)))))
+    (if (map? DIR)
+      (DIR (name type))
+      DIR)))
+
+(defn times [n s]
+  (let [buff (array)]
+    (dotimes [i n]
+      (.push buff s))
+    (.join buff "")))
+
+(defn pad-zeros [n &digits]
+  (let [digits* (or (first digits) 2)
+        m (.pow js/Math 10 (- digits* 1))]
+    (if (>= n m)
+      (str n)
+      (let [nzeros (.-length (str n))]
+        (str (times nzeros "0") n)))))
+
+(comment
+(is (= "05" (pad-zeros 5)))
+(is (= "05" (pad-zeros 5 2)))
+(is (= "10" (pad-zeros 10)))
+)
+
+(defn fmt-date [d]
+  (str (.getUTCFullYear d) "-" (pad-zeros (inc (.getUTCMonth d))) "-" (pad-zeros (.getUTCDate d))))
+
+(defn issue-dir [item feed-dir]
+  (let [dir (fmt-date (:item/date item))]
+    (str feed-dir "/" dir)))
+
+(defn item-file [feed-dir item]
+  (str (issue-dir item feed-dir) "/" (:item/file item)))
+
+(defn feed [title desc url items]
+  (let [fmt (keyword (.toLowerCase (last (.split desc " "))))]
+    (unless (FORMATS fmt) (throw (js/Error. (str "Unknown format: " (inspect fmt) " from: " desc))))
+    {:feed/title title
+     :feed/desc desc
+     :feed/url url
+     :feed/items items
+     :media/format fmt
+     :magbot/tag :feed
+     :feed/dir
+      (let [dir (.replace title (js/RegExp. "(?:JW: )|[:\(\)]") "")]
+        (str (root-dir fmt) "/" dir))}))
+
+(defn item [title link date]
+  {:item/title title
+   :item/link link
+   :item/date date
+   :item/file (basename link)
+   :magbot/tag :item
+   :media/format
+    (let [ext (extname link)]
+      (EXTENTIONS_FORMATS ext))})
+
+(defn feed-url [lang code format]
+  (str ROOT_URL "?rln=" lang "&rmn=" code "&rfm=" format)) 
+
+(defn feed-urls [mags]
+  (map (fn [m]
+         (feed-url (name (:mag/lang m)) (name (:mag/code m)) (name (:media/format m))))
+       mags))
+
+(defn mag
+  ([code lang format]
+   (mag code lang format nil))
+  ([code lang format date]
+   {:mag/code code
+    :mag/lang lang
+    :media/format format
+    :magbot/tag :mag
+    :mag/date date}))
+
+(defmulti  show :magbot/tag)
+(defmethod show :feed [f] (:feed/title f))
+(defmethod show :item [i] (:item/title i))
+(defmethod show :mag  [m]
+  (let [d (:mag/date)]
+    (if d
+      (str (:mag/code m) (:mag/lang m) " " (:mag/format m) " " (fmt-date d))
+      (str (:mag/code m) (:mag/lang m) " " (:mag/format m)))))
+
+;(p MAGS)
+(defn mags []
+  (mapcat
+   (fn [x]
+     (mapcat
+      (fn [y]
+        (map
+         (fn [z] (mag (keyword (x 0)) (keyword (y 0)) (keyword z)))
+         (y 1)))
+        (x 1)))
+     MAGS))
+
+;(p (mags))
+
+(def channel
+  (do
+    (deftype Channel [state subcount]
+      (send [this x]
+        (swap! (.-state this) (fn [q] (conj q x))))
+      (receive [this rcvr]
+        (add-watch
+          (.-state this)
+          (str "receiver-" (inc (.-subcount this)))
+          (fn [k ref old knew]
+            (if (< (count old) (count knew))
+              (rcvr (peek knew))
+              (reset! (pop knew)))))
+        this)
+      (empty? [this] (empty? (.-state this))))
+
+    (fn []
+      (Channel. (atom (list)) 0))))
+
+(defn send-> [ch x]
+  (.send ch x))
+
+(defmacro <-receive [ch &body]
+  (list '.receive ch (cons 'fn (cons '[%] body))))
+
+(defn parse-item [x]
+  (item (.-title x) (.-link x) (js/Date. (.-isoDate x))))
+
+(defn parse-feed [f]
+  (let [f* (.-feed f)
+        entries (.-entries f*)]
+    (feed (.-title f*) (.-description f*) (.-feedUrl f*) (map parse-item entries))))
+
+(def media (channel))
+(<-receive media
+  (let [root (root-dir (:media/format %))
+        feed (:feed/dir %)]
+    (say "Processing Feed: " (show %) "...")
+    (unless (file-exists? root) (mkdir root))
+    (unless (file-exists? (:feed/dir %)) (mkdir (:feed/dir %)))
+    (doeach [item (:feed/items %)]
+      (let [issue (issue-dir item feed)
+            file (item-file feed item)]
+        (unless (file-exists? issue) (mkdir issue))
+        (unless (file-exists? file)
+          (say "Fetching '" (:item/link item) "'...")
+          (getstore file (:item/link item)))))))
+
+(def feeds (channel))
+(<-receive feeds
+  (send-> media (parse-feed %)))
+
+;; TODO: -main should be the last thing excecuted no matter where it's placed
+(defn -main []
+  (say "Checking for updates...")
+  (doeach [url (feed-urls (mags))]
+    (.parseURL
+      rss
+      url
+      (fn [err parsed]
+        (if err (.error js/console err))
+        (send-> feeds parsed)))))

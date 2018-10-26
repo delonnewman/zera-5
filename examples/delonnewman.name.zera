@@ -1,0 +1,66 @@
+; vim: ft=clojure
+(ns learn)
+
+(defn tag? [x]
+  (and (vector? x) (keyword? (first x))))
+
+(defn has-attr? [x]
+  (map? (second x)))
+
+(defn component? [x]
+  (and (vector? x) (fn? (first x))))
+
+(def tag-list? seq?)
+
+(defn render-attr [form]
+  (reduce (fn [s x] (str s " " x))
+          (map (fn [x] (str (name (x 0)) "='" (x 1) "'")) form)))
+
+(defn render-attr-tag [form]
+  (let [t (name (first form))
+        attr (render-attr (second form))]
+    (str "<" t " " attr ">" (reduce str "" (map html (rest (rest form)))) "</" t ">")))
+
+(defn render-tag [form]
+  (let [t (name (first form))]
+    (str "<" t ">" (reduce str "" (map html (rest form))) "</" t ">")))
+
+(defn render-component [form]
+  (let [f (first form)
+        args (rest form)]
+    (apply f args)))
+
+(defn html [form]
+  (cond (nil? form) ""
+        (true? form) "Yes"
+        (false? form) "No"
+        (string? form) form
+        (tag? form)
+          (if (has-attr? form)
+            (render-attr-tag form)
+            (render-tag form))
+        (component? form) (render-component form)
+        (tag-list? form)
+          (reduce str "" (map html form))
+        :else
+          (throw "unknown form")))
+
+(defmacro js [form]
+  (list 'compile (list 'quote form)))
+
+(say
+  (html
+    [:html {:lang "en"}
+      [:head
+        [:meta {:charset "utf-8"}]
+        [:meta {:name "viewport" :content "width=device-width, initial-scale=1, shrink-to-fit=no"}]
+        [:link {:rel "stylesheet"
+                :href "https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
+                :integrity "sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB"
+                :crossorigin "anonymous"}]
+        [:title "Zera"]]
+      [:body {:onload (js (js/alert (zera.core/str "Hello " (js/prompt "What is your name?"))))}
+        [:div {:class "container"}
+          [:textarea]]
+        [:script {:src "../src/zera/runtime.js" :type "text/javascript"}]]]))
+              

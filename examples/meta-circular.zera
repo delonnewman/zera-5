@@ -1,0 +1,60 @@
+; vim ft=clojure
+(ns meta-circular)
+
+(defn atom? [x]
+  (cond (nil? x) true
+        (number? x) true
+        (string? x) true
+        :else false))
+
+(defn eval-cond [form]
+  (let [pairs (pair (rest form))]
+    (loop [x (first pairs)]
+      (cond (= 'else (x 0)) (eval (x 1))
+            (eval (x 0)) (eval (x 1))
+            :else
+              (recur (first (rest pairs)))))))
+
+(def definitions (atom {}))
+
+(defn eval-definition [form]
+  (let [name (first (rest form))
+        value (first (rest (rest form)))]
+    (swap! definitions assoc name value)
+    name))
+
+(defn eval-symbol [form]
+  (let [value (@definitions form)]
+    (if value
+      value
+      (throw (new js/Error "Undefined variable")))))
+
+(defn apply [f args]
+  (let [names (first (rest f))
+        body (rest (rest f))
+        binds (zipmap names args)]
+    (loop [bind (first binds)]
+      (if-not (nil? bind)
+        (do
+          (swap! definitions assoc (key bind) (val bind))
+          (recur (next bind)))))
+    (last (map eval body))))
+
+(defn eval-application [form]
+  (apply (eval (first form)) (map eval (rest form))))
+
+(defn eval [form]
+  (cond (atom? form) form
+        (symbol? form) (eval-symbol form)
+        (list? form)
+          (cond (= 'quote (first form))
+                  (next form)
+                (= 'cond (first form))
+                  (eval-cond form)
+                (= 'fn (first form)) form
+                (= 'def (first form))
+                  (eval-definition form)
+                :else
+                  (eval-application form))
+        :else
+          (throw js/Error (str "Invalid form: " (prn-str form)))))

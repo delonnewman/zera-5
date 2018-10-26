@@ -1794,7 +1794,8 @@ var zera = (function() {
     function Var(meta, namespace, name) {
         this.$zera$ns   = namespace;
         this.$zera$name = name;
-        ARef.call(this, meta);
+        //ARef.call(this, meta);
+        this.$zera$meta = meta || arrayMap();
     }
 
     Var.prototype = Object.create(ARef.prototype);
@@ -1811,8 +1812,8 @@ var zera = (function() {
     };
 
     Var.prototype.resetMeta = function(m) {
-        var ret = ARef.prototype.resetMeta.call(this, m);
-        return ret;
+        this.$zera$meta = m;
+        return this.$zera$meta;
     };
 
     Var.prototype.meta = function() {
@@ -1822,8 +1823,9 @@ var zera = (function() {
     Var.prototype.set = function(value) {
         this.validate(value);
         if (this.$zera$value == null || this.isDynamic()) {
+            var old = this.$zera$value;
             this.$zera$value = value;
-            processWatchers(this, this.$zera$value, value);
+            processWatchers(this, old, value);
             return value;
         }
         else {
@@ -2218,15 +2220,20 @@ var zera = (function() {
         return ret;
     }
 
+    // FIXME: not picking up meta data from symbol
     function evalDefinition(form, env) {
         var rest = cdr(form);
         var name = car(rest);
         var value = car(cdr(rest));
         var ns = CURRENT_NS.get();
-        var v = Var.intern(ns, name, evaluate(value, env));
-        if (name.meta()) {
-            v.resetMeta(name.meta());
+        if (name.isQualified()) {
+            if (name.namespace() !== str(ns.name())) {
+                throw new Error('Cannot define var in a namespace other than the current namespace');
+            }
+            name = Sym.intern(name.name());
         }
+        var v = Var.intern(ns, name, evaluate(value, env));
+        v.resetMeta(name.meta());
         return v;
     }
 

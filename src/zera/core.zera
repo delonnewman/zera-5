@@ -7,8 +7,8 @@
 
 (ns zera.core)
 
-(defmacro defn [x & xs]
-  (list 'def x (cons 'fn xs)))
+;(defmacro defn [x & xs]
+;  (list 'def x (cons 'fn xs)))
 
 (defmacro comment [& xs] nil)
 
@@ -94,6 +94,27 @@
                       (concat body [(list 'recur (list '+ var 1))])))
           init)))
 
+(def second (fn [x] (first (rest x))))
+
+(defmacro defn
+  [name & forms]
+  (if-not (symbol? name)
+    (throw (js/Error. (str "first argument of defn should be a symbol, got: " (prn-str name)))))
+  (let [x (first forms)
+        y (second forms)]
+    (cond (and (string? x) (map? y))
+            (list 'def (with-meta name (assoc y :doc x)) (cons 'fn (rest (rest forms))))
+          (string? x)
+            (list 'def (with-meta name {:doc x}) (cons 'fn (rest forms)))
+          (map? x)
+            (list 'def (with-meta name x) (cons 'fn (rest forms)))
+          (or (vector? x) (list? x))
+            (list 'def name (cons 'fn forms))
+          :else
+            (throw
+              (js/Error.
+                "after name defn expects a doc string, an arguments vector, or a list of bodies")))))
+
 (defn inc [x] (+ 1 x))
 (defn dec [x] (- x 1))
 
@@ -116,19 +137,13 @@
               (swap! memo assoc args (apply f args))
               (@memo args))))))))
 
-(defn map-list
-  [f xs]
-  (if (empty? xs)
-    xs
-    (cons (f (first xs)) (map-list f (rest xs)))))
-
-(defn map-seq
-  [f xs]
-  (lazy-seq
-    (if (empty? xs)
-      nil
-      (cons (f (first xs)) (map-seq f (rest xs))))))
-
-(defn second [x] (first (rest x)))
-
-;(prn (meta (fn [x] x)))
+(defn zipmap
+  [keys vals]
+    (loop [map {}
+           ks (seq keys)
+           vs (seq vals)]
+      (if (and ks vs)
+        (recur (assoc map (first ks) (first vs))
+               (next ks)
+               (next vs))
+        map)))
