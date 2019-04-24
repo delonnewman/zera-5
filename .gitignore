@@ -4,3 +4,4 @@ out/core.js
 out/out.js
 out/*
 .cpcache/
+.idea/

@@ -1,0 +1,141 @@
+(ns js.node)
+
+(def ^:private fs   (js.node/require "fs"))
+(def ^:private path (js.node/require "path"))
+(def ^:private cp   (js.node/require "child_process"))
+
+;(defn module-path [dir]
+;  (.addPath (js.node/require "app-module-path") dir))
+;
+(defn mkdir [path]
+  (.mkdirSync fs path))
+
+(defn file-exists? [path]
+  (.existsSync fs path))
+
+(defn sh [cmd & args]
+  (.execSync cp cmd (into-array args)))
+
+(defn exec [cmd & args]
+  (.spawnSync cp cmd (into-array args)))
+
+(defn npm-install [pkg & opts]
+  (let [global? (fn-opts opts :global false)
+        res (exec "/usr/local/bin/node" "/usr/local/bin/npm" "install" (if global? "-g" "") pkg)
+        out (res "output")]
+    (doeach [x out]
+      (if x
+        (say x)))
+    res))
+
+;(defmacro import
+;  "Import Node modules from local 'node_modules' path"
+;  [&specs]
+;  (let [specs* (map (fn [s]
+;                      (unless (vector? s) (throw (js/Error. "module specs should be a vector")))
+;                      (let [mod (first s)
+;                            as (second s)
+;                            name (second (rest s))]
+;                        (if (and (string? mod) (= :as as) (symbol? name))
+;                          [mod name]
+;                          (throw (js/Error. (str "Spec is in wrong form" (inspect s)))))))
+;                    specs)]
+;    (cons 'do
+;          (cons (list 'js.node/module-path (list 'zera.core/str '*dir* "/node_modules"))
+;                (map (fn [s] (list 'def (s 1) (list 'js.node/require (s 0)))) specs*)))))
+;
+;(def
+;  {:doc "An alias for process.abort() on Node.js"
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  abort (.-abort process))
+;
+;(def
+;  {:doc "An alias for process.chdir() on Node.js"
+;   :arglists '([directory])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  chdir (.-chdir process))
+;
+;(def
+;  {:doc "An alias for process.cwd() on Node.js"
+;   :arglists '([])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  cwd (.-cwd process))
+;
+;(def
+;  {:doc "An alias for process.exit() on Node.js"
+;   :arglists '([] [code])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  exit (.-exit process))
+;
+;; TODO: make promisify function, and maybe our own Promise implementation
+;;(def- read-file (.promisify js/Promise (.-readFile fs)))
+;;(def- write-file (.promisify js/Promise (.-readFile fs)))
+;
+;;; TODO: Make a browser version of slurp and spit
+;
+;(defn slurp
+;  "Read entire contents of `file` to a string"
+;  {:added "1.0"}
+;  [file &opts]
+;  (.readFileSync fs file))
+;
+;(defn spit
+;  "Write `data` to `file`. Data can be a String, Buffer, or Uint8Array."
+;  {:added "1.0"}
+;  [file data]
+;  (.writeFileSync fs file data))
+;
+;(def
+;  {:doc "An alias for path.basename() on Node.js"
+;   :arglists '([path] [path ext])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  basename (.-basename path))
+;
+;(def
+;  {:doc "An alias for path.dirname() on Node.js"
+;   :arglists '([path] [path ext])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  dirname (.-dirname path))
+;
+;(def
+;  {:doc "An alias for path.extname() on Node.js"
+;   :arglists '([path] [path ext])
+;   :platforms #{:nodejs}
+;   :added "1.0"}
+;  extname (.-extname path))
+;
+;(defn node-modules-paths
+;  [start]
+;  "Node modules lookup
+;  (see https://nodejs.org/api/modules.html)"
+;  (loop [parts (reverse (.split start "/")) dirs (set)]
+;    (if (empty? parts)
+;      dirs
+;      (let [dir (.normalize path (str (join "/" (reverse parts)) "/node_modules"))]
+;        (if (file-exists? dir)
+;          (recur (rest parts) (conj dirs dir))
+;          (recur (rest parts) dirs))))))
+;
+;(def :dynamic *node-path* [*dir* "/usr/local/lib"])
+;;(p (mapcat node-modules-paths *node-path*))
+
+;(defn require [path]
+;  (if (file-exists? path)
+;    (require* path)
+;    (cond (.startsWith path "./")
+;            (require* (str *dir* (.slice path 1)))
+;          (.startsWith path "../")
+;            (require* (str *dir* "/" path))
+;          (.startsWith path "/")
+;            (require* path)
+;          :else
+;            ;
+;      )))
+
+;(p (file-exists? (str *dir* "/node.zera")))

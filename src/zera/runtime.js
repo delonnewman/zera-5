@@ -447,7 +447,7 @@ var zera = (function() {
     List.prototype = Object.create(Seq.prototype);
 
     function isList(x) {
-        return isa(x, List);
+        return isa(x, List) || (x.isList && x.isList());
     }
 
     // Cons
@@ -649,7 +649,7 @@ var zera = (function() {
         if (this._seq == null) {
             return null;
         }
-        return this._seq.first();
+        return first(this._seq);
     };
 
     LazySeq.prototype.next = function() {
@@ -657,7 +657,7 @@ var zera = (function() {
         if (this._seq == null) {
             return null;
         }
-        return this._seq.next();
+        return next(this._seq);
     };
 
     LazySeq.prototype.rest = function() {
@@ -666,15 +666,19 @@ var zera = (function() {
         else             return val;
     };
 
+    LazySeq.prototype.isEmpty = function() {
+        return this.seq() === null;
+    };
+
     LazySeq.prototype.toString = function() {
+        if (this.isEmpty()) return '()';
         var buff = [];
-        var seq = this, x;
-        while (seq !== null) {
-            x = seq.first();
+        var seq = this.seq();
+        while (seq !== null && !isEmpty(seq)) {
+            buff.push(prnStr(first(seq)));
             seq = seq.next();
-            buff.push(prnStr(x));
         }
-        return '(' + buff.join(' ') + ')'; 
+        return '(' + buff.join(' ') + ')';
     };
 
     function lazySeq(fn) {
@@ -1311,6 +1315,10 @@ var zera = (function() {
         return new Vector(null, this.rep.concat(x));
     };
 
+    Vector.prototype.cons = function(x) {
+        return arrayToCons(this.rep).cons(x);
+    };
+
     // Array
     Vector.prototype.indexOf = function(v) {
         return this.rep.indexOf(v);
@@ -1428,11 +1436,6 @@ var zera = (function() {
         return first(rest(xs));
     }
 
-    function concat(a, b) {
-        return lazySeq(function() {
-        });
-    }
-
     function isEmpty(x) {
         if (x == null) return true;
         else if (isJSFn(x.isEmpty)) return x.isEmpty();
@@ -1503,6 +1506,13 @@ var zera = (function() {
 
     };
 
+    Fn.prototype.toFunction = function() {
+        var self = this;
+        return function() {
+            return self.invoke.apply(self, arguments);
+        };
+    };
+
     Fn.prototype.invoke = function() {
         var i, ret,
             args = Array.prototype.slice.call(arguments),
@@ -1511,7 +1521,7 @@ var zera = (function() {
             env = this.$zera$env,
             body = bodies[argc],
             names = this.$zera$arglists[argc];
-        
+
         if (body == null) {
             for (i = (argc * -1); i <= 0; i++) {
                 body = bodies[i];
@@ -1588,7 +1598,6 @@ var zera = (function() {
         return x === false || x == null;
     }
 
-    // TODO: use LazySeq
     function filter(f, xs) {
         if (arguments.length === 2) {
             return lazySeq(function() {
@@ -2265,7 +2274,7 @@ var zera = (function() {
     function pair(xs) {
         if (isNil(xs)) {
             return Vector.EMPTY;
-        } else if (count(xs) == 1) {
+        } else if (count(xs) === 1) {
             return xs;
         } else {
             var xs_ = xs,
@@ -2611,9 +2620,15 @@ var zera = (function() {
     }
 
     function intoArray(from) {
-        var a = [],
-            s = seq(from);
-        while (s !== null) {
+        var a = [];
+        if (from === null || isEmpty(from)) {
+            return a;
+        }
+        else if (isArray(from)) {
+            return from;
+        }
+        var s = seq(from);
+        while (s !== null || !isEmpty(s)) {
             a.push(first(s));
             s = next(s);
         }
@@ -2938,6 +2953,7 @@ var zera = (function() {
     }
 
     // TODO: detect, 'recur' and 'throw' in tail position
+    // TODO: check form for pairs of binding values
     function compileLetBlock(form, env) {
         var i, bind,
             buff = ['(function('],
@@ -3477,6 +3493,8 @@ var zera = (function() {
     define(ZERA_NS, "object?", isObject);
     define(ZERA_NS, "read-js", readJS);
     define(ZERA_NS, "read-json", readJSON);
+    define(ZERA_NS, "inst?", isDate);
+    define(ZERA_NS, "regex?", isRegExp);
 
     define(ZERA_NS, "identical?", function(a, b) {
         return a === b;

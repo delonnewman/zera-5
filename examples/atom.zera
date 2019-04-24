@@ -1,7 +1,9 @@
 ; vim: ft=clojure
+(ns examples/atom)
+
 (def x (set-validator! (atom 0) number?))
 (def inc (fn [x] (+ 1 x)))
-(add-watch x :test (fn [key ref old new] (prn (list key ref old new))))
+(add-watch x :test (fn [key ref old new] (prn [key ref old new])))
 (loop [i 1]
   (cond (= i 100) i
         :else

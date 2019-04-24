@@ -14,7 +14,7 @@
 
 (defmacro if
   ([pred conse] (list 'cond pred conse))
-  ([pred conse alt] (list 'cond pred conse :else alt))) 
+  ([pred conse alt] (list 'cond pred conse :else alt)))
 
 (defmacro if-not
   ([pred conse] (list 'cond (list 'not pred) conse))
@@ -81,7 +81,74 @@
   [& body]
   (list 'new zera.lang.LazySeq nil (cons 'fn (cons [] body))))
 
-; TODO: add concat
+(def second (fn [x] (first (rest x))))
+
+(defmacro defn
+  [name & forms]
+  (if-not (symbol? name)
+          (throw (js/Error. (str "first argument of defn should be a symbol, got: " (prn-str name)))))
+  (let [x (first forms)
+        y (second forms)]
+    (cond (and (string? x) (map? y))
+      (list 'def (with-meta name (assoc y :doc x)) (cons 'fn (rest (rest forms))))
+      (string? x)
+      (list 'def (with-meta name {:doc x}) (cons 'fn (rest forms)))
+      (map? x)
+      (list 'def (with-meta name x) (cons 'fn (rest forms)))
+      (or (vector? x) (list? x))
+      (list 'def name (cons 'fn forms))
+      :else
+      (throw
+        (js/Error.
+          "after name defn expects a doc string, an arguments vector, or a list of bodies")))))
+
+(defn concat
+  ([] (lazy-seq nil))
+  ([x] (lazy-seq x))
+  ([x y]
+   (lazy-seq
+    (let [s (seq x)]
+      (if (or (nil? x) (empty? x))
+          y
+          (cons (first s) (concat (rest s) y)))))))
+
+(defn pos? [x] (< 0 x))
+(defn neg? [x] (> 0 x))
+(defn zero? [x] (= 0 x))
+
+(defn dorun
+  ([coll]
+   (when-let [s (seq coll)]
+     (recur (next s))))
+  ([n coll]
+   (when (and (seq coll) (pos? n))
+         (recur (dec n) (next coll)))))
+
+(defn doall
+  ([coll]
+   (dorun coll)
+   coll)
+  ([n coll]
+   (dorun n coll)
+   coll))
+
+(defn partition
+  ([n coll]
+   (partition n n coll))
+  ([n step coll]
+   (lazy-seq
+    (when-let [s (seq coll)]
+      (let [p (doall (take n s))]
+        (when (= n (count p))
+              (cons p (partition n step (nthrest s step))))))))
+  ([n step pad coll]
+   (lazy-seq
+    (when-let [s (seq coll)]
+      (let [p (doall (take n s))]
+        (if (= n (count p))
+            (cons p (partition n step pad (nthrest s step)))
+            (list (take n (concat p pad)))))))))
+
 (defmacro dotimes
   [bindings & body]
   (if-not (and (vector? bindings) (= (count bindings) 2))
@@ -94,26 +161,18 @@
                       (concat body [(list 'recur (list '+ var 1))])))
           init)))
 
-(def second (fn [x] (first (rest x))))
-
-(defmacro defn
-  [name & forms]
-  (if-not (symbol? name)
-    (throw (js/Error. (str "first argument of defn should be a symbol, got: " (prn-str name)))))
-  (let [x (first forms)
-        y (second forms)]
-    (cond (and (string? x) (map? y))
-            (list 'def (with-meta name (assoc y :doc x)) (cons 'fn (rest (rest forms))))
-          (string? x)
-            (list 'def (with-meta name {:doc x}) (cons 'fn (rest forms)))
-          (map? x)
-            (list 'def (with-meta name x) (cons 'fn (rest forms)))
-          (or (vector? x) (list? x))
-            (list 'def name (cons 'fn forms))
-          :else
-            (throw
-              (js/Error.
-                "after name defn expects a doc string, an arguments vector, or a list of bodies")))))
+(defmacro doeach
+  [bindings & body]
+  (if (not (and (vector? bindings) (= (count bindings) 2)))
+    (throw (js/Error "bindings should be a vector with two elements")))
+  (let [var (bindings 0)
+        col (bindings 1)]
+    (list 'let ['init col]
+      (list 'loop [var '(first init) 'col-nm '(rest init)]
+          (cons 'when
+                (cons var
+                      (concat body ['(recur (first col-nm) (rest col-nm))])))
+          'init))))
 
 (defn inc [x] (+ 1 x))
 (defn dec [x] (- x 1))
@@ -122,7 +181,7 @@
 (defn constantly [x] (fn [] x))
 
 (defn pt [tag & xs]
-  (say (pr-str tag) (reduce str (map pr-str xs))))
+  (println (pr-str tag) (reduce str (map pr-str xs))))
 
 (defmacro echo [x]
   (list 'pt (list 'quote x) x))
@@ -147,3 +206,8 @@
                (next ks)
                (next vs))
         map)))
+
+(defmacro condp
+  [cmp value & rules]
+  (cons 'cond (->> (partition 2 rules)
+                   (mapcat (fn [r] [(if (= :else (first r)) :else (list cmp value (first r))) (second r)])))))

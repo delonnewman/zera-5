@@ -4,6 +4,8 @@ const fs = require('fs');
 const readline = require('readline');
 const argv = require('yargs').argv;
 
+const RUNTIME_FILE = __dirname + '/src/zera/runtime.js';
+
 // load Zera runtime and core library
 require(__dirname + '/../index.js');
 const z = zera.core;
@@ -48,6 +50,7 @@ if (argv.i || argv.interactive) {
   interactive();
 }
 else if (argv.c || argv.compile) {
+    console.log(RUNTIME_FILE);
     console.log(zera.compileFile([process.cwd(), process.argv[3]].join('/')));
 }
 else if (process.argv.length >= 3) {
