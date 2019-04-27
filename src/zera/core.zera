@@ -1,11 +1,7 @@
 ; vim: ft=clojure
-(defmacro ns [sym]
-  (list 'set! '*ns* (list 'create-ns (list 'quote sym))))
-
-; FIXME: this is causing an error with 'apply' when run through the interpreter
-;(prn #'zera.core/+)
-
-(ns zera.core)
+(ns
+  ^{:doc "A light-weight Clojure Implmentation"}
+  zera.core)
 
 ;(defmacro defn [x & xs]
 ;  (list 'def x (cons 'fn xs)))
@@ -27,12 +23,14 @@
   (list 'cond (list 'not pred) (cons 'do acts)))
 
 (defmacro if-let
-  ([bind x] (list 'if-let bind x nil))
-  ([bind x y]
+  ([bind then] (list 'if-let bind then nil))
+  ([bind then else]
    (when-not (= (count bind) 2)
       (throw (js/Error. "Bindings must have exactly two elements")))
-   (list 'let bind
-         (list 'if (first bind) x y))))
+   (let [form (bind 0) test (bind 1), sym (gensym "temp__auto__")])
+      (list 'let [sym test]
+          (list 'if sym
+                (list 'let [form sym] then) else))))
 
 (defmacro when-let
   [bind & forms]
@@ -108,9 +106,19 @@
   ([x y]
    (lazy-seq
     (let [s (seq x)]
-      (if (or (nil? x) (empty? x))
-          y
-          (cons (first s) (concat (rest s) y)))))))
+      (if s
+          (cons (first s) (concat (rest s) y))
+          y))))
+  ([x y & zs]
+    (echo zs)
+    (let [cat (fn [xys zs]
+                (lazy-seq
+                 (let [xys (seq xys)]
+                   (if xys
+                       (cons (first xys) (cat (rest xys) zs))
+                       (when zs
+                             (cat (first zs) (rest zs)))))))]
+      (cat (concat x y) zs))))
 
 (defn pos? [x] (< 0 x))
 (defn neg? [x] (> 0 x))
@@ -132,6 +140,14 @@
    (dorun n coll)
    coll))
 
+(defn nthrest
+  [coll n]
+  (loop [m n xs coll] ; FIXME: binding to a variable of the same name causes the new variable to be nil
+    (if-let [xs (and (pos? m) (seq xs))]
+      (recur (dec m) (rest xs))
+      xs)))
+
+; TODO: implement doall and nthrest
 (defn partition
   ([n coll]
    (partition n n coll))
@@ -149,6 +165,17 @@
             (cons p (partition n step pad (nthrest s step)))
             (list (take n (concat p pad)))))))))
 
+(defn apply [f & args] (apply* f args))
+
+(defn mapcat
+  "Returns the result of applying concat to the result of applying map
+  to f and colls.  Thus function f should return a collection. Returns
+  a transducer when no collections are provided"
+  {:added "1.0"
+   :static true}
+  [f coll]
+  (apply* concat (apply map f coll)))
+
 (defmacro dotimes
   [bindings & body]
   (if-not (and (vector? bindings) (= (count bindings) 2))
@@ -161,7 +188,7 @@
                       (concat body [(list 'recur (list '+ var 1))])))
           init)))
 
-(defmacro doeach
+(defmacro doseq
   [bindings & body]
   (if (not (and (vector? bindings) (= (count bindings) 2)))
     (throw (js/Error "bindings should be a vector with two elements")))
@@ -207,6 +234,7 @@
                (next vs))
         map)))
 
+; TODO: implement partision, and mapcat
 (defmacro condp
   [cmp value & rules]
   (cons 'cond (->> (partition 2 rules)

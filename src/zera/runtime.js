@@ -266,6 +266,7 @@ var zera = (function() {
     var TRUE_SYM = Sym.intern('true');
     var FALSE_SYM = Sym.intern('false');
     var QUOTE_SYM = Sym.intern('quote');
+    var DEREF_SYM = Sym.intern('deref');
     var DEF_SYM = Sym.intern('def');
     var SET_SYM = Sym.intern('set!');
     var FN_SYM = Sym.intern('fn');
@@ -380,6 +381,9 @@ var zera = (function() {
         }
     }
 
+    var DOC_KEY = keyword('doc');
+    var MACRO_KEY = keyword('macro');
+
     function isNamed(x) {
         return isa(x, Named);
     }
@@ -420,12 +424,22 @@ var zera = (function() {
     };
 
     function seq(x) {
-        if (x == null) return Cons.EMPTY;
-        else if (isSeq(x)) return x;
-        else if (isArrayLike(x)) return arrayToCons(x);
-        else if (isSeqable(x)) return x.seq();
+        if (x == null) return null;
+        else if (isSeq(x)) {
+            if (isEmpty(x)) return null;
+            return x;
+        }
+        else if (isArrayLike(x)) {
+            if (x.length === 0) return null;
+            return arrayToCons(x);
+        }
+        else if (isSeqable(x)) {
+            var s = x.seq();
+            if (isEmpty(s)) return null;
+            return s;
+        }
         else {
-            throw new Error('Not a valid Seq or Seqable');
+            throw new Error(prnStr(x) + ' is not a valid Seq or Seqable');
         }
     }
 
@@ -1489,14 +1503,19 @@ var zera = (function() {
         return this.$zera$meta;
     };
 
-    function Fn(meta, env, arglists, bodies) {
+    function Fn(meta, env, arglists, bodies, isMethod) {
         AFn.call(this, meta);
         this.$zera$env = env;
         this.$zera$arglists = arglists;
         this.$zera$bodies = bodies;
+        this.$zera$isMethod = isMethod;
     }
 
     Fn.prototype = Object.create(AFn.prototype);
+
+    Fn.prototype.isMethod = function() {
+        return this.$zera$isMethod;
+    };
 
     Fn.prototype.toString = function() {
         return str('#<Fn arglists: ', prnStr(Object.values(this.$zera$arglists)), ', bodies: ', prnStr(Object.values(this.$zera$bodies)), '>');
@@ -1531,8 +1550,7 @@ var zera = (function() {
                 }
             }
             if (body == null) {
-                console.log(this);
-                throw new Error(str('Wrong number of arguments, got: ', args.length));
+                throw new Error(str('Wrong number of arguments, got: ', args.length, ' ', prnStr(this)));
             }
         }
 
@@ -1568,7 +1586,7 @@ var zera = (function() {
                   catch (e) {
                     //p(e.args);
                     if (e instanceof RecursionPoint) {
-                        args_ = e.args;
+                        args = e.args;
                         continue loop;
                     }
                     else {
@@ -1650,6 +1668,9 @@ var zera = (function() {
                 return prnStr(x);
             }).join(' '), ')');
         } else if (isJSFn(x)) {
+            if (x.$zera$isType) {
+                return str(x.$zera$tag);
+            }
             return str('#js/function "', x.toString(), '"');
         } else if (isArrayLike(x)) {
             if (x.toString) {
@@ -1813,6 +1834,7 @@ var zera = (function() {
         var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
         var v = ns_.intern(sym);
         if (init) v.set(init);
+        v.$zera$meta = sym.meta() || arrayMap();
         return v;
     };
 
@@ -1943,6 +1965,15 @@ var zera = (function() {
         throw new Error('Can only compare and set the value of Atoms');
     }
 
+    var symN = atom(1);
+    var incSym = function(x) { return x + 1; };
+    function gensym(prefix) {
+        if (prefix == null) var prefix = 'G__';
+        var s = Sym.intern([prefix, symN.deref()].join(''));
+        symN.swap(incSym);
+        return s;
+    }
+
     function Namespace(name) {
         if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
         this.$zera$name     = name;
@@ -2056,6 +2087,12 @@ var zera = (function() {
         return ns.mappings();
     }
 
+    function initNamespace(sym) {
+        var ns = Namespace.findOrCreate(sym);
+        CURRENT_NS.set(ns);
+        return null;
+    }
+
     var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
     var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*'), ZERA_NS).setDynamic();
 
@@ -2150,7 +2187,7 @@ var zera = (function() {
     // 2) lookup in lexical scope
     // 3) lookup in current namespace
     // 4) lookup in default namespace
-    // (could go back and put default imports in top then they'll always befound lexically unless they've been redefined and should be more performant)
+    // (could go back and put default imports in top then they'll always be found lexically unless they've been redefined and should be more performant)
     function evalSymbol(sym, env) {
         var MACRO_ERROR = new Error(str('Macros cannot be evaluated in this context'));
         var ns, v, scope, name = sym.name();
@@ -2201,7 +2238,6 @@ var zera = (function() {
         return v.set(value);
     }
 
-    // TODO: add destructuring
     function evalLetBlock(form, env) {
         var rest = cdr(form);
         var binds = car(rest);
@@ -2241,9 +2277,7 @@ var zera = (function() {
             }
             name = Sym.intern(name.name());
         }
-        var v = Var.intern(ns, name, evaluate(value, env));
-        v.resetMeta(name.meta());
-        return v;
+        return Var.intern(ns, name, evaluate(value, env));
     }
 
     // TODO: make sure works with JS interop
@@ -2341,6 +2375,7 @@ var zera = (function() {
     }
 
     function isInvocable(x) {
+        //if (x == null) return false;
         return isJSFn(x.apply);
     }
 
@@ -2400,7 +2435,7 @@ var zera = (function() {
     // TODO: add recur support
     // (fn ([x] x)
     //     ([x & xs] (cons x xs)))
-    function evalFunction(form, env_) {
+    function evalFunction(form, env_, isMethod) {
         var xs = cdr(form),
             names = car(xs),
             body = cdr(xs);
@@ -2418,10 +2453,10 @@ var zera = (function() {
                 arglists_[arity] = arglist;
                 bodies_[arity] = bodies[i];
             }
-            return new Fn(form.meta(), env(env_), arglists_, bodies_);
+            return new Fn(form.meta(), env(env_), arglists_, bodies_, isMethod);
         }
         else if (isVector(names)) {
-            return new Fn(form.meta(), env(env_), [names.toArray()], [body]);
+            return new Fn(form.meta(), env(env_), [names.toArray()], [body], isMethod);
         }
         throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
     }
@@ -2429,8 +2464,9 @@ var zera = (function() {
     function evalMacroDefinition(form, env) {
         var rest = cdr(form),
             name = car(rest),
-            fnrest = cdr(rest);
-        var val = evalFunction(cons(FN_SYM, fnrest), env);
+            fnrest = cdr(rest),
+            form_ =  cons(FN_SYM, fnrest).withMeta(arrayMap(keyword('macro'), true));
+        var val = evalFunction(form_, env);
         return Var.intern(CURRENT_NS.get(), name, val).setMacro();
     }
 
@@ -2438,15 +2474,16 @@ var zera = (function() {
         return isCons(x) && isSymbol(car(x));
     }
 
+    // TODO: set &form and &env in macro scope
     function macroexpand(form) {
         if (isTaggedValue(form)) {
             var sym  = car(form);
             var name = sym.toString();
             if (SPECIAL_FORMS[name]) {
                 return form;
-            } else if (name != '.-' && name.startsWith('.-')) {
+            } else if (name !== '.-' && name.startsWith('.-')) {
                 return list('.', car(cdr(form)), Sym.intern(name.slice(1)));
-            } else if (name != '.' && name.startsWith('.')) {
+            } else if (name !== '.' && name.startsWith('.')) {
                 return list(DOT_SYM, car(cdr(form)), cons(Sym.intern(name.slice(1)), cdr(cdr(form))));
             } else if (name.endsWith('.')) {
                 return cons(NEW_SYM, cons(Sym.intern(name.replace(/\.$/, '')), cdr(form)));
@@ -2610,25 +2647,23 @@ var zera = (function() {
 
     // TODO: add a toTrasient method to all Seq's
     function into(to, from) {
-        var to_ = seq(to),
-            from_ = seq(from);
-        while (first(from_) != null) {
-            to_ = conj(to_, first(from_));
-            from_ = rest(from_);
+        while (first(from) != null) {
+            to = conj(to, first(from));
+            from = rest(from);
         }
-        return to_;
+        return to;
     }
 
     function intoArray(from) {
         var a = [];
-        if (from === null || isEmpty(from)) {
+        if (from === null) {
             return a;
         }
         else if (isArray(from)) {
             return from;
         }
         var s = seq(from);
-        while (s !== null || !isEmpty(s)) {
+        while (s !== null) {
             a.push(first(s));
             s = next(s);
         }
@@ -2647,6 +2682,65 @@ var zera = (function() {
             s = into(HashSet.EMPTY, seq);
         if (form.meta()) return s.withMeta(form.meta());
         return s;
+    }
+
+    function ZeraType(name, fields) {
+        this.$zera$name = str(name);
+        this.$zera$fields = intoArray(fields);
+    }
+
+    ZeraType.prototype.toString = function() {
+        var fields = this.$zera$fields;
+        var self = this;
+        return str("#<", this.$zera$name, " ", fields.map(function(f) { return str(f, ": ", self[f]); }).join(', '), ">")
+    };
+
+    function processMethodDef(meth, type) {
+        var fn = cons(Sym.intern('fn'), rest(meth));
+        return evalFunction(fn);
+    }
+
+    // macro
+    function defineType(name, fields) {
+        if (!isVector(fields)) throw new Error('fields should be a vector if symbols')
+        var specs = arguments;
+
+        var type = function() {
+            var fields_ = seq(fields);
+            var fname = first(fields_);
+            var i = 0;
+            while (fields_ !== null) {
+                this[str(fname)] = arguments[i];
+                i++;
+                fields_ = next(fields_);
+                fname = first(fields_);
+            }
+            ZeraType.call(this, name, fields);
+        };
+
+        type.prototype = Object.create(ZeraType.prototype);
+        type.$zera$isType = true;
+        type.$zera$tag = str(name);
+
+        var i, spec, meth, protocol = null, protocols = {};
+        for (i = 0; i < specs.length; i++) {
+            spec = specs[i];
+            if (isList(spec)) {
+                if (protocol === null) throw new Error('A method definition must specify a protocol');
+                protocols[protocol] = evaluate(protocol);
+                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                meth = first(spec);
+                type.prototype[meth] = processMethodDef(spec);
+            }
+            else if (isSymbol(spec)) {
+                protocol = evaluate(spec);
+            }
+        }
+
+        type.$zera$protocols = protocols;
+
+        Var.intern(CURRENT_NS.get(), name, type);
+        return null;
     }
 
     function isSelfEvaluating(form) {
@@ -3395,6 +3489,7 @@ var zera = (function() {
     define(ZERA_NS, "reset!", reset);
     define(ZERA_NS, "swap!", swap);
     define(ZERA_NS, "compare-and-set!", compareAndSet);
+    define(ZERA_NS, "ns", initNamespace).setMacro();
     define(ZERA_NS, "the-ns", theNS);
     define(ZERA_NS, "ns-name", nsName);
     define(ZERA_NS, "create-ns", createNS);
@@ -3410,8 +3505,8 @@ var zera = (function() {
     define(ZERA_NS, "compile", compile);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "read-string", readString);
-    define(ZERA_NS, "apply", apply);
-    define(ZERA_NS, "macroexpand", macroexpand);
+    define(ZERA_NS, "apply*", apply);
+    define(ZERA_NS, "macroexpand1", macroexpand);
     define(ZERA_NS, "nil?", isNil);
     define(ZERA_NS, "empty?", isEmpty);
     define(ZERA_NS, "list", list);
@@ -3464,6 +3559,7 @@ var zera = (function() {
     define(ZERA_NS, "string?", isString);
     define(ZERA_NS, "symbol?", isSymbol);
     define(ZERA_NS, "symbol", symbol);
+    define(ZERA_NS, "gensym", gensym);
     define(ZERA_NS, "keyword", keyword);
     define(ZERA_NS, "keyword?", isKeyword);
     define(ZERA_NS, "name", name);
@@ -3495,6 +3591,8 @@ var zera = (function() {
     define(ZERA_NS, "read-json", readJSON);
     define(ZERA_NS, "inst?", isDate);
     define(ZERA_NS, "regex?", isRegExp);
+
+    define(ZERA_NS, 'deftype', defineType).setMacro();
 
     define(ZERA_NS, "identical?", function(a, b) {
         return a === b;
@@ -3663,13 +3761,16 @@ var zera = (function() {
     };
     define(ZERA_NS, "+", add);
 
-    var sub = function(x) {
+    var sub = function(x, y) {
         if (arguments.length === 0) {
             throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
         }
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be subtracted');
             return -x;
+        }
+        else if (arguments.length === 2) {
+            return x - y;
         }
         else {
             var i, sum = 0;
@@ -4199,8 +4300,8 @@ var zera = (function() {
     var MACROS = {
         '"': stringReader,
         ';': commentReader,
-        "'": wrappingReader(Sym.intern('quote')),
-        '@': wrappingReader(Sym.intern('deref')),
+        "'": wrappingReader(QUOTE_SYM),
+        '@': wrappingReader(DEREF_SYM),
         '^': metaReader,
         '(': listReader,
         ')': unmatchedDelimiterReader,
@@ -4306,6 +4407,9 @@ var zera = (function() {
         if (s.charAt(0) === ':') {
             return Keyword.intern(Sym.intern(s.substring(1)));
         }
+        else if (s.endsWith('#')) {
+            return Sym.intern(s).withMeta(arrayMap(keyword('autosym'), true));
+        }
         return Sym.intern(s);
     }
 
@@ -4396,22 +4500,6 @@ var zera = (function() {
         }
         return buff.join(';\n');
     }
-
-    /*evalJS(
-        ['defmacro', 'defn', ['name', 'args', '&', 'body'],
-            ['list', "'def", 'name', ['cons', "'fn", ['cons', 'args', 'body']]]]);
-
-    evalJS(
-        ['defn', 'compile', ['form'],
-            ['loop', ['form*', 'form'],
-                ['cond', ['nil?', 'form*'], ['"null"'],
-                         ['number?', 'form*'], ['str', 'form*'],
-                         ['symbol?', 'form*'], ['str', ':"', 'form*', ':"'],
-                         ['boolean?', 'form*'], ['str', 'form*'],
-                         'else', ['throw', ['js/Error.', ['str', '"invalid form: "', ['prn-str', 'form*']]]]]]]);
-
-    evalJS(['defn', 'ident', ['x'], 'x']);
-    evalJS(['defn', 'constantly', ['x'], ['fn', [], 'x']]);*/
 
     var api = {
         lang: {
