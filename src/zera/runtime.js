@@ -68,6 +68,7 @@ var zera = (function() {
 
     AReference.$zera$tag = 'zera.lang.AReference';
     AReference.$zera$isProtocol = true;
+    AReference.$zera$protocols = {'zera.lang.IMeta': IMeta};
     AReference.prototype = Object.create(IMeta.prototype);
 
     AReference.prototype.meta = function() {
@@ -114,6 +115,10 @@ var zera = (function() {
         this.$zera$validator = validator;
         this.$zera$value = value;
     }
+    ARef.$zera$tag = 'zera.lang.ARef';
+    ARef.$zera$protocols = {'zera.lang.ARefernce': AReference, 'zera.lang.IMeta': IMeta};
+    ARef.$zera$isProtocol = true;
+    ARef.prototype = Object.create(AReference.prototype);
 
     function processWatchers(ref, old, knew) {
         var s, f,
@@ -128,8 +133,6 @@ var zera = (function() {
             }
         }
     }
-
-    ARef.prototype = Object.create(AReference.prototype);
 
     ARef.prototype.deref = function() {
         return this.$zera$value;
@@ -184,6 +187,7 @@ var zera = (function() {
     function Named(){}
     Named.$zera$tag = 'zera.lang.Named';
     Named.$zera$isProtocol = true;
+    Named.$zera$protocols = {'zera.lang.IObj': IObj};
     Named.prototype.name = function() {
         throw new Error('unimplemented');
     };
@@ -199,14 +203,16 @@ var zera = (function() {
         this.$zera$ns = ns;
         this.$zera$name = name;
         this.$zera$meta = meta || arrayMap();
-        this.$zera$protocols = {'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta, 'zera.lang.Named': Named}; 
+        this.$zera$typeName = Sym.$zera$tag;
+        this.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta};
     }
 
-    Sym.$zera$tag = 'zera.lang.Symbol';
+    Sym.$zera$isType = true;
+    Sym.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta};
     Sym.prototype = Object.create(Named.prototype);
 
     Sym.intern = function(rep) {
-        if (rep == null) throw new Error('Symbol reprentation cannot be nil');
+        if (rep == null) throw new Error('Symbol representation cannot be nil');
         var i = rep.indexOf('/');
         if (i === -1 || rep === '/') {
             return new Sym(null, rep);
@@ -215,6 +221,8 @@ var zera = (function() {
             return new Sym(rep.substring(0, i), rep.substring(i + 1));
         }
     };
+
+    Sym.$zera$tag = Sym.intern('zera.lang.Symbol');
 
     Sym.prototype.name = function() {
         return this.$zera$name;
@@ -322,10 +330,13 @@ var zera = (function() {
      */
     function Keyword(sym) {
         this.$zera$sym = sym;
-        this.$zera$protocols = {'zera.lang.Named': Named}; 
+        this.$zera$typeName = Keyword.$zera$tag;
+        this.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj};
     }
 
-    Keyword.$zera$tag = 'zera.lang.Keyword';
+    Keyword.$zera$isType = true;
+    Keyword.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj};
+    Keyword.$zera$tag = Sym.intern('zera.lang.Keyword');
     Keyword.prototype = Object.create(Named.prototype);
 
     Keyword.table = {};
@@ -409,6 +420,9 @@ var zera = (function() {
         this.$zera$meta = meta;
     }
 
+    Seq.$zera$isProtocol = true;
+    Seq.$zera$tag = 'zera.lang.Seq'
+    Seq.$zera$protocols = {'zera.lang.IObj': IObj};
     Seq.prototype = Object.create(IObj.prototype);
 
     Seq.prototype.first = function() {
@@ -458,6 +472,9 @@ var zera = (function() {
      * @extends {Seq}
      */
     function List(){}
+    List.$zera$tag = 'zera.lang.List';
+    List.$zera$isProtocol = true;
+    List.$zera$protocols = {'zera.lang.Seq': Seq};
     List.prototype = Object.create(Seq.prototype);
 
     function isList(x) {
@@ -487,10 +504,13 @@ var zera = (function() {
         else {
             this.$zera$count = cdr.count() + 1;
         }
+        this.$zera$typeName = Cons.$zera$tag;
         this.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     }
 
-    Cons.$zera$tag = 'zera.lang.Cons';
+    Cons.$zera$tag = Sym.intern('zera.lang.Cons');
+    Cons.$zera$isType = true;
+    Cons.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     Cons.prototype = Object.create(Seq.prototype);
 
     Cons.EMPTY = new Cons(null, null, null);
@@ -618,8 +638,12 @@ var zera = (function() {
         this.fn = fn == null ? null : fn;
         this._seq = seq == null ? null : seq;
         this._sv = null;
+        this.$zera$typeName = LazySeq.$zera$tag;
     }
 
+    LazySeq.$zera$isType = true;
+    LazySeq.$zera$tag = Sym.intern('zera.lang.LazySeq');
+    LazySeq.$zera$protocols = {'zera.lang.Seq': Seq};
     LazySeq.prototype = Object.create(Seq.prototype);
 
     LazySeq.prototype.sval = function() {
@@ -807,7 +831,11 @@ var zera = (function() {
     function MapEntry(key, val) {
         this.$zera$key = key;
         this.$zera$val = val;
+        this.$zera$typeName = MapEntry.$zera$tag;
     }
+
+    MapEntry.$zera$isType = true;
+    MapEntry.$zera$tag = Sym.intern('zera.lang.MapEntry');
 
     MapEntry.prototype.key = function() {
         return this.$zera$key;
@@ -867,6 +895,10 @@ var zera = (function() {
     function AMap(){}
     AMap.prototype = Object.create(Seq.prototype);
 
+    AMap.$zera$isProtocol = true;
+    AMap.$zera$tag = 'zera.lang.AMap';
+    AMap.$zera$protocols = {'zera.lang.AMap': AMap};
+
     /**
      * @constructor
      * @extends {AMap}
@@ -875,10 +907,12 @@ var zera = (function() {
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
         Seq.call(this, meta);
-        this.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
+        this.$zera$typeName = ArrayMap.$zera$tag;
     }
 
-    ArrayMap.$zera$tag = 'zera.lang.ArrayMap';
+    ArrayMap.$zera$tag = Sym.intern('zera.lang.ArrayMap');
+    ArrayMap.$zera$isType = true;
+    ArrayMap.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap(null, []);
@@ -924,7 +958,6 @@ var zera = (function() {
 
     ArrayMap.prototype.first = function() {
         return new MapEntry(this.$zera$array[0], this.$zera$array[1]);
-        return first(this.entries());
     };
 
     ArrayMap.prototype.next = function() {
@@ -1140,12 +1173,19 @@ var zera = (function() {
     function ASet(meta) {
         Seq.call(this, meta);
     }
+    ASet.$zera$isProtocol = true;
+    ASet.$zera$tag = 'zera.lang.ASet';
+    ASet.$zera$protocols = {'zera.lang.Seq': Seq};
     ASet.prototype = Object.create(Seq.prototype); 
 
     function APersistentSet(meta, map) {
         this.$zera$rep = map || arrayMap();
         ASet.call(this, meta);
     }
+
+    APersistentSet.$zera$isProtocol = true;
+    APersistentSet.$zera$tag = 'zera.lang.APersistentSet';
+    APersistentSet.$zera$protocols = {'zera.lang.ASet': ASet};
 
     APersistentSet.prototype = Object.create(ASet.prototype);
 
@@ -1199,7 +1239,12 @@ var zera = (function() {
 
     function HashSet(meta, map) {
         APersistentSet.call(this, meta, map);
+        this.$zera$typeName = HashSet.$zera$tag;
     }
+
+    HashSet.$zera$isType = true;
+    HashSet.$zera$tag = Sym.intern('zera.lang.HashSet');
+    HashSet.$zera$protocols = {'zera.lang.APersistentSet': APersistentSet, 'zera.lang.IObj': IObj};
 
     HashSet.createFromArray = function(a) {
         var i, entries = [];
@@ -1275,8 +1320,12 @@ var zera = (function() {
     function Vector(meta, rep) {
         Seq.call(this, meta);
         this.rep = rep == null ? [] : rep;
+        this.$zera$typeName = Vector.$zera$tag;
     }
 
+    Vector.$zera$tag = Sym.intern('zera.lang.Vector');
+    Vector.$zera$isType = true;
+    Vector.$zera$protocols = {'zera.lang.Seq': Seq};
     Vector.prototype = Object.create(Seq.prototype);
 
     Vector.EMPTY = new Vector(null, []);
@@ -1480,10 +1529,19 @@ var zera = (function() {
         return init;
     }
 
+    function join(col, delimiter) {
+        return reduce(function(s, x) {
+            if (s == null) return str(x);
+            return str(s, delimiter, x)
+        }, col);
+    }
+
     function AFn(meta) {
         this.$zera$meta = meta;
     }
-    
+    AFn.$zera$isProtocol = true;
+    AFn.$zera$tag = 'zera.lang.AFn';
+    AFn.$zera$protocols = {'zera.lang.IObj': IObj};
     AFn.prototype = Object.create(IObj.prototype);
 
     AFn.prototype.invoke = function() {
@@ -1509,8 +1567,12 @@ var zera = (function() {
         this.$zera$arglists = arglists;
         this.$zera$bodies = bodies;
         this.$zera$isMethod = isMethod;
+        this.$zera$typeName = Fn.$zera$tag;
     }
 
+    Fn.$zera$tag = Sym.intern('zera.lang.Fn');
+    Fn.$zera$isType = true;
+    Fn.$zera$protocols = {'zera.lang.AFn': AFn};
     Fn.prototype = Object.create(AFn.prototype);
 
     Fn.prototype.isMethod = function() {
@@ -1668,7 +1730,7 @@ var zera = (function() {
                 return prnStr(x);
             }).join(' '), ')');
         } else if (isJSFn(x)) {
-            if (x.$zera$isType) {
+            if (x.$zera$tag != null) {
                 return str(x.$zera$tag);
             }
             return str('#js/function "', x.toString(), '"');
@@ -1780,7 +1842,7 @@ var zera = (function() {
         }
     }
 
-    var p = console.log.bind();
+    var p = console.log.bind(console.log);
 
     function is(expected, actual, msg) {
         if (expected === actual) {
@@ -1822,19 +1884,25 @@ var zera = (function() {
 
     // TODO: complete Var implementation
     function Var(meta, namespace, name) {
-        this.$zera$ns   = namespace;
+        this.$zera$ns = namespace;
         this.$zera$name = name;
         //ARef.call(this, meta);
         this.$zera$meta = meta || arrayMap();
+        this.$zera$typeName = Var.$zera$tag;
+        this.$zera$protocols = Var.$zera$protocols;
     }
 
+
+    Var.$zera$tag = Sym.intern('zera.lang.Var');
+    Var.$zera$isType = true;
+    Var.$zera$protocols = {'zera.lang.ARef': ARef};
     Var.prototype = Object.create(ARef.prototype);
 
     Var.intern = function(ns, sym, init) {
         var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
         var v = ns_.intern(sym);
-        if (init) v.set(init);
-        v.$zera$meta = sym.meta() || arrayMap();
+        if (init != null) v.set(init);
+        v.resetMeta(sym.meta() || arrayMap());
         return v;
     };
 
@@ -1906,8 +1974,12 @@ var zera = (function() {
 
     function Atom(meta, value, validator) {
         ARef.call(this, meta, value, validator);
+        this.$zera$typeName = Atom.$zera$tag;
     }
 
+    Atom.$zera$tag = Sym.intern('zera.lang.Atom');
+    Atom.$zera$isType = true;
+    Atom.$zera$protocols = {'zera.lang.ARef': ARef};
     Atom.prototype = Object.create(ARef.prototype);
 
     Atom.prototype.reset = function(newVal) {
@@ -1980,7 +2052,11 @@ var zera = (function() {
         // TODO: should these be maps in atoms?
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
+        this.$zera$typeName = Namespace.$zera$tag;
     }
+
+    Namespace.$zera$tag = Sym.intern('zera.lang.Namespace');
+    Namespace.$zera$isType = true;
 
     Namespace.namespaces = {};
 
@@ -2024,6 +2100,10 @@ var zera = (function() {
         var v = new Var(null, this, sym);
         this.$zera$mappings[sym] = v;
         return v;
+    };
+
+    Namespace.prototype.findInternedVar = function(sym) {
+        return this.$zera$mappings[sym];
     };
 
     Namespace.prototype.toString = function() {
@@ -2622,7 +2702,8 @@ var zera = (function() {
         var exp = car(cdr(form));
         if (!isSymbol(exp)) throw new Error('Var name should be a Symbol, got: ' + prnStr(exp));
         if (!exp.namespace()) throw new Error('Var name should be fully qualified');
-        return Var.intern(Sym.intern(exp.namespace()), Sym.intern(exp.name()));
+        var ns = Namespace.findOrDie(exp.namespace());
+        return ns.findInternedVar(exp.name());
     }
     
     function evalDoBlock(form, env) {
@@ -2684,15 +2765,20 @@ var zera = (function() {
         return s;
     }
 
-    function ZeraType(name, fields) {
-        this.$zera$name = str(name);
-        this.$zera$fields = intoArray(fields);
+    function ZeraType(name, fields, protocols) {
+        this.$zera$typeName = name;
+        this.$zera$fields = fields;
+        this.$zera$protocols = protocols;
     }
+
+    ZeraType.prototype.class = function() {
+        return evaluate(this.$zera$typeName);
+    };
 
     ZeraType.prototype.toString = function() {
         var fields = this.$zera$fields;
         var self = this;
-        return str("#<", this.$zera$name, " ", fields.map(function(f) { return str(f, ": ", self[f]); }).join(', '), ">")
+        return str("#<", this.$zera$typeName, " ", join(map(function(f) { return str(f, ": ", self[f]); }, fields), ', '), ">")
     };
 
     function processMethodDef(meth, type) {
@@ -2700,12 +2786,47 @@ var zera = (function() {
         return evalFunction(fn);
     }
 
+    function collectProtocols(proto) {
+        var protos = proto.$zera$protocols;
+        var protoEntries = [];
+        if (protos) {
+            if (!isMap(protos)) {
+                protos = objectToMap(protos)
+            }
+            var protos = values(protos);
+            map(collectProtocols, values(protos));
+        }
+    }
+
     // macro
     function defineType(name, fields) {
-        if (!isVector(fields)) throw new Error('fields should be a vector if symbols')
-        var specs = arguments;
+        if (!isVector(fields)) throw new Error('fields should be a vector if symbols');
+        var specs = Array.prototype.slice.call(arguments, 2);
+
+        var argc = count(fields);
+        var tag = Sym.intern(str(CURRENT_NS.get().name(), '/', name));
+
+        var i, spec, meth, protocol = null, proto, protocols = {}; // TODO: change to a transient-map
+        for (i = 0; i < specs.length; i++) {
+            spec = specs[i];
+            if (isList(spec)) {
+                if (protocol === null) throw new Error('A method definition must specify a protocol');
+                // TODO: add parent protocols to mapping (see collectProtocols)
+                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                // TODO: check if method is declared as part of the protocol in scope
+                meth = first(spec);
+                type.prototype[meth] = processMethodDef(spec);
+            }
+            else if (isSymbol(spec)) {
+                protocol = evaluate(spec);
+                protocols[protocol.$zera$tag] = protocol;
+            }
+        }
 
         var type = function() {
+            if (arguments.length !== argc) {
+                throw new Error(str('Wrong number of arguments got: ', arguments.length, ', expected: ', argc));
+            }
             var fields_ = seq(fields);
             var fname = first(fields_);
             var i = 0;
@@ -2715,20 +2836,47 @@ var zera = (function() {
                 fields_ = next(fields_);
                 fname = first(fields_);
             }
-            ZeraType.call(this, name, fields);
+            ZeraType.call(this, tag, fields, protocols);
         };
 
         type.prototype = Object.create(ZeraType.prototype);
         type.$zera$isType = true;
-        type.$zera$tag = str(name);
+        type.$zera$tag = tag;
 
-        var i, spec, meth, protocol = null, protocols = {};
+        type.$zera$protocols = protocols;
+
+        Var.intern(CURRENT_NS.get(), name, type);
+        return null;
+    }
+
+    function defineProtocol(name, x) {
+        var doc, specs;
+
+        if (isString(x)) {
+            doc = x;
+            specs = Array.prototype.slice.call(arugments, 2);
+        }
+        else {
+            specs = Array.prototype.slice.call(arguments, 1);
+        }
+
+        var proto = function() {
+            this.$zera$typeName = proto.$zera$tag;
+        };
+
+        proto.$zera$isProtocol = true;
+        proto.$zera$tag = Sym.intern(str(CURRENT_NS.get().name(), '/', name));
+
+        var i, spec, meth, protocol = null, proto, protocols = arrayMap(); // TODO: change to a transient-map
         for (i = 0; i < specs.length; i++) {
             spec = specs[i];
             if (isList(spec)) {
                 if (protocol === null) throw new Error('A method definition must specify a protocol');
-                protocols[protocol] = evaluate(protocol);
+                proto = evaluate(protocol);
+                protocols = protocols.assoc(protocol,  proto);
+                // TODO: add parent protocols to mapping (see collectProtocols)
                 if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                // TODO: check if method is declared as part of the protocol in scope
                 meth = first(spec);
                 type.prototype[meth] = processMethodDef(spec);
             }
@@ -2737,9 +2885,9 @@ var zera = (function() {
             }
         }
 
-        type.$zera$protocols = protocols;
+        proto.$zera$protocols = protocols;
 
-        Var.intern(CURRENT_NS.get(), name, type);
+        Var.intern(CURRENT_NS.get(), name, proto);
         return null;
     }
 
@@ -3593,6 +3741,7 @@ var zera = (function() {
     define(ZERA_NS, "regex?", isRegExp);
 
     define(ZERA_NS, 'deftype', defineType).setMacro();
+    define(ZERA_NS, 'defprotocol', defineProtocol).setMacro();
 
     define(ZERA_NS, "identical?", function(a, b) {
         return a === b;

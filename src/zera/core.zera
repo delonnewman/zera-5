@@ -234,8 +234,17 @@
                (next vs))
         map)))
 
-; TODO: implement partision, and mapcat
+; TODO: implement partition, and mapcat
 (defmacro condp
   [cmp value & rules]
   (cons 'cond (->> (partition 2 rules)
                    (mapcat (fn [r] [(if (= :else (first r)) :else (list cmp value (first r))) (second r)])))))
+
+(defn class [x]
+  (.class x))
+
+(defn type? [x] (.-$zera$isType x))
+(defn protocol? [x] (.-$zera$isProtocol x))
+
+(defprotocol ^{:doc "This is a test"} Testing)
+(deftype Test [name] Testing)
