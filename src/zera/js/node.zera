@@ -7,11 +7,21 @@
 ;(defn module-path [dir]
 ;  (.addPath (js.node/require "app-module-path") dir))
 ;
+
+(println (.existsSync fs "/Users/delonnewman"))
+
+(defn file-exists? [path]
+  (.existsSync fs path))
+
+(println (file-exists? "/Users/delonnewman"))
+
 (defn mkdir [path]
   (.mkdirSync fs path))
 
 (defn file-exists? [path]
   (.existsSync fs path))
+
+(println (file-exists? "/"))
 
 (defn sh [cmd & args]
   (.execSync cp cmd (into-array args)))
@@ -19,11 +29,16 @@
 (defn exec [cmd & args]
   (.spawnSync cp cmd (into-array args)))
 
+(defn fn-opts
+  ([args k] (fn-opts args k nil))
+  ([args k alt]
+   (or (second (first (filter (fn [x] (= k (first x))) (partition 2 args)))) alt)))
+
 (defn npm-install [pkg & opts]
   (let [global? (fn-opts opts :global false)
         res (exec "/usr/local/bin/node" "/usr/local/bin/npm" "install" (if global? "-g" "") pkg)
         out (res "output")]
-    (doeach [x out]
+    (doseq [x out]
       (if x
         (say x)))
     res))
