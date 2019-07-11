@@ -33,13 +33,13 @@
   (str "/" pattern "/" flags))
 
 (defn program
-  [x &xs]
+  [x & xs]
   (if (empty? xs)
     (str x ";")
     (str (join ";\n" (cons x xs)) ";")))
 
 (defn block
-  [x &xs]
+  [x & xs]
   (if (empty? xs)
     (str "{ " x "; }")
     (str "{\n" *indent-str* (join (str ";\n" *indent-str*) (cons x xs)) ";\n}")))
@@ -176,7 +176,7 @@
 (defn var
   ([x] (str "var " x))
   ([x y] (str "var " x " = " y))
-  ([x y &pairs]
+  ([x y & pairs]
    (unless (even? (count pairs)) (throw (js/Error. "an even number of pairs are required")))
    (str "var " x " = " y ", "
         (->> (partition 2 pairs)
@@ -204,9 +204,9 @@
 
 (defmacro def
   ([x]
-   (list 'var x))
+   (list 'zera.compiler.js/var (list 'quote x)))
   ([x y]
-   (list 'var x y)))
+   (list 'zera.compiler.js/var (list 'quote x) y)))
 
 (defmacro quote
   [x]
@@ -217,6 +217,8 @@
         (set? x) (str "zera.core.set([" (join ", " x) "])")
         (map? x) (str "zera.core.hashMap(" (join ", " (map (fn [x] (str (x 0) ", " (x 1))) x)))
         :else (str x)))
+
+;(prn (jc/def x))
 
 (comment
 (prn (compile/def x))

@@ -330,3 +330,18 @@
 
 (defn methods [klass]
   (keys (object->map (.-prototype klass))))
+
+
+;; Testing
+
+(defmacro is
+  ([body]
+   (list 'is body (list 'str "FAILURE: " (pr-str body) " is false")))
+  ([body msg]
+   (list 'cond
+         (list 'not body) (list 'throw msg))))
+
+(defmacro is-not [body & args]
+  (cons 'is (cons (list 'not body) args)))
+
+(def p prn)

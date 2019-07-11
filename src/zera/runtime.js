@@ -2733,7 +2733,7 @@ var zera = (function() {
     }
 
     function evalThrownException(form, env) {
-        var exp = evaluate(cdr(form), env);
+        var exp = evaluate(car(cdr(form)), env);
         throw exp;
     }
 
@@ -3025,6 +3025,7 @@ var zera = (function() {
                     console.log(e);
                     msg += e;
                 }
+                throw new Error(msg);
             }
             else {
                 throw e;
