@@ -3,6 +3,77 @@
   ^{:doc "A light-weight Clojure Implmentation"}
   zera.core)
 
+(defprotocol IMeta
+  (meta [this] "Returns a map of meta data"))
+
+(defprotocol IObj
+  IMeta
+  (with-meta [this meta] "Returns a new copy of the type with the given meta data"))
+
+(defprotocol AReference
+  IMeta
+  (alter-meta [this f & args] "Takes a function and args to transform the meta data and reset it")
+  (reset-meta [this meta] "Resets the meta data"))
+
+(defprotocol ARef
+  (deref [this])
+  (validate [this value])
+  (add-watch [this key f])
+  (remove-watch [this key])
+  (set-validator [this f]))
+
+(defprotocol Named
+  (namespace [this])
+  (name [this]))
+
+(deftype Symbol [ns nm meta]
+  (str [this]
+    (if-let [ns (.-ns this)]
+      (str ns "/" (.-nm this))
+      (.-nm this)))
+  Named
+  (name [this] (.-nm this))
+  (namespace [this] (.-ns this))
+  IObj
+  (meta [this] (.-meta this))
+  (with-meta [this meta]
+    (new Symbol (.-ns this) (.-nm this) meta)))
+
+(deftype Keyword [symbol]
+  (toString [this]
+    (str ":" (.-symbol this)))
+  (apply [this _ map]
+    (map this))
+  Named
+  (name [this] (.name (.-symbol this)))
+  (namespace [this] (.namespace (.-symbol this))))
+
+(defprotocol Seq
+  (first [this])
+  (rest [this])
+  (cons [this]))
+
+(defprotocol List Seq)
+
+(deftype Cons [meta, car, cdr, count]
+  IObj
+  (meta [this] (.-meta this))
+  (with-meta [this meta]
+    (new Cons meta (.-car this) (.-cdr this)))
+  List
+  (first [this] (.-car this))
+  (next [this] (.-cdr this))
+  (rest [this]
+    (if (.next this)
+      (.next this)
+      '()))
+  (isEmpty [this]
+    (= 0 (.-count this)))
+  (cons [this x]
+    (new Cons (.-meta this) x this (+ 1 (.-count this)))))
+
+(def EmptyCons (new Cons {} nil nil 0))
+
 ;(defmacro defn [x & xs]
 ;  (list 'def x (cons 'fn xs)))
 
@@ -240,6 +311,14 @@
   (cons 'cond (->> (partition 2 rules)
                    (mapcat (fn [r] [(if (= :else (first r)) :else (list cmp value (first r))) (second r)])))))
 
+(defmacro time
+  [& forms]
+  (list 'do
+        '(def t0 (js/Date.))
+        (cons 'do forms)
+        '(def t1 (js/Date.))
+        '(say "Elapsed time: " (/ (- (.valueOf t1) (.valueOf t0)) 1000) " seconds")))
+
 (defn class [x]
   (.class x))
 
@@ -248,3 +327,6 @@
 
 (defprotocol ^{:doc "This is a test"} Testing)
 (deftype Test [name] Testing)
+
+(defn methods [klass]
+  (keys (object->map (.-prototype klass))))

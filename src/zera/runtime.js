@@ -196,6 +196,22 @@ var zera = (function() {
         throw new Error('unimplemented');
     };
 
+    function ZeraType(name, fields, protocols) {
+        this.$zera$typeName = name;
+        this.$zera$fields = fields;
+        this.$zera$protocols = protocols;
+    }
+
+    ZeraType.prototype.class = function() {
+        return evaluate(this.$zera$typeName);
+    };
+
+    ZeraType.prototype.toString = function() {
+        var fields = this.$zera$fields;
+        var self = this;
+        return str("#<", this.$zera$typeName, " ", join(map(function(f) { return str(f, ": ", self[f]); }, fields), ', '), ">")
+    };
+
     /**
      * @implements {Named, IObj}
      */
@@ -203,8 +219,7 @@ var zera = (function() {
         this.$zera$ns = ns;
         this.$zera$name = name;
         this.$zera$meta = meta || arrayMap();
-        this.$zera$typeName = Sym.$zera$tag;
-        this.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta};
+        ZeraType.call(this, Sym.$zera$tag, null, Sym.$zera$protocols);
     }
 
     Sym.$zera$isType = true;
@@ -275,9 +290,11 @@ var zera = (function() {
     var FALSE_SYM = Sym.intern('false');
     var QUOTE_SYM = Sym.intern('quote');
     var DEREF_SYM = Sym.intern('deref');
+    var DO_SYM = Sym.intern('do');
     var DEF_SYM = Sym.intern('def');
     var SET_SYM = Sym.intern('set!');
     var FN_SYM = Sym.intern('fn');
+    var LET_SYM = Sym.intern('let');
     var COND_SYM = Sym.intern('cond');
     var LOOP_SYM = Sym.intern('loop');
     var RECUR_SYM = Sym.intern('recur');
@@ -330,8 +347,7 @@ var zera = (function() {
      */
     function Keyword(sym) {
         this.$zera$sym = sym;
-        this.$zera$typeName = Keyword.$zera$tag;
-        this.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj};
+        ZeraType.call(this, Keyword.$zera$typeName, null, Keyword.$zera$protocols);
     }
 
     Keyword.$zera$isType = true;
@@ -400,14 +416,14 @@ var zera = (function() {
     }
 
     function name(sym) {
-        if (isNamed(sym)) return sym.name();
+        if (isJSFn(sym.name)) return sym.name();
         else {
             throw new Error(str("Don't know how to get the name of: ", prnStr(sym)));
         }
     }
 
     function namespace(sym) {
-        if (isNamed(sym)) return sym.namespace();
+        if (isJSFn(sym.namespace)) return sym.namespace();
         else {
             throw new Error(str("Don't know how to get the namespace of: ", prnStr(sym)));
         }
@@ -504,8 +520,7 @@ var zera = (function() {
         else {
             this.$zera$count = cdr.count() + 1;
         }
-        this.$zera$typeName = Cons.$zera$tag;
-        this.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
+        ZeraType.call(this, Cons.$zera$tag, null, Cons.$zera$protocols);
     }
 
     Cons.$zera$tag = Sym.intern('zera.lang.Cons');
@@ -639,6 +654,7 @@ var zera = (function() {
         this._seq = seq == null ? null : seq;
         this._sv = null;
         this.$zera$typeName = LazySeq.$zera$tag;
+        ZeraType.call(this, LazySeq.$zera$typeName, null, LazySeq.$zera$protocols);
     }
 
     LazySeq.$zera$isType = true;
@@ -831,7 +847,7 @@ var zera = (function() {
     function MapEntry(key, val) {
         this.$zera$key = key;
         this.$zera$val = val;
-        this.$zera$typeName = MapEntry.$zera$tag;
+        ZeraType.call(this, MapEntry.$zera$tag, null, {});
     }
 
     MapEntry.$zera$isType = true;
@@ -908,6 +924,7 @@ var zera = (function() {
         this.$zera$array = array ? array : [];
         Seq.call(this, meta);
         this.$zera$typeName = ArrayMap.$zera$tag;
+        ZeraType.call(this, ArrayMap.$zera$tag, null, ArrayMap.$zera$protocols);
     }
 
     ArrayMap.$zera$tag = Sym.intern('zera.lang.ArrayMap');
@@ -1239,7 +1256,7 @@ var zera = (function() {
 
     function HashSet(meta, map) {
         APersistentSet.call(this, meta, map);
-        this.$zera$typeName = HashSet.$zera$tag;
+        ZeraType.call(this, HashSet.$zera$tag, null, HashSet.$zera$protocols);
     }
 
     HashSet.$zera$isType = true;
@@ -1320,7 +1337,7 @@ var zera = (function() {
     function Vector(meta, rep) {
         Seq.call(this, meta);
         this.rep = rep == null ? [] : rep;
-        this.$zera$typeName = Vector.$zera$tag;
+        ZeraType.call(this, Vector.$zera$tag, null, Vector.$zera$protocols);
     }
 
     Vector.$zera$tag = Sym.intern('zera.lang.Vector');
@@ -1567,7 +1584,7 @@ var zera = (function() {
         this.$zera$arglists = arglists;
         this.$zera$bodies = bodies;
         this.$zera$isMethod = isMethod;
-        this.$zera$typeName = Fn.$zera$tag;
+        ZeraType.call(this, Fn.$zera$tag, null, Fn.$zera$protocols);
     }
 
     Fn.$zera$tag = Sym.intern('zera.lang.Fn');
@@ -1726,9 +1743,7 @@ var zera = (function() {
             if (x.length === 0) {
                 return '(array)';
             }
-            return str('(array ', x.map(function(x) {
-                return prnStr(x);
-            }).join(' '), ')');
+            return str('(array ', x.map(prnStr).join(' '), ')');
         } else if (isJSFn(x)) {
             if (x.$zera$tag != null) {
                 return str(x.$zera$tag);
@@ -1888,8 +1903,7 @@ var zera = (function() {
         this.$zera$name = name;
         //ARef.call(this, meta);
         this.$zera$meta = meta || arrayMap();
-        this.$zera$typeName = Var.$zera$tag;
-        this.$zera$protocols = Var.$zera$protocols;
+        ZeraType.call(this, Var.$zera$tag, null, Var.$zera$protocols);
     }
 
 
@@ -1974,7 +1988,7 @@ var zera = (function() {
 
     function Atom(meta, value, validator) {
         ARef.call(this, meta, value, validator);
-        this.$zera$typeName = Atom.$zera$tag;
+        ZeraType.call(this, Atom.$zera$tag, null, Atom.$zera$protocols);
     }
 
     Atom.$zera$tag = Sym.intern('zera.lang.Atom');
@@ -2052,7 +2066,7 @@ var zera = (function() {
         // TODO: should these be maps in atoms?
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
-        this.$zera$typeName = Namespace.$zera$tag;
+        ZeraType.call(this, Namespace.$zera$tag, null, Namespace.$zera$protocols);
     }
 
     Namespace.$zera$tag = Sym.intern('zera.lang.Namespace');
@@ -2191,7 +2205,7 @@ var zera = (function() {
     function env(parent) {
         if (parent) {
             return {
-                vars: {},
+                vars: {'*ns*': parent.vars['*ns*'] || CURRENT_NS.get()},
                 parent: parent
             };
         } else {
@@ -2269,7 +2283,7 @@ var zera = (function() {
     // 4) lookup in default namespace
     // (could go back and put default imports in top then they'll always be found lexically unless they've been redefined and should be more performant)
     function evalSymbol(sym, env) {
-        var MACRO_ERROR = new Error(str('Macros cannot be evaluated in this context'));
+        var MACRO_ERROR = str('Macros cannot be evaluated in this context');
         var ns, v, scope, name = sym.name();
         // 1) namespace-qualified
         if (sym.isQualified()) {
@@ -2277,7 +2291,7 @@ var zera = (function() {
             ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
             v  = ns.mapping(name);
             if (!v) throw new Error(str('Undefined variable: ', sym));
-            if (v.isMacro()) throw MACRO_ERROR;
+            if (v.isMacro()) throw new Error(MACRO_ERROR);
             return v.get();
         }
         else {
@@ -2287,20 +2301,35 @@ var zera = (function() {
                 return scope.vars[name];
             }
             else {
-                // 3) lookup in curret namespace
-                v = CURRENT_NS.get().mapping(name);
+                // 3) lookup in scoped namespace
+                ns = env.vars['*ns*'];
+                v = ns && ns.mapping(name);
                 if (v) {
-                    if (v.isMacro()) throw MACRO_ERROR;
+                    if (v.isMacro()) {
+                        prn(v);
+                        throw new Error(MACRO_ERROR);
+                    }
                     return v.get();
                 }
                 else {
-                    // 4) lookup in default namespace
-                    v = ZERA_NS.mapping(name);
+                    // 4) lookup in current namespace
+                    v = CURRENT_NS.get().mapping(name);
                     if (v) {
-                        if (v.isMacro()) throw MACRO_ERROR;
+                        if (v.isMacro()) {
+                            prn(v);
+                            throw new Error(MACRO_ERROR);
+                        }
                         return v.get();
                     }
-                    throw new Error(str('Undefined variable: ', sym));
+                    else {
+                        // 5) lookup in default namespace
+                        v = ZERA_NS.mapping(name);
+                        if (v) {
+                            if (v.isMacro()) throw new Error(MACRO_ERROR);
+                            return v.get();
+                        }
+                        throw new Error(str('Undefined variable: ', sym));
+                    }
                 }
             }
         }
@@ -2318,34 +2347,37 @@ var zera = (function() {
         return v.set(value);
     }
 
-    function evalLetBlock(form, env) {
+    function evalLetBlock(form, env_) {
         var rest = cdr(form);
         var binds = car(rest);
         var body = cdr(rest);
+        var scope = env(env_);
 
         if (!isVector(binds) && count(binds) % 2 === 0) {
             throw new Error('Bindings should be a vector with an even number of elements');
         }
         binds = binds.toArray();
 
-        var i;
+        var i, name, sname;
         for (i = 0; i < binds.length; i += 2) {
-            defineLexically(env, nth(binds, i));
-            defineLexically(env, nth(binds, i), evaluate(nth(binds, i + 1), env));
+            name = binds[i];
+            sname = str(name);
+            if (sname.endsWith('#')) {
+                name = gensym(str(sname.slice(0, sname.length - 1)));
+            }
+            defineLexically(scope, name);
+            defineLexically(scope, name, evaluate(binds[i + 1], scope));
         }
         
-        var x = car(body),
-            xs = cdr(body),
-            ret;
+        var x = car(body), xs = cdr(body), ret;
         while (x != null) {
-            ret = evaluate(x, env);
+            ret = evaluate(x, scope);
             x = xs.first();
             xs = xs.rest();
         }
         return ret;
     }
 
-    // FIXME: not picking up meta data from symbol
     function evalDefinition(form, env) {
         var rest = cdr(form);
         var name = car(rest);
@@ -2411,7 +2443,7 @@ var zera = (function() {
         if (keys.length === 0) return null;
         var i, entries = [];
         for (i = 0; i < keys.length; i++) {
-            entries.push(Sym.intern(keys[i]));
+            entries.push(Keyword.intern(keys[i]));
             entries.push(obj[keys[i]]);
         }
         return new ArrayMap(null, entries);
@@ -2451,7 +2483,7 @@ var zera = (function() {
     }
 
     function isFunction(x) {
-        return isFn(x) && isJSFn(x);
+        return isFn(x) || isJSFn(x);
     }
 
     function isInvocable(x) {
@@ -2502,8 +2534,8 @@ var zera = (function() {
         p(str(tag, ': ', prnStr(val)));
     }
 
-    function evalApplication(form, env) {
-        var fn = evaluate(car(form), env);
+    function evalApplication(form, env, stack) {
+        var fn = evaluate(car(form), env, cons(form, stack));
         var args = cdr(form);
         var a = mapA(function(x) { return evaluate(x, env); }, args);
         var args_ = list.apply(null, a);
@@ -2541,12 +2573,12 @@ var zera = (function() {
         throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
     }
 
-    function evalMacroDefinition(form, env) {
+    function evalMacroDefinition(form) {
         var rest = cdr(form),
             name = car(rest),
             fnrest = cdr(rest),
             form_ =  cons(FN_SYM, fnrest).withMeta(arrayMap(keyword('macro'), true));
-        var val = evalFunction(form_, env);
+        var val = evalFunction(form_);
         return Var.intern(CURRENT_NS.get(), name, val).setMacro();
     }
 
@@ -2554,8 +2586,11 @@ var zera = (function() {
         return isCons(x) && isSymbol(car(x));
     }
 
+    var AMP_FORM = Sym.intern('&form');
+    var AMP_ENV = Sym.intern('&env');
+
     // TODO: set &form and &env in macro scope
-    function macroexpand(form) {
+    function macroexpand(form, env_, stack) {
         if (isTaggedValue(form)) {
             var sym  = car(form);
             var name = sym.toString();
@@ -2571,7 +2606,10 @@ var zera = (function() {
                 var v = findVar(sym, true); // will return null on error rather than throw an exception
                 if (v == null) return form;
                 if (v.isMacro()) {
-                    return macroexpand(apply(v.get(), cdr(form)));
+                    var scope = env(env_);
+                    defineLexically(scope, AMP_ENV, scope);
+                    defineLexically(scope, AMP_FORM, form);
+                    return macroexpand(apply(v.get(), cdr(form)), scope, stack);
                 }
                 else {
                     return form;
@@ -2648,6 +2686,7 @@ var zera = (function() {
 
     function evalClassInstantiation(form, env) {
         var ctr = evaluate(car(cdr(form)), env);
+        if (ctr.$zera$isProtocol === true) throw new Error('Protocols cannot be instantiated');
         if (!isJSFn(ctr)) throw new Error('class given is not a valid constructor');
         var args = mapA(function(x) {
             return evaluate(x, env);
@@ -2765,25 +2804,13 @@ var zera = (function() {
         return s;
     }
 
-    function ZeraType(name, fields, protocols) {
-        this.$zera$typeName = name;
-        this.$zera$fields = fields;
-        this.$zera$protocols = protocols;
-    }
-
-    ZeraType.prototype.class = function() {
-        return evaluate(this.$zera$typeName);
-    };
-
-    ZeraType.prototype.toString = function() {
-        var fields = this.$zera$fields;
-        var self = this;
-        return str("#<", this.$zera$typeName, " ", join(map(function(f) { return str(f, ": ", self[f]); }, fields), ', '), ">")
-    };
-
-    function processMethodDef(meth, type) {
-        var fn = cons(Sym.intern('fn'), rest(meth));
-        return evalFunction(fn);
+    function processMethodDef(meth) {
+        var name = first(meth);
+        var forms = cons(Sym.intern('fn'), rest(meth));
+        var fn = evalFunction(forms, top, true);
+        return function() {
+            return fn.invoke.apply(fn, [this].concat(Array.prototype.slice.call(arguments)));
+        };
     }
 
     function collectProtocols(proto) {
@@ -2791,9 +2818,9 @@ var zera = (function() {
         var protoEntries = [];
         if (protos) {
             if (!isMap(protos)) {
-                protos = objectToMap(protos)
+                protos = objectToMap(protos);
             }
-            var protos = values(protos);
+            protos = values(protos);
             map(collectProtocols, values(protos));
         }
     }
@@ -2805,23 +2832,6 @@ var zera = (function() {
 
         var argc = count(fields);
         var tag = Sym.intern(str(CURRENT_NS.get().name(), '/', name));
-
-        var i, spec, meth, protocol = null, proto, protocols = {}; // TODO: change to a transient-map
-        for (i = 0; i < specs.length; i++) {
-            spec = specs[i];
-            if (isList(spec)) {
-                if (protocol === null) throw new Error('A method definition must specify a protocol');
-                // TODO: add parent protocols to mapping (see collectProtocols)
-                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
-                // TODO: check if method is declared as part of the protocol in scope
-                meth = first(spec);
-                type.prototype[meth] = processMethodDef(spec);
-            }
-            else if (isSymbol(spec)) {
-                protocol = evaluate(spec);
-                protocols[protocol.$zera$tag] = protocol;
-            }
-        }
 
         var type = function() {
             if (arguments.length !== argc) {
@@ -2840,13 +2850,30 @@ var zera = (function() {
         };
 
         type.prototype = Object.create(ZeraType.prototype);
+
+        var i, spec, meth, protocol = null, proto, protocols = {}; // TODO: change to a transient-map
+        for (i = 0; i < specs.length; i++) {
+            spec = specs[i];
+            if (isList(spec)) {
+                if (protocol !== null) {
+                    // TODO: add parent protocols to mapping (see collectProtocols)
+                    // TODO: check if method is declared as part of the protocol in scope
+                }
+                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                meth = first(spec);
+                type.prototype[meth] = processMethodDef(spec);
+            }
+            else if (isSymbol(spec)) {
+                protocol = evaluate(spec);
+                protocols[protocol.$zera$tag] = protocol;
+            }
+        }
+
         type.$zera$isType = true;
         type.$zera$tag = tag;
-
         type.$zera$protocols = protocols;
 
-        Var.intern(CURRENT_NS.get(), name, type);
-        return null;
+        return list(DEF_SYM, name, type);
     }
 
     function defineProtocol(name, x) {
@@ -2854,7 +2881,7 @@ var zera = (function() {
 
         if (isString(x)) {
             doc = x;
-            specs = Array.prototype.slice.call(arugments, 2);
+            specs = Array.prototype.slice.call(arguments, 2);
         }
         else {
             specs = Array.prototype.slice.call(arguments, 1);
@@ -2871,14 +2898,15 @@ var zera = (function() {
         for (i = 0; i < specs.length; i++) {
             spec = specs[i];
             if (isList(spec)) {
-                if (protocol === null) throw new Error('A method definition must specify a protocol');
-                proto = evaluate(protocol);
-                protocols = protocols.assoc(protocol,  proto);
+                if (protocol !== null) {
+                    // TODO: check if method is declared as part of the protocol in scope
+                    proto = evaluate(protocol);
+                    protocols = protocols.assoc(protocol,  proto);
+                }
                 // TODO: add parent protocols to mapping (see collectProtocols)
                 if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
-                // TODO: check if method is declared as part of the protocol in scope
                 meth = first(spec);
-                type.prototype[meth] = processMethodDef(spec);
+                proto.prototype[meth] = processMethodDef(spec);
             }
             else if (isSymbol(spec)) {
                 protocol = evaluate(spec);
@@ -2887,8 +2915,8 @@ var zera = (function() {
 
         proto.$zera$protocols = protocols;
 
-        Var.intern(CURRENT_NS.get(), name, proto);
-        return null;
+        if (doc) name = name.withMeta(arrayMap(keyword('doc'), doc));
+        return list(DEF_SYM, name, proto);
     }
 
     function isSelfEvaluating(form) {
@@ -2898,83 +2926,110 @@ var zera = (function() {
     var top = env();
 
     // TODO: add try, catch, finally
-    // TODO: add deftype / defprotocol
-    function evaluate(form_, env_) {
-        var env = env_ || top;
-        var recur = true;
-        var ret = null;
-        var form = macroexpand(form_);
-        while (recur) {
-            recur = false;
-            if (form == null || NIL_SYM.equals(form)) {
-                ret = null;
-            } else if (isSelfEvaluating(form)) {
-                ret = form;
-            } else if (isMap(form)) {
-                ret = evalMap(form, env);
-            } else if (isVector(form)) {
-                ret = evalVector(form, env);
-            } else if (isArray(form)) {
-                ret = evalArray(form, env);
-            } else if (isSet(form)) {
-                ret = evalSet(form, env);
-            } else if (isSymbol(form)) {
-                ret = evalSymbol(form, env);
-            } else if (isCons(form)) {
-                if (form.isEmpty()) return form;
-                var tag = str(car(form));
-                switch (tag) {
-                    case 'quote':
-                        ret = evalQuote(form);
-                        break;
-                    case 'do':
-                        ret = evalDoBlock(form, env);
-                        break;
-                    case 'let':
-                        ret = evalLetBlock(form, env);
-                        break;
-                    case 'def':
-                        ret = evalDefinition(form, env);
-                        break;
-                    case 'var':
-                        ret = evalVar(form, env);
-                        break;
-                    case 'set!':
-                        ret = evalAssignment(form, env);
-                        break;
-                    case 'cond':
-                        ret = evalConditional(form, env);
-                        break;
-                    case 'fn':
-                        ret = evalFunction(form, env);
-                        break;
-                    case 'loop':
-                        ret = evalLoop(form, env);
-                        break;
-                    case 'recur':
-                        ret = evalRecursionPoint(form, env);
-                        break;
-                    case 'throw':
-                        ret = evalThrownException(form, env);
-                        break;
-                    case 'new':
-                        ret = evalClassInstantiation(form, env);
-                        break;
-                    case '.':
-                        ret = evalMemberAccess(form, env);
-                        break;
-                    case 'defmacro':
-                        ret = evalMacroDefinition(form, env);
-                        break;
-                    default:
-                        ret = evalApplication(form, env);
-                        break;
+    function evaluate(form_, env_, stack) {
+        try {
+            var stack = stack || list();
+            var env = env_ || top;
+            var recur = true;
+            var ret = null;
+            var form = macroexpand(form_, env_, stack);
+            while (recur) {
+                recur = false;
+                if (form == null || NIL_SYM.equals(form)) {
+                    ret = null;
                 }
-            } else {
-                throw new Error(str('invalid form: "', form, '"'));
+                else if (isSelfEvaluating(form)) {
+                    ret = form;
+                }
+                else if (isMap(form)) {
+                    ret = evalMap(form, env);
+                }
+                else if (isVector(form)) {
+                    ret = evalVector(form, env);
+                }
+                else if (isArray(form)) {
+                    ret = evalArray(form, env);
+                }
+                else if (isSet(form)) {
+                    ret = evalSet(form, env);
+                }
+                else if (isSymbol(form)) {
+                    ret = evalSymbol(form, env);
+                }
+                else if (isCons(form)) {
+                    if (form.isEmpty()) return form;
+                    var tag = str(car(form));
+                    switch (tag) {
+                        case 'quote':
+                            ret = evalQuote(form);
+                            break;
+                        case 'do':
+                            ret = evalDoBlock(form, env);
+                            break;
+                        case 'let':
+                            ret = evalLetBlock(form, env);
+                            break;
+                        case 'def':
+                            ret = evalDefinition(form, env);
+                            break;
+                        case 'var':
+                            ret = evalVar(form, env);
+                            break;
+                        case 'set!':
+                            ret = evalAssignment(form, env);
+                            break;
+                        case 'cond':
+                            ret = evalConditional(form, env);
+                            break;
+                        case 'fn':
+                            ret = evalFunction(form, env);
+                            break;
+                        case 'loop':
+                            ret = evalLoop(form, env);
+                            break;
+                        case 'recur':
+                            ret = evalRecursionPoint(form, env);
+                            break;
+                        case 'throw':
+                            ret = evalThrownException(form, env);
+                            break;
+                        case 'new':
+                            ret = evalClassInstantiation(form, env);
+                            break;
+                        case '.':
+                            ret = evalMemberAccess(form, env);
+                            break;
+                        case 'defmacro':
+                            ret = evalMacroDefinition(form, env);
+                            break;
+                        default:
+                            ret = evalApplication(form, env, stack);
+                            break;
+                    }
+                } else {
+                    throw new Error(str('invalid form: "', form, '"'));
+                }
+            }
+            return ret;
+        }
+        catch (e) {
+            if (e instanceof Error || e instanceof String) {
+                var msg = str('Error evaluating ', prnStr(form_), ': ');
+                if (e.stack) {
+                    msg += e.stack;
+                }
+                else if (e.message) {
+                    msg += e.message;
+                }
+                else {
+                    console.log(e);
+                    msg += e;
+                }
+            }
+            else {
+                throw e;
             }
         }
-        return ret;
     }
 
     var JS_GLOBAL_OBJECT = Var.intern(ZERA_NS, Sym.intern('*js-global-object*'), isNode ? 'global' : 'window').setDynamic();
@@ -3004,131 +3059,12 @@ var zera = (function() {
         return zeraNameToJS(name);
     }
 
-    // TODO: We'll map namespaces to JS modules
-    // For example, zera.core/+ will map to zera.core.__PLUS__
-    // and zera.core/map will map to zera.core.map
-    function compileSymbol(form, env, opts_) {
-        var opts = opts_ ? opts_ : {},
-            ns = form.namespace(),
-            name = form.name();
-        if ((ns && ns.startsWith('js')) || (!ns && lookup(env, name))) {
-            return str(encodeName(name));
-        }
-        else {
-            if (!ns) ns = CURRENT_NS.get().name();
-            return str(ns, '.', encodeName(name));
-        }
-    }
-
-    function compileQuote(form_, env) {
-        if (!isCons(form_)) throw new Error(str('Malformed quote, expected: (quote value), got: ', prnStr(form_)));
-        var a, form = car(cdr(form_));
-        if (form == null) return "null";
-        else if (form === true) return "true";
-        else if (form === false) return "false";
-        else if (isNumber(form)) return str(form);
-        else if (isString(form)) return str('"', form, '"');
-        else if (isKeyword(form)) return compileKeyword(form);
-        else if (isSymbol(form)) {
-            if (form.namespace()) {
-                return str('zera.core.symbol("', form.namespace(), '", "', form.name(), '"');
-            }
-            else {
-                return str('zera.core.symbol("', form.name(), '")');
-            }
-        }
-        else if (isCons(form)) {
-            a = mapA(function(x) { return compileQuote(x, env); }, form);
-            return str('zera.core.list(', a.join(', '), ')');
-        }
-        else if (isMap(form)) {
-            a = mapA(function(x) { return str(compileQuote(x.key(), env), ', ', compileQuote(x.val(), env)); }, form);
-            return str('zera.core.arrayMap(', a.join(', '), ')');
-        }
-        else if (isSet(form)) {
-            a = mapA(function(x) { return compileQuote(x, env); }, form);
-            return str('zera.core.set([', a.join(', '), '])');
-        }
-        else if (isVector(form)) {
-            a = mapA(function(x) { return compileQuote(x, env); }, form);
-            return str('zera.core.vector(', a.join(', '), ')');
-        }
-        else if (isArray(form)) {
-            a = mapA(function(x) { return compile(x, env); }, form);
-            return str('[', a.join(', '), ']');
-        }
-        else {
-            throw new Error(str("Don't know how to quote: ", prnStr(form)));
-        }
-    }
-
-    function compileMap(form, env) {
-        var a = mapA(function(x) {
-            return str(compile(x.key(), env), ', ', compile(x.val(), env));
-        }, form);
-        return str('zera.core.arrayMap(', a.join(', '), ')');
-    }
-
-    function compileVector(form, env) {
-        var a = mapA(function(x) { return compile(x, env); }, form);
-        return str('zera.core.vector(', a.join(', '), ')');
-    }
-
-    function compileArray(form, env) {
-        var a = mapA(function(x) { return compile(x, env); }, form);
-        return str('[', a.join(', '), ']');
-    }
-
-    function compileSet(form, env) {
-        var a = mapA(function(x) { return compile(x, env); }, form);
-        return str('zera.core.set([', a.join(', '), '])');
-    }
-
     function isRecur(x) {
         return isCons(x) && RECUR_SYM.equals(first(x));
     }
 
     function isThrow(x) {
         return isCons(x) && THROW_SYM.equals(first(x));
-    }
-
-    function compileTailPosition(x, env) {
-        if (isRecur(x) || isThrow(x)) {
-            return compile(x, env);
-        }
-        else {
-            return str('return ', compile(x, env));
-        }
-    }
-
-    // TODO: detect, 'recur' and 'throw' in tail position
-    function compileConditional(form, env) {
-        var i, preds,
-            buff = ['(function(){'],
-            conds = rest(form);
-
-        if (count(conds) % 2 !== 0) throw new Error('The number of conditions should be even');
-        preds = pair(conds);
-
-        var a = mapA(function(x) {
-            var pred = nth(x, 0), exp = nth(x, 1);
-            if (isKeyword(pred) && Keyword.intern('else').equals(pred)) {
-                return ['true', compileTailPosition(exp, env)]; // tail position
-            }
-            return [compile(pred, env), compileTailPosition(exp, env)]; // tail position
-        }, preds);
-
-        for (i = 0; i < a.length; i++) {
-            buff.push('if (');
-            buff.push(a[i][0]);
-            buff.push(') { ');
-            buff.push(a[i][1]);
-            buff.push('; } ');
-        }
-
-        buff.push('}())');
-
-        return buff.join('');
     }
 
     function alast(a) {
@@ -3144,317 +3080,6 @@ var zera = (function() {
         else {
             return a.slice(0, a.length - 1);
         }
-    }
-
-    function compileBody(body_, env) {
-        var body = intoArray(body_),
-            last = alast(body),
-            head = ahead(body);
-        return mapA(function(x) { return compile(x, env); }, head)
-                .concat(compileTailPosition(last, env));
-    }
-
-    // TODO: detect, 'recur' and 'throw' in tail position
-    function compileDoBlock(form, env) {
-        var buff = ['(function(){'],
-            body = rest(form);
-
-        var a = compileBody(body, env);
-        buff.push(a.join('; '));
-        buff.push('}())');
-
-        return buff.join('');
-    }
-
-    // TODO: detect, 'recur' and 'throw' in tail position
-    // TODO: add '&' support
-    function compileFunction(form, env) {
-        var i,
-            buff = ['(function('],
-            rest = cdr(form),
-            binds = car(rest),
-            body = cdr(rest);
-
-        // add names to function scope
-        var bind, names = [];
-        for (i = 0; i < count(binds); i += 2) {
-            bind = nth(binds, i);
-            if (!isSymbol(bind)) throw new Error('Invalid binding name');
-            names.push(bind.name());
-            defineLexically(env, bind, true);
-        }
-        buff.push(names.join(', '));
-        buff.push('){');
-
-        // body
-        var a = compileBody(body, env);
-        buff.push(a.join('; '));
-        buff.push('})');
-
-        return buff.join('');
-    }
-
-    // TODO: detect, 'recur' and 'throw' in tail position
-    // TODO: check form for pairs of binding values
-    function compileLetBlock(form, env) {
-        var i, bind,
-            buff = ['(function('],
-            rest = cdr(form),
-            binds = car(rest),
-            body = cdr(rest);
-
-        // add names to function scope
-        var names = [];
-        for (i = 0; i < count(binds); i += 2) {
-            bind = nth(binds, i);
-            if (!isSymbol(bind)) throw new Error('Invalid binding name');
-            names.push(bind.name());
-            defineLexically(env, bind, true);
-        }
-        buff.push(names.join(', '));
-        buff.push('){');
-
-        // body
-        var a = compileBody(body, env);
-        buff.push(a.join('; '));
-        buff.push('}(');
-
-        // add values to function scope
-        var values = [];
-        for (i = 0; i < count(binds); i += 2) {
-            values.push(compile(nth(binds, i + 1)));
-        }
-        buff.push(values.join(', '));
-        buff.push('))');
-
-        return buff.join('');
-    }
-
-    // TODO: complete loop implementation
-    function compileLoop(form, env) {
-        var i, bind,
-            buff = ['(function('],
-            rest = cdr(form),
-            binds = car(rest),
-            body = cdr(rest);
-
-        // add names to function scope
-        var names = [];
-        for (i = 0; i < count(binds); i += 2) {
-            bind = nth(binds, i);
-            if (!isSymbol(bind)) throw new Error('Invalid binding name');
-            names.push(bind.name());
-            defineLexically(env, bind, true);
-        }
-        buff.push(names.join(', '));
-        buff.push('){');
-
-        // body
-        var a = compileBody(body, env);
-        buff.push(a.join('; '));
-        buff.push('}(');
-
-        // add values to function scope
-        var values = [];
-        for (i = 0; i < count(binds); i += 2) {
-            values.push(compile(nth(binds, i + 1)));
-        }
-        buff.push(values.join(', '));
-        buff.push('))');
-
-        return buff.join('');
-    }
-
-    // TODO: should detect tail position
-    function compileRecursionPoint(form, env) {
-        var args = cdr(form);
-        if (isEmpty(args)) throw new Error('recur requires at least one argument');
-        return str('throw new zera.lang.RecursionPoint(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
-    }
-
-    function compileDefinition(form, env) {
-        var name = car(cdr(form)), value = car(cdr(cdr(form))), jsName;
-        if (!isSymbol(name)) throw new Error('definition name must be a symbol');
-
-        var ns = CURRENT_NS.get().name();
-        if (name.isQualified()) throw new Error('Cannot intern qualified symbol');
-        else {
-            jsName = [ns, encodeName(name.name())].join('.');
-        }
-
-        if (value == null) {
-            return str(jsName, ' = null');
-        }
-        else {
-            return str(jsName, ' = ', compile(value));
-        }
-    }
-
-    function compileVar(form, env) {
-        var sym = car(cdr(form));
-        if (!isSymbol(sym)) throw new Error('Malformed var expression expecting: (var symbol)');
-        if (!sym.isQualified()) throw new Error('Var name should be fully qualified');
-        return str('zera.lang.Var.intern(zera.core.symbol("', sym.namespace(), '"), zera.core.symbol("', sym.name(), '"))');
-    }
-
-    function compileAssignment(form, env) {
-        var name = car(cdr(form)), value = car(cdr(cdr(form)));
-        if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
-        if (!isSymbol(name)) throw new Error('Invalid assignment target');
-        if (!name.namespace() && lookup(env, name)) {
-            return str(encodeName(name.name()), ' = ', compile(value, env));
-        }
-        else {
-            return str(compileSymbol(name, env), ' = ', compile(value, env));
-        }
-    }
-
-    function compileThrownException(form, env) {
-        var exp = car(cdr(form));
-        return str('throw ', compile(exp, env));
-    }
-
-    function compileClassInstantiation(form, env) {
-        var exp = car(cdr(form)),
-            args = cdr(cdr(form));
-        return str('new ', compile(exp, env), '(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
-    }
-
-    // TODO: complete member access implementation
-    function compileMemberAccess(form, env) {
-        throw new Error('Incomplete');
-        var obj = compile(car(cdr(form)), env);
-        var member = car(cdr(cdr(form)));
-        var val;
-        if (isSymbol(member)) {
-            var smember = member.toString();
-            val = obj[smember];
-            if (smember.startsWith('-')) {
-                return obj[smember.slice(1)];
-            } else if (isJSFn(val)) {
-                return val.call(obj);
-            } else {
-                return val;
-            }
-        } else if (isCons(member)) {
-            var name = str(car(member));
-            val = obj[name];
-            if (name.startsWith('-')) {
-                return obj[name.slice(1)];
-            } else if (isJSFn(val)) {
-                var args = mapA(function(x) {
-                    return evaluate(x, env);
-                }, cdr(member));
-                return val.apply(obj, args);
-            } else {
-                throw new Error(str('invalid member access: "', prnStr(form), '"'));
-            }
-        } else {
-            throw new Error(str('invalid member access: "', prnStr(form), '"'));
-        }
-    }
-
-    function compileApplication(form, env) {
-        var fn = car(form),
-            args = cdr(form);
-        return str(compile(fn, env), '(', mapA(function(x) { return compile(x, env); }, args).join(', '), ')');
-    }
-
-    function compile(form_, env_) {
-        var env = env_ || top;
-        var recur = true;
-        var ret = null;
-        var form = macroexpand(form_);
-        while (recur) {
-            recur = false;
-            if (form == null || NIL_SYM.equals(form)) {
-                ret = "null";
-            }
-            else if (form === true) {
-                ret = "true";
-            }
-            else if (form === false) {
-                ret = "false";
-            }
-            else if (isNumber(form)) {
-                ret = str(form);
-            }
-            else if (isString(form)) {
-                ret = str('"', form, '"');
-            }
-            else if (isKeyword(form)) {
-                ret = compileKeyword(form); 
-            }
-            else if (isMap(form)) {
-                ret = compileMap(form, env);
-            }
-            else if (isVector(form)) {
-                ret = compileVector(form, env);
-            }
-            else if (isArray(form)) {
-                ret = compileArray(form, env);
-            }
-            else if (isSet(form)) {
-                ret = compileSet(form, env);
-            }
-            else if (isSymbol(form)) {
-                ret = compileSymbol(form, env);
-            }
-            else if (isCons(form)) {
-                if (form.isEmpty()) return form;
-                var tag = str(car(form));
-                switch (tag) {
-                    case 'quote':
-                        ret = compileQuote(form);
-                        break;
-                    case 'do':
-                        ret = compileDoBlock(form, env);
-                        break;
-                    case 'let':
-                        ret = compileLetBlock(form, env);
-                        break;
-                    case 'def':
-                        ret = compileDefinition(form, env);
-                        break;
-                    case 'var':
-                        ret = compileVar(form, env);
-                        break;
-                    case 'set!':
-                        ret = compileAssignment(form, env);
-                        break;
-                    case 'cond':
-                        ret = compileConditional(form, env);
-                        break;
-                    case 'fn':
-                        ret = compileFunction(form, env);
-                        break;
-                    case 'loop':
-                        ret = compileLoop(form, env);
-                        break;
-                    case 'recur':
-                        ret = compileRecursionPoint(form, env);
-                        break;
-                    case 'throw':
-                        ret = compileThrownException(form, env);
-                        break;
-                    case 'new':
-                        ret = compileClassInstantiation(form, env);
-                        break;
-                    case '.':
-                        ret = compileMemberAccess(form, env);
-                        break;
-                    case 'defmacro':
-                        evalMacroDefinition(form, env);
-                        break;
-                    default:
-                        ret = compileApplication(form, env);
-                        break;
-                }
-            } else {
-                throw new Error(str('invalid form: "', form, '"'));
-            }
-        }
-        return ret;
     }
 
     function isRegExp(x) {
@@ -3650,7 +3275,6 @@ var zera = (function() {
     define(ZERA_NS, "with-meta", withMeta);
     define(ZERA_NS, "alter-meta", alterMeta);
     define(ZERA_NS, "reset-meta", resetMeta);
-    define(ZERA_NS, "compile", compile);
     define(ZERA_NS, "eval", evaluate);
     define(ZERA_NS, "read-string", readString);
     define(ZERA_NS, "apply*", apply);
@@ -3986,7 +3610,8 @@ var zera = (function() {
     define(ZERA_NS, '*platform*', Keyword.intern('js'));
 
     var JS_NS = Namespace.findOrCreate(Sym.intern('js'));
-    define(JS_NS, 'fn?', isJSFn);
+    define(JS_NS, 'function?', isJSFn);
+    define(JS_NS, 'object->map', objectToMap);
 
     // import js stuff
     [

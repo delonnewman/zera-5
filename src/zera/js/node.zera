@@ -6,7 +6,7 @@
 
 ;(defn module-path [dir]
 ;  (.addPath (js.node/require "app-module-path") dir))
-;
+
 (defn mkdir [path]
   (.mkdirSync fs path))
 
@@ -17,15 +17,21 @@
   (.execSync cp cmd (into-array args)))
 
 (defn exec [cmd & args]
-  (.spawnSync cp cmd (into-array args)))
+  (object->map (.spawnSync cp cmd (into-array args))))
 
-(defn npm-install [pkg & opts]
-  (let [global? (fn-opts opts :global false)
-        res (exec "/usr/local/bin/node" "/usr/local/bin/npm" "install" (if global? "-g" "") pkg)
+(defn fn-opts
+  ([args k] (fn-opts args k nil))
+  ([args k alt]
+   (or (second (first (filter (fn [x] (= k (first x))) (partition 2 args)))) alt)))
+
+(defn npm-install [pkg & global?]
+  (let [res (exec "/usr/local/bin/node" "/usr/local/bin/npm" "install" (if global? "-g" "") pkg)
         out (res "output")]
-    (doeach [x out]
+    (println "res: " (pr-str res))
+    (println "out: " (prn out))
+    (doseq [x out]
       (if x
-        (say x)))
+        (println x)))
     res))
 
 ;(defmacro import
@@ -43,73 +49,67 @@
 ;    (cons 'do
 ;          (cons (list 'js.node/module-path (list 'zera.core/str '*dir* "/node_modules"))
 ;                (map (fn [s] (list 'def (s 1) (list 'js.node/require (s 0)))) specs*)))))
-;
-;(def
-;  {:doc "An alias for process.abort() on Node.js"
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  abort (.-abort process))
-;
-;(def
-;  {:doc "An alias for process.chdir() on Node.js"
-;   :arglists '([directory])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  chdir (.-chdir process))
-;
-;(def
-;  {:doc "An alias for process.cwd() on Node.js"
-;   :arglists '([])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  cwd (.-cwd process))
-;
-;(def
-;  {:doc "An alias for process.exit() on Node.js"
-;   :arglists '([] [code])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  exit (.-exit process))
-;
-;; TODO: make promisify function, and maybe our own Promise implementation
-;;(def- read-file (.promisify js/Promise (.-readFile fs)))
-;;(def- write-file (.promisify js/Promise (.-readFile fs)))
-;
-;;; TODO: Make a browser version of slurp and spit
-;
-;(defn slurp
-;  "Read entire contents of `file` to a string"
-;  {:added "1.0"}
-;  [file &opts]
-;  (.readFileSync fs file))
-;
-;(defn spit
-;  "Write `data` to `file`. Data can be a String, Buffer, or Uint8Array."
-;  {:added "1.0"}
-;  [file data]
-;  (.writeFileSync fs file data))
-;
-;(def
-;  {:doc "An alias for path.basename() on Node.js"
-;   :arglists '([path] [path ext])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  basename (.-basename path))
-;
-;(def
-;  {:doc "An alias for path.dirname() on Node.js"
-;   :arglists '([path] [path ext])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  dirname (.-dirname path))
-;
-;(def
-;  {:doc "An alias for path.extname() on Node.js"
-;   :arglists '([path] [path ext])
-;   :platforms #{:nodejs}
-;   :added "1.0"}
-;  extname (.-extname path))
-;
+
+(def
+  ^{:doc "An alias for process.abort() on Node.js"
+    :platforms #{:nodejs}
+    :added "1.0"}
+  abort (.-abort process))
+
+(def
+  ^{:doc "An alias for process.chdir() on Node.js"
+    :arglists '([directory])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  chdir (.-chdir process))
+
+(def
+  ^{:doc "An alias for process.cwd() on Node.js"
+    :arglists '([])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  cwd (.-cwd process))
+
+(def
+  ^{:doc "An alias for process.exit() on Node.js"
+    :arglists '([] [code])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  exit (.-exit process))
+
+(defn slurp
+  "Read entire contents of `file` to a string"
+  {:added "1.0"}
+  [file]
+  (.readFileSync fs file))
+
+(defn spit
+  "Write `data` to `file`. Data can be a String, Buffer, or Uint8Array."
+  {:added "1.0"}
+  [file data]
+  (.writeFileSync fs file data))
+
+(def
+  ^{:doc "An alias for path.basename() on Node.js"
+    :arglists '([path] [path ext])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  basename (.-basename path))
+
+(def
+  ^{:doc "An alias for path.dirname() on Node.js"
+    :arglists '([path] [path ext])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  dirname (.-dirname path))
+
+(def
+  ^{:doc "An alias for path.extname() on Node.js"
+    :arglists '([path] [path ext])
+    :platforms #{:nodejs}
+    :added "1.0"}
+  extname (.-extname path))
+
 ;(defn node-modules-paths
 ;  [start]
 ;  "Node modules lookup
