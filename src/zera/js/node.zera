@@ -10,9 +10,6 @@
 (defn mkdir [path]
   (.mkdirSync fs path))
 
-(defn file-exists? [path]
-  (.existsSync fs path))
-
 (defn sh [cmd & args]
   (.execSync cp cmd (into-array args)))
 
