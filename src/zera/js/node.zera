@@ -1,4 +1,4 @@
-(ns js.node)
+(ns zera.js.node)
 
 (def ^:private fs   (js.node/require "fs"))
 (def ^:private path (js.node/require "path"))
@@ -15,11 +15,6 @@
 
 (defn exec [cmd & args]
   (object->map (.spawnSync cp cmd (into-array args))))
-
-(defn fn-opts
-  ([args k] (fn-opts args k nil))
-  ([args k alt]
-   (or (second (first (filter (fn [x] (= k (first x))) (partition 2 args)))) alt)))
 
 (defn npm-install [pkg & global?]
   (let [res (exec "/usr/local/bin/node" "/usr/local/bin/npm" "install" (if global? "-g" "") pkg)
@@ -51,28 +46,28 @@
   ^{:doc "An alias for process.abort() on Node.js"
     :platforms #{:nodejs}
     :added "1.0"}
-  abort (.-abort process))
+  abort (.-abort js.node/process))
 
 (def
   ^{:doc "An alias for process.chdir() on Node.js"
     :arglists '([directory])
     :platforms #{:nodejs}
     :added "1.0"}
-  chdir (.-chdir process))
+  chdir (.-chdir js.node/process))
 
 (def
   ^{:doc "An alias for process.cwd() on Node.js"
     :arglists '([])
     :platforms #{:nodejs}
     :added "1.0"}
-  cwd (.-cwd process))
+  cwd (.-cwd js.node/process))
 
 (def
   ^{:doc "An alias for process.exit() on Node.js"
     :arglists '([] [code])
     :platforms #{:nodejs}
     :added "1.0"}
-  exit (.-exit process))
+  exit (.-exit js.node/process))
 
 (defn slurp
   "Read entire contents of `file` to a string"

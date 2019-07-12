@@ -1,0 +1,17 @@
+; vim: ft=clojure
+(ns zera.js)
+
+(defn json-read-str [str & opts]
+  (let [key-fn (fn-opts opts :key-fn keyword)
+        obj (.parse js/JSON str)]
+    (cond (or (string? obj)
+              (number? obj)
+              (boolean? obj)) obj
+          (array? obj) (into [] obj)
+          :else
+            (->> (.keys js/Object obj)
+                 (map (fn [k] [(key-fn k) (aget obj k)]))
+                 (into {})))))
+
+(defn json-write-str [val])
+

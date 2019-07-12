@@ -345,3 +345,8 @@
   (cons 'is (cons (list 'not body) args)))
 
 (def p prn)
+
+(defn fn-opts
+  ([args k] (fn-opts args k nil))
+  ([args k alt]
+   (prn args k alt)))
