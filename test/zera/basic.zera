@@ -1,0 +1,18 @@
+(ns test.zera.basic)
+(load-file "src/zera/test.zera")
+(refer 'zera.test)
+
+;; equality
+(is (= (eval 1) 1))
+(is (= (eval "1") "1"))
+(is (= (eval '(quote a)) 'a))
+(is (= (eval '(quote test/a)) 'test/a))
+(is (not= (eval '(quote a)) 'test/a))
+(is (= (eval :a) :a))
+(is (= (eval :test/a) :test/a))
+(is (not= (eval :a) :test/a))
+(is (= (eval '(quote (1 (2 3) (4 5)))) '(1 (2 3) (4 5))))
+(is (= (eval [[1 2] 3 [4 5]]) [[1 2] 3 [4 5]]))
+(is (= (eval {:a 1 :b 2}) {:a 1 :b 2}))
+(is (= (eval {:a [1 2] :b {:c 1}}) {:a [1 2] :b {:c 1}}))
+(is (= (eval #{:a [:b] {:c 1}}) #{:a [:b] {:c 1}}))

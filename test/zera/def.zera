@@ -1,0 +1,5 @@
+(ns test.zera.def)
+(load-file "src/zera/test.zera")
+(refer 'zera.test)
+
+(is (= *ns* (the-ns 'zera.test)))

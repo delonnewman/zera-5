@@ -1,0 +1,34 @@
+(ns test.zera.collections)
+(load-file "src/zera/test.zera")
+(refer 'zera.test)
+
+; lists
+(is (= (cons 1 nil) (cons 1 '())))
+(is (= (cons 1 nil) (list 1)))
+(is (= (cons 1 nil) '(1)))
+(is (= (cons 1 (cons 2 (cons 3 '()))) '(1 2 3)))
+
+(is (= (count '()) 0))
+(is (= (count '(1)) 1))
+(is (= (count '(1 2)) 2))
+
+(is (= (next '()) nil))
+(is (= (next '(1)) '()))
+(is (= (next '(1 2)) '(1)))
+(is (= (next '(1 2 3)) '(1 3)))
+
+(is (= (rest '()) '()))
+(is (= (rest '(1)) '()))
+(is (= (rest '(1 2)) '(1)))
+(is (= (rest '(1 2 3)) '(1 3)))
+
+(is (= (first '()) nil))
+(is (= (first '(1)) 1))
+(is (= (first '(1 2)) 1))
+
+; vectors
+(is (= (conj [] 1) [1]))
+(is (= (conj [2] 1) [2 1])) 
+
+; maps
+(is (= (conj {} [:a 1]) {:a 1}))

@@ -127,24 +127,32 @@
 (defmacro ->
   [x & forms]
   (loop [x* x, forms* forms]
-    (if (empty? forms*)
-      x*
+    (if forms*
       (let [form (first forms*)
             threaded (if (seq? form)
-                       (list (first form) x* (first (rest form)))
+                       (let [x (first (next form))]
+                         (with-meta
+                           (if x
+                             (cons (first form) (cons x* x))
+                             (cons (first form) x*)) (meta form)))
                        (list form x*))]
-        (recur threaded (rest forms*))))))
+        (recur threaded (next forms*)))
+      x*)))
 
 (defmacro ->>
   [x & forms]
   (loop [x* x, forms* forms]
-    (if (empty? forms*)
-      x*
+    (if forms*
       (let [form (first forms*)
             threaded (if (seq? form)
-                       (list (first form) (first (rest form)) x*)
+                       (let [x (first form)]
+                         (with-meta
+                           (if x
+                             (cons x (list (first (next form)) x*))
+                             (list (first (next form)) x*)) (meta form)))
                        (list form x*))]
-        (recur threaded (rest forms*))))))
+        (recur threaded (next forms*)))
+      x*)))
 
 (defmacro lazy-seq
   [& body]
@@ -331,22 +339,29 @@
 (defn methods [klass]
   (keys (object->map (.-prototype klass))))
 
-
-;; Testing
-
-(defmacro is
-  ([body]
-   (list 'is body (list 'str "FAILURE: " (pr-str body) " is false")))
-  ([body msg]
-   (list 'cond
-         (list 'not body) (list 'throw msg))))
-
-(defmacro is-not [body & args]
-  (cons 'is (cons (list 'not body) args)))
-
 (def p prn)
 
 (defn fn-opts
   ([args k] (fn-opts args k nil))
   ([args k alt]
    (prn args k alt)))
+
+(defn refer [ns-sym]
+  (let [vars (->> (the-ns ns-sym) ns-map (remove :private))]
+    (doseq [x vars]
+      (let [sym (x 0) v (x 1)]
+        (. *ns* (refer sym v))))
+    (map first vars)))
+
+(def ^:dynamic *load-path* '("src"))
+
+(defmacro use [ns-sym]
+  (let [code (-> (str ns-sym)
+                 (.replace (js/RegExp "\\." "g") "/")
+                 (str ".zera"))]
+    (doseq [dir *load-path*]
+      (let [file (str dir "/" code)]
+        (prn file)
+        (load-file file)
+        (refer ns-sym)))
+    (list 'the-ns ns-sym)))

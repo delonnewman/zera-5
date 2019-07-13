@@ -511,7 +511,6 @@ var zera = (function() {
             this.$zera$count = 0;
         }
         else if (cdr == null) {
-            this.$zera$cdr = Cons.EMPTY;
             this.$zera$count = 1;
         }
         else if (!(cdr instanceof Cons)) {
@@ -543,7 +542,12 @@ var zera = (function() {
     };
 
     Cons.prototype.rest = function() {
-        return this.$zera$cdr;
+        if (this.next() == null) {
+            return Cons.EMPTY;
+        }
+        else {
+            return this.next();
+        }
     };
 
     Cons.prototype.count = function() {
@@ -551,11 +555,13 @@ var zera = (function() {
     };
 
     Cons.prototype.next = function() {
-        var cdr = this.rest();
-        return isEmpty(cdr) ? null : cdr;
+        return this.$zera$cdr;
     };
 
     Cons.prototype.cons = function(x) {
+        if (this.isEmpty()) {
+            return new Cons(this.$zera$meta, x, null);
+        }
         return new Cons(this.$zera$meta, x, this);
     };
 
@@ -575,18 +581,21 @@ var zera = (function() {
         return true;
     };
 
-    Cons.prototype.equals = function(o) {
-        if (o == null) {
+    Cons.prototype.equals = function(other) {
+        var a, b, xa, xb, xsa, xsb;
+        if (!isCons(other)) {
             return false;
         }
-        else if (isCons(o)) {
-            if (count(o) !== this.count()) return false;
-            var xa  = this.first();
-            var xb  = o.first();
-            var xsa = this;
-            var xsb = o;
-            while (!isEmpty(xsa) && !isEmpty(xsb)) {
-                if (xa !== xb) {
+        else if (this.count() != other.count()) {
+            return false;
+        }
+        else {
+            xa  = this.first();
+            xb  = other.first();
+            xsa = this;
+            xsb = other;
+            while (xsa.next() == null) {
+                if (!equals(xa !== xb)) {
                     return false;
                 }
                 else {
@@ -598,13 +607,10 @@ var zera = (function() {
             }
             return true;
         }
-        else {
-            return false;
-        }
     };
 
     function cons(x, col) {
-        if (col == null) return Cons.EMPTY.cons(x);
+        if (col == null) return new Cons(null, x, null);
         else if (isSeq(col)) return col.cons(x);
         else if (isSeqable(col)) {
             return seq(col).cons(x);
@@ -634,10 +640,10 @@ var zera = (function() {
             return Cons.EMPTY;
         }
         else if (arguments.length === 1) {
-            return cons(arguments[0], Cons.EMPTY);
+            return cons(arguments[0], null);
         }
         var i, x;
-        var xs = Cons.EMPTY;
+        var xs = null;
         for (i = arguments.length - 1; i >= 0; i--) {
             x = arguments[i];
             xs = cons(x, xs);
@@ -1076,6 +1082,26 @@ var zera = (function() {
         return false;
     };
 
+    // Equals
+    ArrayMap.prototype.equals = function(other) {
+        var a, b, i, key, val;
+        if (!isArrayMap(other)) {
+            return false;
+        }
+        else if (this.count() !== other.count()) {
+            return false;
+        }
+        else {
+            a = this.$zera$array;
+            b = other.$zera$array;
+            for (i = 0; i < a.length; i++) {
+                if (!equals(a[i], b[i])) return false;
+                if (!equals(a[i + 1], b[i + 1])) return false;
+            }
+            return true;
+        }
+    };
+
     function isMap(x) {
         return x instanceof AMap || Object.prototype.toString.call(x) === '[object Map]'; 
     }
@@ -1416,6 +1442,25 @@ var zera = (function() {
         return this.find(args[0]);
     };
 
+    // Equals
+    Vector.prototype.equals = function(other) {
+        var a, b, i;
+        if (!isVector(other)) {
+            return false;
+        }
+        else if (this.rep.length !== other.rep.length) {
+            return false;
+        }
+        else {
+            a = this.rep;
+            b = other.rep;
+            for (i = 0; i < a.length; i++) {
+                if (!equals(a[i], b[i])) return false;
+            }
+            return true;
+        }
+    };
+
     function nth(v, n) {
         if (isArray(v)) return v[n];
         else if (isJSFn(v.nth)) return v.nth(n);
@@ -1708,6 +1753,27 @@ var zera = (function() {
                 }
                 else {
                     return cons(x, filter(f, rest(xs)));
+                }
+            });
+        }
+        else {
+            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
+        }
+    }
+
+    function remove(f, xs) {
+        if (arguments.length === 2) {
+            return lazySeq(function() {
+                if (isEmpty(xs)) {
+                    return null;
+                }
+                var x = first(xs),
+                    pred = apply(f, list(x));
+                if (!isFalsy(pred)) {
+                    return remove(f, rest(xs));
+                }
+                else {
+                    return cons(x, remove(f, rest(xs)));
                 }
             });
         }
@@ -2101,11 +2167,16 @@ var zera = (function() {
     };
 
     Namespace.prototype.mappings = function() {
-        return objectToMap(this.$zera$mappings);
+        return objectToMap(this.$zera$mappings, symbol);
     };
 
     Namespace.prototype.mapping = function(sym) {
         return this.$zera$mappings[sym];
+    };
+
+    Namespace.prototype.refer = function(sym, v) {
+        this.$zera$mappings[sym] = v;
+        return this;
     };
 
     Namespace.prototype.intern = function(sym) {
@@ -2437,13 +2508,14 @@ var zera = (function() {
         }
     }
 
-    function objectToMap(obj) {
+    function objectToMap(obj, keyFn) {
+        var keyFn_ = keyFn || keyword;
         if (obj == null) return ArrayMap.EMPTY;
         var keys = Object.getOwnPropertyNames(obj);
         if (keys.length === 0) return null;
         var i, entries = [];
         for (i = 0; i < keys.length; i++) {
-            entries.push(Keyword.intern(keys[i]));
+            entries.push(apply(keyFn_, [keys[i]]));
             entries.push(obj[keys[i]]);
         }
         return new ArrayMap(null, entries);
@@ -2596,13 +2668,17 @@ var zera = (function() {
             var name = sym.toString();
             if (SPECIAL_FORMS[name]) {
                 return form;
-            } else if (name !== '.-' && name.startsWith('.-')) {
+            }
+            else if (name !== '.-' && name.startsWith('.-')) {
                 return list('.', car(cdr(form)), Sym.intern(name.slice(1)));
-            } else if (name !== '.' && name.startsWith('.')) {
+            }
+            else if (name !== '.' && name.startsWith('.')) {
                 return list(DOT_SYM, car(cdr(form)), cons(Sym.intern(name.slice(1)), cdr(cdr(form))));
-            } else if (name.endsWith('.')) {
+            }
+            else if (name.endsWith('.')) {
                 return cons(NEW_SYM, cons(Sym.intern(name.replace(/\.$/, '')), cdr(form)));
-            } else {
+            }
+            else {
                 var v = findVar(sym, true); // will return null on error rather than throw an exception
                 if (v == null) return form;
                 if (v.isMacro()) {
@@ -3310,6 +3386,7 @@ var zera = (function() {
     define(ZERA_NS, "into-array", intoArray);
     define(ZERA_NS, "reduce", reduce);
     define(ZERA_NS, "filter", filter);
+    define(ZERA_NS, "remove", remove);
     define(ZERA_NS, "take", take);
     define(ZERA_NS, "range", range);
     define(ZERA_NS, "repeat", repeat);
