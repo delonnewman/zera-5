@@ -2724,8 +2724,8 @@ var zera = (function() {
             name = binds_[i];
             value = binds_[i + 1];
             names.push(name);
-            defineLexically(scope, name);
             evaled = evaluate(value, scope);
+            defineLexically(scope, name);
             defineLexically(scope, name, evaled);
         }
 
