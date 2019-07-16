@@ -586,24 +586,23 @@ var zera = (function() {
         if (!isCons(other)) {
             return false;
         }
+        else if (this.isEmpty() && this.isEmpty()) {
+            return true;
+        }
         else if (this.count() != other.count()) {
             return false;
         }
         else {
-            xa  = this.first();
-            xb  = other.first();
             xsa = this;
             xsb = other;
-            while (xsa.next() == null) {
-                if (!equals(xa !== xb)) {
+            while (xsa != null) {
+                xa  = xsa.first();
+                xb  = xsb.first();
+                if (!equals(xa, xb)) {
                     return false;
                 }
-                else {
-                    xa  = xsa.first();
-                    xb  = xsb.first();
-                    xsa = xsa.rest();
-                    xsb = xsb.rest();
-                }
+                xsa = xsa.next();
+                xsb = xsb.next();
             }
             return true;
         }
