@@ -130,11 +130,9 @@
     (if forms*
       (let [form (first forms*)
             threaded (if (seq? form)
-                       (let [x (first (next form))]
-                         (with-meta
-                           (if x
-                             (cons (first form) (cons x* x))
-                             (cons (first form) x*)) (meta form)))
+                       (with-meta
+                         (cons (first form) (cons x* (next form)))
+                         (meta form))
                        (list form x*))]
         (recur threaded (next forms*)))
       x*)))
@@ -145,11 +143,11 @@
     (if forms*
       (let [form (first forms*)
             threaded (if (seq? form)
-                       (let [x (first form)]
+                       (let [xs (next form)]
                          (with-meta
-                           (if x
-                             (cons x (list (first (next form)) x*))
-                             (list (first (next form)) x*)) (meta form)))
+                           (if xs
+                             (cons (first form) (concat xs [x*]))
+                             (list (first form) x*)) (meta form)))
                        (list form x*))]
         (recur threaded (next forms*)))
       x*)))
