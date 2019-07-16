@@ -126,31 +126,31 @@
 
 (defmacro ->
   [x & forms]
-  (loop [x* x, forms* forms]
-    (if forms*
-      (let [form (first forms*)
+  (loop [x x, forms forms]
+    (if forms
+      (let [form (first forms)
             threaded (if (seq? form)
                        (with-meta
-                         (cons (first form) (cons x* (next form)))
+                         (cons (first form) (cons x (next form)))
                          (meta form))
-                       (list form x*))]
-        (recur threaded (next forms*)))
-      x*)))
+                       (list form x))]
+        (recur threaded (next forms)))
+      x)))
 
 (defmacro ->>
   [x & forms]
-  (loop [x* x, forms* forms]
-    (if forms*
-      (let [form (first forms*)
+  (loop [x x, forms forms]
+    (if forms
+      (let [form (first forms)
             threaded (if (seq? form)
                        (let [xs (next form)]
                          (with-meta
                            (if xs
-                             (cons (first form) (concat xs [x*]))
-                             (list (first form) x*)) (meta form)))
-                       (list form x*))]
-        (recur threaded (next forms*)))
-      x*)))
+                             (cons (first form) (concat xs [x]))
+                             (list (first form) x)) (meta form)))
+                       (list form x))]
+        (recur threaded (next forms)))
+      x)))
 
 (defmacro lazy-seq
   [& body]

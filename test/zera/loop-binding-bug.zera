@@ -1,4 +1,4 @@
-(ns test.zera.basic)
+(ns test.zera.loop-binding-bug)
 (load-file "src/zera/test.zera")
 (refer 'zera.test)
 
