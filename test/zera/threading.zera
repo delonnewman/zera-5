@@ -1,0 +1,8 @@
+(ns test.zera.threading)
+(load-file "src/zera/test.zera")
+(refer 'zera.test)
+
+(is (= (-> 1 (inc) (inc) (inc)) 4))
+(is (= (-> "this.is.a.string" (.replace (js/RegExp. "\\." "g") "/")) "this/is/a/string"))
+
+(is (= (->> (range 5) (map inc)) '(1 2 3 4 5)))
