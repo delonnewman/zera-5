@@ -4,7 +4,7 @@
   "description": "",
   "main": "./index.js",
   "dependencies": {
-    "yargs": "^8.0.2"
+    "yargs": "^13.3.0"
   },
   "devDependencies": {},
   "scripts": {
