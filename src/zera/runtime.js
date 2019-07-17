@@ -16,6 +16,52 @@ var zera = (function() {
         return parent === protocols[parent.$zera$tag];
     }
 
+    function isProtocol(obj) {
+        return obj.$zera$isProtocol === true;
+    }
+
+    function isType(obj) {
+        return obj.$zera$isType === true;
+    }
+
+    function initWithProtocols(obj) {
+        var protocols = Array.prototype.slice.call(arguments, 1);
+        if (protocols.length === 1 && isArray(protocols[0])) {
+            protocols = protocols[0];
+        }
+        var i, protocol;
+        for (i = 0; i < protocols.length; i++) {
+            protocol = protocols[i];
+            if (!isProtocol(protocol)) throw new Error(str(prnStr(protocol), " is not a valid protocol"));
+            protocol.call(obj);
+        }
+    }
+
+    function extend(obj, other) {
+        if (obj == null) var obj = Object.create(null);
+        var keys = Object.keys(other);
+        var i, k, v;
+        for (i = 0; i < keys.length; i++) {
+            k = keys[i];
+            obj[k] = other[k];
+        }
+        return obj;
+    }
+
+    function extendWithProtocols(ctr) {
+        var protocols = Array.prototype.slice.call(arguments, 1);
+        if (protocols.length === 1 && isArray(protocols[0])) {
+            protocols = protocols[0];
+        }
+        var i, protocol;
+        for (i = 0; i < protocols.length; i++) {
+            protocol = protocols[i];
+            if (!isProtocol(protocol)) throw new Error(str(prnStr(protocol), " is not a valid protocol"));
+            ctr.prototype = extend(ctr.prototype, protocol.prototype);
+        }
+        return ctr;
+    }
+
     /**
      * @interface
      */
@@ -581,6 +627,11 @@ var zera = (function() {
         return true;
     };
 
+    // Seqable
+    Cons.prototype.seq = function() {
+        return this;
+    };
+
     Cons.prototype.equals = function(other) {
         var a, b, xa, xb, xsa, xsb;
         if (!isCons(other)) {
@@ -678,6 +729,7 @@ var zera = (function() {
         return this._seq;
     };
 
+    // Sequable
     LazySeq.prototype.seq = function() {
         this.sval();
         if (this._sv != null) {
@@ -913,12 +965,11 @@ var zera = (function() {
      * @abstract
      * @implements {Seq}
      */
-    function AMap(){}
-    AMap.prototype = Object.create(Seq.prototype);
-
+    function AMap() {}
     AMap.$zera$isProtocol = true;
     AMap.$zera$tag = 'zera.lang.AMap';
-    AMap.$zera$protocols = {'zera.lang.AMap': AMap};
+    AMap.$zera$protocols = {'zera.lang.IObj': IObj};
+    AMap.prototype = extendWithProtocols(AMap, Object.values(AMap.$zera$protocols));
 
     /**
      * @constructor
@@ -927,14 +978,14 @@ var zera = (function() {
     // TODO: add IHashEq
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
-        Seq.call(this, meta);
+        this.$zera$meta = meta;
         this.$zera$typeName = ArrayMap.$zera$tag;
         ZeraType.call(this, ArrayMap.$zera$tag, null, ArrayMap.$zera$protocols);
     }
 
     ArrayMap.$zera$tag = Sym.intern('zera.lang.ArrayMap');
     ArrayMap.$zera$isType = true;
-    ArrayMap.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
+    ArrayMap.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.AMap': AMap};
     ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap(null, []);
@@ -996,12 +1047,12 @@ var zera = (function() {
 
     ArrayMap.prototype.conj = function(entries) {
         var i, x, array = this.$zera$array, a = [];
-        for (i = 0; i < array.length; i++) {
-            a.push(array[i]);
-        }
         for (i = 0; i < entries.length; i++) {
             x = mapEntry(entries[i]);
             a.push(x.key()); a.push(x.val());
+        }
+        for (i = 0; i < array.length; i++) {
+            a.push(array[i]);
         }
         return new ArrayMap(this.meta(), a);
     };
@@ -1213,12 +1264,12 @@ var zera = (function() {
     // Set
 
     function ASet(meta) {
-        Seq.call(this, meta);
+        this.$zera$meta = meta;
     }
     ASet.$zera$isProtocol = true;
     ASet.$zera$tag = 'zera.lang.ASet';
-    ASet.$zera$protocols = {'zera.lang.Seq': Seq};
-    ASet.prototype = Object.create(Seq.prototype); 
+    ASet.$zera$protocols = {'zera.lang.IObj': IObj};
+    ASet.prototype = Object.create(IObj.prototype); 
 
     function APersistentSet(meta, map) {
         this.$zera$rep = map || arrayMap();
@@ -1325,6 +1376,10 @@ var zera = (function() {
         return new HashSet(this.meta(), this.$zera$rep.assoc([x, x]));
     };
 
+    HashSet.prototype.seq = function() {
+        return this.$zera$rep.vals();
+    };
+
     function contains(s, v) {
         if (isSet(s)) {
             if (s.contains) return s.contains(v);
@@ -1360,15 +1415,15 @@ var zera = (function() {
     // Vectors
     // TODO: make Vector an abstract interface for PersistentVector and TransientVector
     function Vector(meta, rep) {
-        Seq.call(this, meta);
+        this.$zera$meta = meta;
         this.rep = rep == null ? [] : rep;
         ZeraType.call(this, Vector.$zera$tag, null, Vector.$zera$protocols);
     }
 
     Vector.$zera$tag = Sym.intern('zera.lang.Vector');
     Vector.$zera$isType = true;
-    Vector.$zera$protocols = {'zera.lang.Seq': Seq};
-    Vector.prototype = Object.create(Seq.prototype);
+    Vector.$zera$protocols = {'zera.lang.IObj': IObj};
+    Vector.prototype = Object.create(IObj.prototype);
 
     Vector.EMPTY = new Vector(null, []);
 
@@ -1385,7 +1440,7 @@ var zera = (function() {
         return this.$zera$meta;
     };
 
-    // Seq
+    // Seqable
     Vector.prototype.seq = function() {
         return this;
     };

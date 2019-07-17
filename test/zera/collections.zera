@@ -10,6 +10,7 @@
 (is (seq? '()))
 (is (seq? (range 10)))
 (is (seq? (map inc (range 10))))
+(is (seqable? '()))
 
 (is (= (count '()) 0))
 (is (= (count '(1)) 1))
@@ -34,13 +35,16 @@
 (is (= (conj [] 1) [1]))
 (is (= (conj [2] 1) [2 1])) 
 (is (not (seq? [])))
+(is (seqable? []))
 
 ; maps
 (is (= (conj {} [:a 1]) {:a 1}))
 (is (= (conj {:a 1} [:b 2]) {:a 1 :b 2}))
 (is (not (seq? {})))
+(is (seqable? {}))
 
 ; sets
 (is (= (conj #{} 1) #{1}))
 (is (= (conj #{1} 2) #{2 1}))
 (is (not (seq? #{})))
+(is (seqable? #{}))
