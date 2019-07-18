@@ -978,6 +978,7 @@ var zera = (function() {
     // TODO: add IHashEq
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
+        if (this.$zera$array.length % 2 !== 0) throw new Error('Maps should have an even number of entries');
         this.$zera$meta = meta;
         this.$zera$typeName = ArrayMap.$zera$tag;
         ZeraType.call(this, ArrayMap.$zera$tag, null, ArrayMap.$zera$protocols);
@@ -1031,12 +1032,12 @@ var zera = (function() {
 
     ArrayMap.prototype.conj = function(entries) {
         var i, x, array = this.$zera$array, a = [];
+        for (i = 0; i < array.length; i++) {
+            a.push(array[i]);
+        }
         for (i = 0; i < entries.length; i++) {
             x = mapEntry(entries[i]);
             a.push(x.key()); a.push(x.val());
-        }
-        for (i = 0; i < array.length; i++) {
-            a.push(array[i]);
         }
         return new ArrayMap(this.meta(), a);
     };
@@ -1117,6 +1118,8 @@ var zera = (function() {
         }
         return false;
     };
+
+    ArrayMap.prototype.contains = ArrayMap.prototype.containsKey;
 
     // Equals
     ArrayMap.prototype.equals = function(other) {
@@ -1238,12 +1241,26 @@ var zera = (function() {
     }
 
     function containsKey(m, k) {
-        if (isMap(m)) {
-            if (m.containsKey) return m.containsKey(k);
+        if (m.containsKey) {
+            return m.containsKey(k);
+        }
+        else if (isJSFn(m.has)) {
             return m.has(k);
         }
         else {
             throw new Error(str("Not a valid map"));
+        }
+    }
+
+    function contains(col, k) {
+        if (isJSFn(col.contains)) {
+            return col.contains(k);
+        }
+        else if (isJSFn(col.has)) {
+            return col.has(k);
+        }
+        else {
+            throw new Error(str(prnStr(col), ' is not an associative collection'));
         }
     }
 
@@ -1357,16 +1374,6 @@ var zera = (function() {
         return this;
     };
 
-    function contains(s, v) {
-        if (isSet(s)) {
-            if (s.contains) return s.contains(v);
-            return s.has(v);
-        }
-        else {
-            throw new Error('Not a valid set');
-        }
-    }
-
     function isSet(x) {
         return x instanceof ASet; // || Object.prototype.toString.call('[object Set]');
     }
@@ -1419,23 +1426,7 @@ var zera = (function() {
 
     // Seqable
     Vector.prototype.seq = function() {
-        return this;
-    };
-
-    Vector.prototype.first = function() {
-        return this.rep[0];
-    };
-
-    Vector.prototype.next = function() {
-        if (this.rep.length === 0) {
-            return null;
-        }
-        return arrayToCons(this.rep.slice(1));
-    };
-
-    Vector.prototype.rest = function() {
-        var xs = this.next();
-        return xs === null ? Cons.EMPTY : xs;
+        return arrayToCons(this.rep);
     };
 
     Vector.prototype.count = function() {
@@ -1446,14 +1437,14 @@ var zera = (function() {
         return this.rep[k];
     };
 
+    Vector.prototype.contains = function(k) {
+        return this.rep[k] != null;
+    };
+
     Vector.prototype.nth = Vector.prototype.find;
 
     Vector.prototype.conj = function(x) {
         return new Vector(null, this.rep.concat(x));
-    };
-
-    Vector.prototype.cons = function(x) {
-        return arrayToCons(this.rep).cons(x);
     };
 
     // Array
@@ -3384,9 +3375,12 @@ var zera = (function() {
     define(ZERA_NS, "array-map?", isArrayMap);
     define(ZERA_NS, "map?", isMap);
     define(ZERA_NS, "map-entry?", isMapEntry);
+    define(ZERA_NS, "contains-key?", containsKey);
+    define(ZERA_NS, "contains?", contains);
     define(ZERA_NS, "entries", entries);
     define(ZERA_NS, "get", get);
     define(ZERA_NS, "assoc", assoc);
+    define(ZERA_NS, "dissoc", dissoc);
     define(ZERA_NS, "keys", keys);
     define(ZERA_NS, "vals", vals);
     define(ZERA_NS, "key", key);
