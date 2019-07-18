@@ -3649,10 +3649,10 @@ var zera = (function() {
     define(ZERA_NS, '-', sub);
 
     var mult = function(x) {
-        if (x == null) return null;
         if (arguments.length === 0) {
             return 1;
         }
+        else if (x == null) return nil;
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
             return x;
