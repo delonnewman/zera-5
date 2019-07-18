@@ -505,14 +505,14 @@ var zera = (function() {
             if (isEmpty(x)) return null;
             return x;
         }
-        else if (isArrayLike(x)) {
-            if (x.length === 0) return null;
-            return arrayToCons(x);
-        }
         else if (isSeqable(x)) {
             var s = x.seq();
             if (isEmpty(s)) return null;
             return s;
+        }
+        else if (isArrayLike(x)) {
+            if (x.length === 0) return null;
+            return arrayToCons(x);
         }
         else {
             throw new Error(prnStr(x) + ' is not a valid Seq or Seqable');
@@ -1029,22 +1029,6 @@ var zera = (function() {
         return str('{', buff.join(', '), '}');
     };
 
-    ArrayMap.prototype.first = function() {
-        return new MapEntry(this.$zera$array[0], this.$zera$array[1]);
-    };
-
-    ArrayMap.prototype.next = function() {
-        return next(this.entries());
-    };
-
-    ArrayMap.prototype.rest = function() {
-        return rest(this.entries());
-    };
-
-    ArrayMap.prototype.cons = function(entry) {
-        return this.conj([entry]);
-    };
-
     ArrayMap.prototype.conj = function(entries) {
         var i, x, array = this.$zera$array, a = [];
         for (i = 0; i < entries.length; i++) {
@@ -1066,6 +1050,8 @@ var zera = (function() {
         }
         return list.apply(null, res);
     };
+
+    ArrayMap.prototype.seq = ArrayMap.prototype.entries;
 
     ArrayMap.prototype.keys = function() {
         var entries = this.$zera$array;
@@ -1134,7 +1120,7 @@ var zera = (function() {
 
     // Equals
     ArrayMap.prototype.equals = function(other) {
-        var a, b, i, key, val;
+        var a, i, key, val;
         if (!isArrayMap(other)) {
             return false;
         }
@@ -1143,10 +1129,10 @@ var zera = (function() {
         }
         else {
             a = this.$zera$array;
-            b = other.$zera$array;
-            for (i = 0; i < a.length; i++) {
-                if (!equals(a[i], b[i])) return false;
-                if (!equals(a[i + 1], b[i + 1])) return false;
+            for (i = 0; i < a.length; i += 2) {
+                key = a[i];
+                val = a[i + 1];
+                if (!equals(val, other.find(key))) return false;
             }
             return true;
         }
@@ -1371,15 +1357,6 @@ var zera = (function() {
         return this;
     };
 
-    HashSet.prototype.cons = function(x) {
-        if (this.contains(x)) return this;
-        return new HashSet(this.meta(), this.$zera$rep.assoc([x, x]));
-    };
-
-    HashSet.prototype.seq = function() {
-        return this.$zera$rep.vals();
-    };
-
     function contains(s, v) {
         if (isSet(s)) {
             if (s.contains) return s.contains(v);
@@ -1578,37 +1555,27 @@ var zera = (function() {
     }
 
     function first(xs) {
-        if (xs == null) return null;
-        else if (isJSFn(xs.first)) return xs.first();
-        else if (isArrayLike(xs)) {
-            return xs[0];
+        var s = seq(xs);
+        if (s != null) {
+            return s.first();
         }
-        else {
-            throw new Error(str("Don't know how to get the first element of: ", prnStr(xs)));
-        }
+        return s;
     }
 
     function next(xs) {
-        if (xs == null) return null;
-        else if (isJSFn(xs.next)) return xs.next();
-        else if (isArrayLike(xs)) {
-            if (xs.length === 0) return null;
-            return Array.prototype.slice.call(xs, 1);
+        var s = seq(xs);
+        if (s != null) {
+            return s.next();
         }
-        else {
-            throw new Error(str("Don't know how to get the next element of: ", prnStr(xs)));
-        }
+        return s;
     }
 
     function rest(xs) {
-        if (xs == null) return null;
-        else if (isJSFn(xs.rest)) return xs.rest();
-        else if (isArrayLike(xs)) {
-            return Array.prototype.slice.call(xs, 1);
+        var x = next(xs);
+        if (x == null) {
+            return Cons.EMPTY;
         }
-        else {
-            throw new Error(str("Don't know how to get the rest of the elements of: ", prnStr(xs)));
-        }
+        return x;
     }
 
     function second(xs) {
