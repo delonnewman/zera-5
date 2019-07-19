@@ -3630,8 +3630,8 @@ var zera = (function() {
             return x - y;
         }
         else {
-            var i, sum = 0;
-            for (i = 0; i < arguments.length; i++) {
+            var i, sum = arguments[0] - arguments[1];
+            for (i = 2; i < arguments.length; i++) {
                 sum -= 1*arguments[i];
             }
             return sum;
