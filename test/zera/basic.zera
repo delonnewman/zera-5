@@ -17,6 +17,20 @@
 (is (= (eval {:a [1 2] :b {:c 1}}) {:a [1 2] :b {:c 1}}))
 (is (= (eval #{:a [:b] {:c 1}}) #{:a [:b] {:c 1}}))
 
+;; special forms
+(is (= (cond false 1) nil))
+(is (= (cond false 1 :else 2) 2))
+(is (= (cond nil 1) nil))
+(is (= (cond nil 1 :else 2) 2))
+(is (= (cond true 1 :else 2) 1))
+(is (= (cond true 1) 1))
+(is (= (cond 1 1 :else 2) 1))
+(is (= (cond 1 1) 1))
+(is (= (cond "a string" 1 :else 2) 1))
+(is (= (cond "a string" 1) 1))
+(is (= (cond '() 1 :else 2) 1))
+(is (= (cond '() 1) 1))
+
 ;; arithmetic
 ;; +
 (is (= (+ nil) nil))
