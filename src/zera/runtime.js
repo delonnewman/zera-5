@@ -549,22 +549,11 @@ var zera = (function() {
      * @constructor
      * @implements {Seq}
      */
-    function Cons(meta, car, cdr) {
+    function Cons(meta, car, cdr, count) {
+        Seq.call(this, meta);
         this.$zera$car = car;
         this.$zera$cdr = cdr;
-        Seq.call(this, meta);
-        if (car == null && cdr == null) {
-            this.$zera$count = 0;
-        }
-        else if (cdr == null) {
-            this.$zera$count = 1;
-        }
-        else if (!(cdr instanceof Cons)) {
-            this.$zera$count = 1;
-        }
-        else {
-            this.$zera$count = cdr.count() + 1;
-        }
+        this.$zera$count = count;
         ZeraType.call(this, Cons.$zera$tag, null, Cons.$zera$protocols);
     }
 
@@ -573,7 +562,7 @@ var zera = (function() {
     Cons.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
     Cons.prototype = Object.create(Seq.prototype);
 
-    Cons.EMPTY = new Cons(null, null, null);
+    Cons.EMPTY = new Cons(null, null, null, 0);
 
     Cons.prototype.meta = function() {
         return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
@@ -606,9 +595,9 @@ var zera = (function() {
 
     Cons.prototype.cons = function(x) {
         if (this.isEmpty()) {
-            return new Cons(this.$zera$meta, x, null);
+            return new Cons(this.$zera$meta, x, null, 1);
         }
-        return new Cons(this.$zera$meta, x, this);
+        return new Cons(this.$zera$meta, x, this, this.$zera$count + 1);
     };
 
     Cons.prototype.conj = function(vals) {
@@ -660,12 +649,14 @@ var zera = (function() {
     };
 
     function cons(x, col) {
-        if (col == null) return new Cons(null, x, null);
+        if (col == null) return new Cons(null, x, null, 1);
         else if (isSeq(col)) return col.cons(x);
         else if (isSeqable(col)) {
             return seq(col).cons(x);
         }
-        return new Cons(null, x, col);
+        else {
+            throw new Error(str("Don't know how to cons: ", prnStr(col)));
+        }
     }
 
     function car(cons) {
@@ -3652,7 +3643,7 @@ var zera = (function() {
         if (arguments.length === 0) {
             return 1;
         }
-        else if (x == null) return nil;
+        else if (x == null) return null;
         else if (arguments.length === 1) {
             if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
             return x;
@@ -4214,10 +4205,11 @@ var zera = (function() {
         var r = new PushBackReader(str);
         var res, ret;
         while (true) {
-            res = read(r, {eofIsError: false, eofValue: null});
-            if (res != null) ret = res;
-            if (res == null) return ret;
+            res = read(r, {eofIsError: false, eofValue: {$zera$eof: true}});
+            if (res.$zera$eof !== true) ret = res;
+            if (res.$zera$eof === true) return ret;
         }
+        return ret;
     }
 
     function readNumber(r, initch) {
