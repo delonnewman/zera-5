@@ -18,6 +18,7 @@
 (is (= (eval #{:a [:b] {:c 1}}) #{:a [:b] {:c 1}}))
 
 ;; special forms
+;; cond
 (is (= (cond false 1) nil))
 (is (= (cond false 1 :else 2) 2))
 (is (= (cond nil 1) nil))
@@ -30,6 +31,13 @@
 (is (= (cond "a string" 1) 1))
 (is (= (cond '() 1 :else 2) 1))
 (is (= (cond '() 1) 1))
+
+;; fn
+(is (= ((fn [])) nil))
+(is (= ((fn [] 1)) 1))
+(is (= ((fn [x] x) 1) 1))
+(is (= ((fn [x y] [x y]) 1 2) [1 2]))
+(is (= ((fn [x & ys] [x ys]) 1 2 3) [1 '(2 3)]))
 
 ;; arithmetic
 ;; +
