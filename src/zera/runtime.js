@@ -483,7 +483,7 @@ var zera = (function() {
     }
 
     Seq.$zera$isProtocol = true;
-    Seq.$zera$tag = 'zera.lang.Seq'
+    Seq.$zera$tag = 'zera.lang.Seq';
     Seq.$zera$protocols = {'zera.lang.IObj': IObj};
     Seq.prototype = Object.create(IObj.prototype);
 
@@ -776,8 +776,8 @@ var zera = (function() {
         if (this.isEmpty()) return '()';
         var buff = [];
         var seq = this.seq();
-        while (seq !== null && !isEmpty(seq)) {
-            buff.push(prnStr(first(seq)));
+        while (seq != null) {
+            p(first(seq));
             seq = seq.next();
         }
         return '(' + buff.join(' ') + ')';
@@ -805,7 +805,7 @@ var zera = (function() {
     }
 
     function range(x, y, z) {
-        var start, stop, step;
+       var start, stop, step;
        if (arguments.length === 1) {
             start = 0;
             stop  = x;
@@ -829,7 +829,7 @@ var zera = (function() {
                 return null;
             }
             else {
-                return cons(start, range(start + step, stop, step));
+                return range(start + step, stop, step).cons(start);
             }
         });
     }

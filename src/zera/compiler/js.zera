@@ -1,6 +1,5 @@
 ; vim: ft=clojure
 (ns zera.compiler.js)
-(alias 'jc *ns*)
 
 (def ^:dynamic *indent-str* "    ")
 
@@ -90,18 +89,18 @@
    (str "try " block " catch " handler " finally " finalizer)))
 
 (defn catch-clause
-  [param &body]
+  [param & body]
   (str "(" param ") " (apply block body)))
 
 ;; Expressions
 (defn this [] "this")
 
 (defn array-expression
-  [&xs]
+  [& xs]
   (str "[" (join ", " xs) "]"))
 
 (defn object-expression
-  [&properties]
+  [& properties]
   (unless (even? (count properties)) (throw (js/Error. "an even number of pairs are required")))
   (str "{"
        (->> (partition 2 properties)
@@ -111,6 +110,9 @@
 (defn function-expression
   [args &body]
   (str "function (" (join ", " args) ") " (apply block body)))
+
+(defn function-application [ident & args]
+  (str ident "(" (join ", " args) ")"))
 
 (def unary-operators #{"-" "+" "!" "~" "typeof" "void" "delete"})
 
@@ -125,7 +127,7 @@
 
 (defn update-expression
   [op arg]
-  (unless (update-operators op) (throw (js/Error (str "invalid update operator: " op))))
+  (if-not (update-operators op) (throw (js/Error (str "invalid update operator: " op))))
   (str op arg))
 
 (def binary-operators #{"==" "!=" "===" "!==" "<" "<=" ">" ">=" "<<" ">>" ">>>" "+" "-" "*" "/" "%" "|" "^" "&" "in" "instanceof"})
@@ -139,14 +141,14 @@
 
 (defn assignment-expression
   [op left right]
-  (unless (assignment-operators op) (throw (js/Error (str "invalid assignment operator: " op))))
+  (if-not (assignment-operators op) (throw (js/Error (str "invalid assignment operator: " op))))
   (str left " " op " " right))
 
 (def logical-operators #{"||" "&&"})
 
 (defn logical-expression
   [op left right]
-  (unless (logical-operators op) (throw (js/Error (str "invalid logical operator: " op))))
+  (if-not (logical-operators op) (throw (js/Error (str "invalid logical operator: " op))))
   (str left " " op " " right))
 
 (defn member-expression
@@ -210,13 +212,32 @@
 
 (defmacro quote
   [x]
-  (cond (symbol? x) (list 'str "zera.core.symbol(" (list 'namespace x) ", " (list 'name x) ")")
-        (keyword? x) (str "zera.core.keyword(" (namespace x) (name x) ")")
-        (list? x) (str "zera.core.list(" (join ", " x) ")")
-        (vector? x) (str "zera.core.vector(" (join ", " x) ")")
-        (set? x) (str "zera.core.set([" (join ", " x) "])")
-        (map? x) (str "zera.core.hashMap(" (join ", " (map (fn [x] (str (x 0) ", " (x 1))) x)))
-        :else (str x)))
+  (cond (symbol? x)
+          (list 'function-application
+                (list 'ident 'zera.core.symbol
+                      (list 'string (list 'namespace x))
+                      (list 'string (list 'name x))))
+        (keyword? x)
+          (list 'function-application
+                (list 'ident 'zera.core.keyword
+                      (list 'string (list 'namespace x))
+                      (list 'string (list 'name x))))
+        (list? x)
+          (list 'function-application
+                (list 'ident
+                      (cons 'zera.core.list
+                            (map (fn [x] (list 'quote x)) x))))
+        (vector? x)
+          (list 'function-application
+                (list 'ident
+                      (cons 'zera.core.vector
+                            (map (fn [x] (list 'quote x)) x))))
+        (set? x)
+          (str "zera.core.set([" (join ", " x) "])")
+        (map? x)
+          (str "zera.core.hashMap(" (join ", " (map (fn [x] (str (x 0) ", " (x 1))) x)))
+        :else
+          (str x)))
 
 ;(prn (jc/def x))
 
