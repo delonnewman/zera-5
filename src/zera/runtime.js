@@ -499,6 +499,33 @@ var zera = (function() {
         throw new Error('unimplmented');
     };
 
+    Seq.prototype.equals = function(other) {
+        var a, b, xa, xb, xsa, xsb;
+        if (!isSeq(other)) {
+            return false;
+        }
+        else if (this.isEmpty() && this.isEmpty()) {
+            return true;
+        }
+        else if (this.count() != other.count()) {
+            return false;
+        }
+        else {
+            xsa = this;
+            xsb = other;
+            while (xsa != null) {
+                xa  = xsa.first();
+                xb  = xsb.first();
+                if (!equals(xa, xb)) {
+                    return false;
+                }
+                xsa = xsa.next();
+                xsb = xsb.next();
+            }
+            return true;
+        }
+    };
+
     function seq(x) {
         if (x == null) return null;
         else if (isSeq(x)) {
@@ -569,7 +596,7 @@ var zera = (function() {
     };
 
     Cons.prototype.withMeta = function(meta) {
-        return new Cons(meta, this.$zera$car, this.$zera$cdr);
+        return new Cons(meta, this.$zera$car, this.$zera$cdr, this.$zera$count);
     };
 
     Cons.prototype.first = function() {
@@ -619,33 +646,6 @@ var zera = (function() {
     // Seqable
     Cons.prototype.seq = function() {
         return this;
-    };
-
-    Cons.prototype.equals = function(other) {
-        var a, b, xa, xb, xsa, xsb;
-        if (!isCons(other)) {
-            return false;
-        }
-        else if (this.isEmpty() && this.isEmpty()) {
-            return true;
-        }
-        else if (this.count() != other.count()) {
-            return false;
-        }
-        else {
-            xsa = this;
-            xsb = other;
-            while (xsa != null) {
-                xa  = xsa.first();
-                xb  = xsb.first();
-                if (!equals(xa, xb)) {
-                    return false;
-                }
-                xsa = xsa.next();
-                xsb = xsb.next();
-            }
-            return true;
-        }
     };
 
     function cons(x, col) {
