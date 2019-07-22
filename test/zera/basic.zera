@@ -66,6 +66,16 @@
   (is (= y 2))
   (is (= z 3)))
 
+;; new
+(def d (new js/Date 2019 8 20))
+(is (inst? d))
+
+;; .
+(is (= (. d getFullYear) 2019))
+(is (= (.getFullYear d) 2019))
+(is (= (. d (getMonth)) 8))
+(is (= (.getFullYear (new js/Date (.parse js/Date "2019-07-01"))) 2019))
+
 ;; arithmetic
 ;; +
 (is (= (+ nil) nil))
