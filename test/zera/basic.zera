@@ -1,6 +1,6 @@
 ; vim: ft=clojure
-(ns test.zera.basic)
 (load-file "src/zera/test.zera")
+(ns test.zera.basic)
 (refer 'zera.test)
 
 ;; equality
@@ -43,11 +43,11 @@
 ;; def
 (def x 1)
 (is (= x 1))
-;(is (= test.zera.basic/x 1))
-;
-;;; var
-;(is (= (var-get (var test.zera.basic/x)) 1))
-;(is (= (var-get #'test.zera.basic/x) 1))
+(is (= test.zera.basic/x 1))
+
+;; var
+(is (= (var-get (var test.zera.basic/x)) 1))
+(is (= (var-get #'test.zera.basic/x) 1))
 
 ;; set!
 (def ^:dynamic y x)
