@@ -2141,6 +2141,8 @@ var zera = (function() {
     Namespace.$zera$tag = Sym.intern('zera.lang.Namespace');
     Namespace.$zera$isType = true;
 
+    Namespace.prototype = Object.create(null);
+
     Namespace.namespaces = {};
 
     Namespace.all = function() {

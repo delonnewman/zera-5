@@ -1,3 +1,4 @@
+; vim: ft=clojure
 (ns test.zera.basic)
 (load-file "src/zera/test.zera")
 (refer 'zera.test)
@@ -39,6 +40,32 @@
 (is (= ((fn [x y] [x y]) 1 2) [1 2]))
 (is (= ((fn [x & ys] [x ys]) 1 2 3) [1 '(2 3)]))
 
+;; def
+(def x 1)
+(is (= x 1))
+;(is (= test.zera.basic/x 1))
+;
+;;; var
+;(is (= (var-get (var test.zera.basic/x)) 1))
+;(is (= (var-get #'test.zera.basic/x) 1))
+
+;; set!
+(def ^:dynamic y x)
+(is (= y 1))
+(set! y 2)
+(is (= y 2))
+
+;; do
+(def x (atom false))
+(is (= (do (reset! x true) 1) 1))
+(is x)
+
+;; let
+(let [x 1, y 2, z (+ x y)]
+  (is (= x 1))
+  (is (= y 2))
+  (is (= z 3)))
+
 ;; arithmetic
 ;; +
 (is (= (+ nil) nil))
@@ -67,3 +94,31 @@
 (is (= (/ 1 2) 0.5))
 (is (= (/ 1 2 3) (/ 1 6)))
 (is (= (/ 1 2 3 4) (/ 1 24)))
+
+;; predicates
+(is (boolean? true))
+(is (boolean? false))
+(is (not (boolean? nil)))
+(is (not (boolean? 1)))
+(is (not (boolean? "Hey there!")))
+
+(is (true? true))
+(is (not (true? false)))
+(is (not (true? nil)))
+(is (not (true? 1)))
+(is (not (true? "Hey there!")))
+
+(is (false? false))
+(is (not (false? true)))
+(is (not (false? nil)))
+(is (not (false? 1)))
+(is (not (false? "Hey there!")))
+
+(is (string? "Hey there!"))
+
+(is (number? 3.1415))
+(is (number? 10e6))
+(is (number? 10000))
+(is (not (integer? 3.1415)))
+(is (integer? 10e6))
+(is (integer? 10000))
