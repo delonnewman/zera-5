@@ -711,11 +711,8 @@ var zera = (function() {
 
     LazySeq.prototype.sval = function() {
         if (this.fn != null) {
-            this._sv = apply(this.fn);
+            this._seq = apply(this.fn);
             this.fn = null;
-        }
-        if (this._sv != null) {
-            return this._sv;
         }
         return this._seq;
     };
@@ -723,15 +720,14 @@ var zera = (function() {
     // Sequable
     LazySeq.prototype.seq = function() {
         this.sval();
-        if (this._sv != null) {
-            var ls = this._sv;
-            this._sv = null;
+        if (this._seq != null) {
+            var ls = this._seq;
             while (ls instanceof LazySeq) {
                 ls = ls.sval();
             }
             this._seq = ls;
         }
-        return this._seq;
+        return seq(this._seq);
     };
 
     LazySeq.prototype.count = function() {
@@ -3005,6 +3001,10 @@ var zera = (function() {
     }
 
     var top = env();
+    var MSG_KEY = keyword('msg');
+    var FN_KEY = keyword('fn');
+    var FILE_KEY = keyword('file');
+    var LINE_KEY = keyword('line');
 
     // TODO: add try, catch, finally
     function evaluate(form_, env_, stack) {
@@ -3095,6 +3095,7 @@ var zera = (function() {
         }
         catch (e) {
             if (e instanceof Error || e instanceof String) {
+                stack = stack.cons(e);
                 var msg = str('Error evaluating ', prnStr(form_), ': ');
                 if (e.stack) {
                     msg += e.stack;
@@ -3106,6 +3107,7 @@ var zera = (function() {
                     console.log(e);
                     msg += e;
                 }
+                prn(stack);
                 throw new Error(msg);
             }
             else {
