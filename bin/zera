@@ -36,7 +36,20 @@ function interactive() {
       }
     }
     catch (e) {
-      console.error(e);
+        if (e instanceof zera.lang.ZeraError) {
+            if (e.parent && e.parent.stack) {
+                console.error(e.parent.stack);
+            }
+            else {
+                console.error(e.msg);
+            }
+            e.stack.forEach((name) => {
+                console.error("    at " + name.toString());
+            });
+        }
+        else {
+            console.error(e);
+        }
     }
     rl.prompt();
   }).on('close', function() {

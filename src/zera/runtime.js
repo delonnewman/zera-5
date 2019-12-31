@@ -532,14 +532,14 @@ var zera = (function() {
             if (isEmpty(x)) return null;
             return x;
         }
-        else if (isSeqable(x)) {
+        else if (isFunction(x.seq)) {
             var s = x.seq();
             if (isEmpty(s)) return null;
             return s;
         }
         else if (isArrayLike(x)) {
             if (x.length === 0) return null;
-            return arrayToCons(x);
+            return arrayToList(x);
         }
         else {
             throw new Error(prnStr(x) + ' is not a valid Seq or Seqable');
@@ -567,80 +567,40 @@ var zera = (function() {
     List.prototype = Object.create(Seq.prototype);
 
     function isList(x) {
-        return isa(x, List) || (x.isList && x.isList());
+        return isa(x, List);
     }
 
-    // Cons
-
-    /**
-     * @constructor
-     * @implements {Seq}
-     */
-    function Cons(meta, car, cdr, count) {
+    function Cons(meta, first, more) {
         Seq.call(this, meta);
-        this.$zera$car = car;
-        this.$zera$cdr = cdr;
-        this.$zera$count = count;
+        this._first = first;
+        this._more = more;
         ZeraType.call(this, Cons.$zera$tag, null, Cons.$zera$protocols);
     }
 
     Cons.$zera$tag = Sym.intern('zera.lang.Cons');
     Cons.$zera$isType = true;
-    Cons.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap};
+    Cons.$zera$protocols = {'zera.lang.List': List};
     Cons.prototype = Object.create(Seq.prototype);
 
-    Cons.EMPTY = new Cons(null, null, null, 0);
-
-    Cons.prototype.meta = function() {
-        return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
-    };
-
-    Cons.prototype.withMeta = function(meta) {
-        return new Cons(meta, this.$zera$car, this.$zera$cdr, this.$zera$count);
-    };
-
+    // ISeq
     Cons.prototype.first = function() {
-        return this.$zera$car;
+        return this._first;
     };
 
-    Cons.prototype.rest = function() {
-        if (this.next() == null) {
-            return Cons.EMPTY;
-        }
-        else {
-            return this.next();
-        }
+    // ISeq
+    Cons.prototype.more = function() {
+        if (this._more == null)
+            return PersistentList.EMPTY;
+        return this._more;
+    };
+
+    // ISeq
+    Cons.prototype.next = function() {
+        return this.more().seq();
     };
 
     Cons.prototype.count = function() {
-        return this.$zera$count;
-    };
-
-    Cons.prototype.next = function() {
-        return this.$zera$cdr;
-    };
-
-    Cons.prototype.cons = function(x) {
-        if (this.isEmpty()) {
-            return new Cons(this.$zera$meta, x, null, 1);
-        }
-        return new Cons(this.$zera$meta, x, this, this.$zera$count + 1);
-    };
-
-    Cons.prototype.conj = function(vals) {
-        var i, xs = this;
-        for (i = 0; i < vals.length; i++) {
-            xs = xs.cons(vals[i]);
-        }
-        return xs;
-    };
-
-    Cons.prototype.isEmpty = function() {
-        return this.$zera$count === 0;
-    };
-
-    Cons.prototype.isList = function() {
-        return true;
+        return 1 + count(this._more);
     };
 
     // Seqable
@@ -648,11 +608,102 @@ var zera = (function() {
         return this;
     };
 
+    // IMeta
+    Cons.prototype.withMeta = function(meta) {
+        return new Cons(meta, this._first, this._more);
+    };
+
+    Cons.prototype.meta = function() {
+        return this.$zera$meta;
+    };
+
+    // PersistentList
+
+    /**
+     * @constructor
+     * @implements {Seq}
+     */
+    function PersistentList(meta, car, cdr, count) {
+        Seq.call(this, meta);
+        this.$zera$car = car;
+        this.$zera$cdr = cdr;
+        this.$zera$count = count;
+        ZeraType.call(this, PersistentList.$zera$tag, null, PersistentList.$zera$protocols);
+    }
+
+    PersistentList.$zera$tag = Sym.intern('zera.lang.PersistentList');
+    PersistentList.$zera$isType = true;
+    PersistentList.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap, 'zera.lang.List': List};
+    PersistentList.prototype = Object.create(Seq.prototype);
+
+    PersistentList.EMPTY = new PersistentList(null, null, null, 0);
+
+    PersistentList.prototype.meta = function() {
+        return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
+    };
+
+    PersistentList.prototype.withMeta = function(meta) {
+        return new PersistentList(meta, this.$zera$car, this.$zera$cdr, this.$zera$count);
+    };
+
+    PersistentList.prototype.first = function() {
+        return this.$zera$car;
+    };
+
+    PersistentList.prototype.rest = function() {
+        if (this.next() == null) {
+            return PersistentList.EMPTY;
+        }
+        else {
+            return this.next();
+        }
+    };
+
+    PersistentList.prototype.count = function() {
+        return this.$zera$count;
+    };
+
+    PersistentList.prototype.next = function() {
+        return this.$zera$cdr;
+    };
+
+    PersistentList.prototype.cons = function(x) {
+        if (this.isEmpty()) {
+            return new PersistentList(this.$zera$meta, x, null, 1);
+        }
+        return new PersistentList(this.$zera$meta, x, this, this.$zera$count + 1);
+    };
+
+    PersistentList.prototype.conj = function(vals) {
+        var i, xs = this;
+        for (i = 0; i < vals.length; i++) {
+            xs = xs.cons(vals[i]);
+        }
+        return xs;
+    };
+
+    PersistentList.prototype.isEmpty = function() {
+        return this.$zera$count === 0;
+    };
+
+    PersistentList.prototype.isList = function() {
+        return true;
+    };
+
+    // Seqable
+    PersistentList.prototype.seq = function() {
+        return this;
+    };
+
     function cons(x, col) {
-        if (col == null) return new Cons(null, x, null, 1);
-        else if (isSeq(col)) return col.cons(x);
+        if (col == null) {
+            return new PersistentList(null, x, null, 1);
+        }
+        else if (isSeq(col)) {
+            return new Cons(null, x, col);
+        }
         else if (isSeqable(col)) {
-            return seq(col).cons(x);
+            return new Cons(null, x, seq(col));
         }
         else {
             throw new Error(str("Don't know how to cons: ", prnStr(col)));
@@ -667,7 +718,9 @@ var zera = (function() {
 
     function cdr(cons) {
         if (cons == null) return null;
-        if (cons != null && isJSFn(cons.rest)) return cons.rest();
+        if (isJSFn(cons.next)) {
+            return cons.next();
+        }
         throw new Error(str('Not a valid Cons: ', prnStr(cons)));
     }
 
@@ -675,10 +728,14 @@ var zera = (function() {
         return isa(x, Cons);
     }
 
+    function isPersistentList(x) {
+        return isa(x, PersistentList);
+    }
+
     // make a list out of conses
     function list() {
         if (arguments.length === 0) {
-            return Cons.EMPTY;
+            return PersistentList.EMPTY;
         }
         else if (arguments.length === 1) {
             return cons(arguments[0], null);
@@ -696,6 +753,7 @@ var zera = (function() {
      * @constructor
      * @implements {Seq}
      */
+    /*
     function LazySeq(seq, fn) {
         this.fn = fn == null ? null : fn;
         this._seq = seq == null ? null : seq;
@@ -711,8 +769,11 @@ var zera = (function() {
 
     LazySeq.prototype.sval = function() {
         if (this.fn != null) {
-            this._seq = apply(this.fn);
+            this._sv = this.fn.call();
             this.fn = null;
+        }
+        if (this._sv != null) {
+            return this._sv;
         }
         return this._seq;
     };
@@ -720,14 +781,15 @@ var zera = (function() {
     // Sequable
     LazySeq.prototype.seq = function() {
         this.sval();
-        if (this._seq != null) {
-            var ls = this._seq;
+        if (this._sv != null) {
+            var ls = this._sv;
+            this._sv = null;
             while (ls instanceof LazySeq) {
                 ls = ls.sval();
             }
             this._seq = ls;
         }
-        return seq(this._seq);
+        return this._seq;
     };
 
     LazySeq.prototype.count = function() {
@@ -747,7 +809,7 @@ var zera = (function() {
         if (this._seq == null) {
             return null;
         }
-        return first(this._seq);
+        return this._seq.first();
     };
 
     LazySeq.prototype.next = function() {
@@ -755,7 +817,7 @@ var zera = (function() {
         if (this._seq == null) {
             return null;
         }
-        return next(this._seq);
+        return this._seq.next();
     };
 
     LazySeq.prototype.rest = function() {
@@ -778,13 +840,77 @@ var zera = (function() {
         }
         return '(' + buff.join(' ') + ')';
     };
+    */
+
+    function LazyList(seq, fn) {
+        this.fn = fn == null ? null : fn;
+        this._seq = seq == null ? null : seq;
+        this._sv = null;
+    }
+
+    LazyList.prototype = Object.create(List.prototype);
+
+    LazyList.prototype.sval = function() {
+        if (this.fn != null) {
+            this._sv = this.fn.call();
+            this.fn = null;
+        }
+        if (this._sv != null) {
+            return this._sv;
+        }
+        return this._seq;
+    };
+
+    LazyList.prototype.seq = function() {
+        this.sval();
+        if (this._sv != null) {
+            var ls = this._sv;
+            this._sv = null;
+            while (ls instanceof LazyList) {
+                ls = ls.sval();
+            }
+            this._seq = ls;
+        }
+        return this._seq;
+    };
+
+    LazyList.prototype.count = function() {
+        var c = 0,
+            s;
+        for (s = this; s != null; s = s.next()) {
+            c++;
+        }
+        return c;
+    };
+
+    LazyList.prototype.cons = function(x) {
+        return cons(x, this.seq());
+    };
+
+    LazyList.prototype.first = function() {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.first();
+    };
+
+    LazyList.prototype.next = function() {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.next();
+    };
+
+    var LazySeq = LazyList;
 
     function lazySeq(fn) {
-        return new LazySeq(null, fn);
+        return new LazyList(null, fn);
     }
 
     function isLazySeq(x) {
-        return isa(x, LazySeq);
+        return isa(x, LazyList);
     }
 
     function take(n, xs) {
@@ -792,12 +918,19 @@ var zera = (function() {
             throw new Error(str('Wrong number of arguments expected: 2, got: ', arguments.length));
         }
         return lazySeq(function() {
-            if (n > 0) {
+            if (n >= 0) {
                 return cons(first(xs), take(n - 1, rest(xs)));
             } else {
                 return null;
             }
         });
+    }
+
+    function N(n) {
+        var n_ = n == null ? 0 : n;
+        return cons(n_, lazySeq(function() {
+            return N(n_ + 1);
+        }));
     }
 
     function range(x, y, z) {
@@ -825,7 +958,7 @@ var zera = (function() {
                 return null;
             }
             else {
-                return range(start + step, stop, step).cons(start);
+                return cons(start, range(start + step, stop, step));
             }
         });
     }
@@ -1413,7 +1546,7 @@ var zera = (function() {
 
     // Seqable
     Vector.prototype.seq = function() {
-        return arrayToCons(this.rep);
+        return arrayToList(this.rep);
     };
 
     Vector.prototype.count = function() {
@@ -1507,6 +1640,13 @@ var zera = (function() {
         else if (isJSFn(col.count)) {
             return col.count();
         }
+        else if (isSeq(col)) {
+            var n = 0, s;
+            for (s = col; s != null; s = s.next()) {
+                n++;
+            }
+            return n;
+        }
         // array-like
         else if (col.length != null) {
             return col.length;
@@ -1518,7 +1658,7 @@ var zera = (function() {
 
     function conj(col) {
         var args = Array.prototype.slice.call(arguments, 1);
-        var xs = col == null ? Cons.EMPTY : col;
+        var xs = col == null ? PersistentList.EMPTY : col;
         var i;
         if (isJSFn(xs.conj)) return xs.conj(args);
         else if (isArrayLike(xs)) {
@@ -1551,7 +1691,7 @@ var zera = (function() {
     function rest(xs) {
         var x = next(xs);
         if (x == null) {
-            return Cons.EMPTY;
+            return PersistentList.EMPTY;
         }
         return x;
     }
@@ -1562,6 +1702,9 @@ var zera = (function() {
 
     function isEmpty(x) {
         if (x == null) return true;
+        else if (isSeq(x)) {
+            return x.next() == null && x.first() == null;
+        }
         else if (isJSFn(x.isEmpty)) return x.isEmpty();
         else if (isJSFn(x.count)) return x.count() === 0;
         else if (isArrayLike(x)) return x.length === 0;
@@ -1790,7 +1933,7 @@ var zera = (function() {
             return str('"', x, '"');
         } else if (isEnv(x)) {
             return 'env';
-        } else if (isCons(x)) {
+        } else if (isList(x)) {
             if (isEmpty(x)) {
                 return '()';
             } else {
@@ -1851,6 +1994,10 @@ var zera = (function() {
         return Object.prototype.toString.call(x) === '[object String]';
     }
 
+    function isError(x) {
+        return Object.prototype.toString.call(x) === '[object Error]';
+    }
+
     function str() {
         return Array.prototype.slice.call(arguments).join('');
     }
@@ -1868,9 +2015,9 @@ var zera = (function() {
         }
     }
 
-    function arrayToCons(a) {
-        if (a == null || a.length === 0) return Cons.EMPTY;
-        else if (a.length === 1) return cons(a[0], Cons.EMPTY);
+    function arrayToList(a) {
+        if (a == null || a.length === 0) return PersistentList.EMPTY;
+        else if (a.length === 1) return cons(a[0], PersistentList.EMPTY);
         var i;
         var list = null;
         for (i = a.length - 1; i >= 0; i--) {
@@ -2441,7 +2588,7 @@ var zera = (function() {
             defineLexically(scope, name, evaluate(binds[i + 1], scope));
         }
         
-        var x = car(body), xs = cdr(body), ret;
+        var x = car(body), xs = body.rest(), ret;
         while (x != null) {
             ret = evaluate(x, scope);
             x = xs.first();
@@ -2475,11 +2622,11 @@ var zera = (function() {
 
     function reverse(xs) {
         if (isEmpty(xs)) {
-            return Cons.EMPTY;
+            return PersistentList.EMPTY;
         } else {
             var xs_ = cdr(xs),
                 x = car(xs),
-                l = Cons.EMPTY;
+                l = PersistentList.EMPTY;
             while (x) {
                 l = cons(x, l);
                 x = car(xs_);
@@ -2608,9 +2755,10 @@ var zera = (function() {
     }
 
     function evalApplication(form, env, stack) {
-        var fn = evaluate(car(form), env, cons(form, stack));
+        var stack_ = conj(stack, car(form));
+        var fn = evaluate(car(form), env, stack_);
         var args = cdr(form);
-        var a = mapA(function(x) { return evaluate(x, env); }, args);
+        var a = mapA(function(x) { return evaluate(x, env, stack_); }, args);
         var args_ = list.apply(null, a);
         return apply(fn, args_);
     }
@@ -2624,7 +2772,7 @@ var zera = (function() {
         var xs = cdr(form),
             names = car(xs),
             body = cdr(xs);
-        if (isCons(names)) {
+        if (isList(names)) {
             var arglists = mapA(first, xs),
                 bodies = mapA(rest, xs),
                 arglists_ = {},
@@ -2656,7 +2804,7 @@ var zera = (function() {
     }
 
     function isTaggedValue(x) {
-        return isCons(x) && isSymbol(car(x));
+        return isList(x) && isSymbol(car(x));
     }
 
     var AMP_FORM = Sym.intern('&form');
@@ -2664,8 +2812,10 @@ var zera = (function() {
 
     // TODO: set &form and &env in macro scope
     function macroexpand(form, env_, stack) {
+        var stack_;
         if (isTaggedValue(form)) {
             var sym  = car(form);
+            stack_ = conj(stack, sym);
             var name = sym.toString();
             if (SPECIAL_FORMS[name]) {
                 return form;
@@ -2686,7 +2836,7 @@ var zera = (function() {
                     var scope = env(env_);
                     defineLexically(scope, AMP_ENV, scope);
                     defineLexically(scope, AMP_FORM, form);
-                    return macroexpand(apply(v.get(), cdr(form)), scope, stack);
+                    return macroexpand(apply(v.get(), next(form)), scope, stack_);
                 }
                 else {
                     return form;
@@ -2791,7 +2941,7 @@ var zera = (function() {
             } else {
                 return val;
             }
-        } else if (isCons(member)) {
+        } else if (isList(member)) {
             var name = str(car(member));
             val = obj[name];
             if (name.startsWith('-')) {
@@ -2823,8 +2973,8 @@ var zera = (function() {
     }
     
     function evalDoBlock(form, env) {
-        var x  = car(cdr(form)),
-            xs = cdr(cdr(form)),
+        var x  = first(rest(form)),
+            xs = rest(rest(form)),
             ret;
         while (x != null) {
             ret = evaluate(x, env);
@@ -2853,17 +3003,26 @@ var zera = (function() {
 
     function intoArray(from) {
         var a = [];
-        if (from === null) {
+        if (from == null) {
             return a;
+        }
+        else if (isFunction(from.toArray)) {
+            return from.toArray();
         }
         else if (isArray(from)) {
             return from;
         }
-        var s = seq(from);
-        while (s !== null) {
-            a.push(first(s));
-            s = next(s);
+        else if (isSeq(from) || isSeqable(from)) {
+            var s;
+            for (s = seq(from); s != null; s = s.next()) {
+                a.push(s.first());
+            }
+            return a;
         }
+        else {
+            throw new Error(str("Don't know how to convert ", prnStr(from), " into an array"));
+        }
+        
         return a;
     }
 
@@ -3006,14 +3165,21 @@ var zera = (function() {
     var FILE_KEY = keyword('file');
     var LINE_KEY = keyword('line');
 
+    function ZeraError(msg, stack, parent) {
+        this.msg = msg;
+        this.stack = stack;
+        this.parent = parent;
+    }
+
     // TODO: add try, catch, finally
-    function evaluate(form_, env_, stack) {
+    function evaluate(form_, env_, stack_) {
+        var stack, env, recur, ret, form;
         try {
-            var stack = stack || list();
-            var env = env_ || top;
-            var recur = true;
-            var ret = null;
-            var form = macroexpand(form_, env_, stack);
+            stack = stack_ || vector();
+            env = env_ || top;
+            recur = true;
+            ret = null;
+            form = macroexpand(form_, env_, stack);
             while (recur) {
                 recur = false;
                 if (form == null || NIL_SYM.equals(form)) {
@@ -3037,8 +3203,8 @@ var zera = (function() {
                 else if (isSymbol(form)) {
                     ret = evalSymbol(form, env);
                 }
-                else if (isCons(form)) {
-                    if (form.isEmpty()) return form;
+                else if (isList(form)) {
+                    if (isEmpty(form)) return form;
                     var tag = str(car(form));
                     switch (tag) {
                         case 'quote':
@@ -3087,28 +3253,23 @@ var zera = (function() {
                             ret = evalApplication(form, env, stack);
                             break;
                     }
-                } else {
+                }
+                else {
+                    console.error('Invalid form', form);
                     throw new Error(str('invalid form: "', form, '"'));
                 }
             }
             return ret;
         }
         catch (e) {
-            if (e instanceof Error || e instanceof String) {
-                stack = stack.cons(e);
-                var msg = str('Error evaluating ', prnStr(form_), ': ');
-                if (e.stack) {
-                    msg += e.stack;
-                }
-                else if (e.message) {
-                    msg += e.message;
-                }
-                else {
-                    console.log(e);
-                    msg += e;
-                }
-                prn(stack);
-                throw new Error(msg);
+            if (e instanceof ZeraError) {
+                throw new ZeraError(e.msg, e.stack, e.parent);
+            }
+            else if (isError(e)) {
+                throw new ZeraError(e.message, intoArray(stack), e);
+            }
+            else if (isString(e)) {
+                throw new ZeraError(e, intoArray(stack), new Error(e));
             }
             else {
                 throw e;
@@ -3144,11 +3305,11 @@ var zera = (function() {
     }
 
     function isRecur(x) {
-        return isCons(x) && RECUR_SYM.equals(first(x));
+        return isList(x) && RECUR_SYM.equals(first(x));
     }
 
     function isThrow(x) {
-        return isCons(x) && THROW_SYM.equals(first(x));
+        return isList(x) && THROW_SYM.equals(first(x));
     }
 
     function alast(a) {
@@ -3262,14 +3423,14 @@ var zera = (function() {
                 return Sym.intern(exp);
             }
         } else if (isArray(exp)) {
-            if (exp.length === 0) return Cons.EMPTY;
-            if (exp.length === 1) return cons(readJS(exp[0]), Cons.EMPTY);
+            if (exp.length === 0) return PersistentList.EMPTY;
+            if (exp.length === 1) return cons(readJS(exp[0]), PersistentList.EMPTY);
             var xs = null;
             var last = null, x;
             for (i = exp.length - 1; i >= 0; i--) {
                 // use & to read pairs
                 if (exp[i] === '&') {
-                    if (exp.length === 2) return cons(Cons.EMPTY, readJS(last));
+                    if (exp.length === 2) return cons(PersistentList.EMPTY, readJS(last));
                     i--;
                     x = cons(readJS(exp[i]), last);
                     if (exp.length === 3) return x;
@@ -3318,6 +3479,7 @@ var zera = (function() {
     define(ZERA_NS, "zera.lang.Keyword", Keyword);
     define(ZERA_NS, "zera.lang.Seq", Seq);
     define(ZERA_NS, "zera.lang.List", List);
+    define(ZERA_NS, "zera.lang.PersistentList", PersistentList);
     define(ZERA_NS, "zera.lang.Vector", Vector);
     define(ZERA_NS, "zera.lang.Cons", Cons);
     define(ZERA_NS, "zera.lang.LazySeq", LazySeq);
@@ -3399,6 +3561,7 @@ var zera = (function() {
     define(ZERA_NS, "remove", remove);
     define(ZERA_NS, "take", take);
     define(ZERA_NS, "range", range);
+    define(ZERA_NS, "N", N);
     define(ZERA_NS, "repeat", repeat);
     define(ZERA_NS, "first", first);
     define(ZERA_NS, "rest", rest);
@@ -3417,6 +3580,7 @@ var zera = (function() {
     define(ZERA_NS, "true?", isTrue);
     define(ZERA_NS, "false?", isFalse);
     define(ZERA_NS, "string?", isString);
+    define(ZERA_NS, "error?", isError);
     define(ZERA_NS, "symbol?", isSymbol);
     define(ZERA_NS, "symbol", symbol);
     define(ZERA_NS, "gensym", gensym);
@@ -3458,6 +3622,7 @@ var zera = (function() {
     define(ZERA_NS, "identical?", function(a, b) {
         return a === b;
     });
+
     define(ZERA_NS, "equiv?", function(a, b) {
         return a == b;
     });
@@ -4388,6 +4553,7 @@ var zera = (function() {
             Var: Var,
             Namespace: Namespace,
             RecursionPoint: RecursionPoint,
+            ZeraError: ZeraError,
             env: env
         },
         reader: {

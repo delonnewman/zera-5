@@ -3,4 +3,6 @@
 (load-file "src/zera/test.zera")
 (refer 'zera.test)
 
-(defn nat ([] (nat 0)) ([n] (lazy-seq (cons n (nat (inc n))))))
+(defn nat
+  ([] (nat 0))
+  ([n] (lazy-seq (cons n (nat (inc n))))))
