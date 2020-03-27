@@ -1933,6 +1933,8 @@ var zera = (function() {
             return str('"', x, '"');
         } else if (isEnv(x)) {
             return 'env';
+        } else if (isLazySeq(x)) {
+            return '(...)';
         } else if (isList(x)) {
             if (isEmpty(x)) {
                 return '()';
