@@ -74,7 +74,7 @@ var zera = (function() {
 
     function meta(x) {
         if (x == null) return null;
-        else if (isJSFn(x.meta)) {
+        else if (isa(x, IMeta)) {
             return x.meta();
         }
         else {
@@ -2281,9 +2281,11 @@ var zera = (function() {
         this.$zera$mappings = {};
         this.$zera$aliases  = {};
         ZeraType.call(this, Namespace.$zera$tag, null, Namespace.$zera$protocols);
+        AReference.call(this, name.meta());
     }
 
     Namespace.$zera$tag = Sym.intern('zera.lang.Namespace');
+    Namespace.$zera$protocols = {'zera.lang.AReference': AReference, 'zera.lang.IMeta': IMeta};
     Namespace.$zera$isType = true;
 
     Namespace.prototype = Object.create(null);
@@ -2314,6 +2316,10 @@ var zera = (function() {
 
     Namespace.prototype.name = function() {
         return this.$zera$name;
+    };
+
+    Namespace.prototype.meta = function() {
+        return this.$zera$meta;
     };
 
     Namespace.prototype.mappings = function() {
