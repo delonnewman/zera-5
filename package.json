@@ -4,6 +4,7 @@
   "description": "",
   "main": "./index.js",
   "dependencies": {
+    "y18n": ">=4.0.1",
     "yargs": "^13.3.0"
   },
   "devDependencies": {},
