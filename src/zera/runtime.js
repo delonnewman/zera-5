@@ -9,66 +9,6 @@ var zera = (function () {
         typeof module !== "undefined" && typeof module.exports !== "undefined";
     var isBrowser = typeof window !== "undefined";
 
-    function isa(child, parent) {
-        if (child == null) return false;
-        if (child instanceof parent) return true;
-        var protocols = child.$zera$protocols;
-        if (protocols == null) return false;
-        return parent === protocols[parent.$zera$tag];
-    }
-
-    function isProtocol(obj) {
-        return obj.$zera$isProtocol === true;
-    }
-
-    function isType(obj) {
-        return obj.$zera$isType === true;
-    }
-
-    function initWithProtocols(obj) {
-        var protocols = Array.prototype.slice.call(arguments, 1);
-        if (protocols.length === 1 && isArray(protocols[0])) {
-            protocols = protocols[0];
-        }
-        var i, protocol;
-        for (i = 0; i < protocols.length; i++) {
-            protocol = protocols[i];
-            if (!isProtocol(protocol))
-                throw new Error(
-                    str(prnStr(protocol), " is not a valid protocol")
-                );
-            protocol.call(obj);
-        }
-    }
-
-    function extend(obj, other) {
-        if (obj == null) var obj = Object.create(null);
-        var keys = Object.keys(other);
-        var i, k, v;
-        for (i = 0; i < keys.length; i++) {
-            k = keys[i];
-            obj[k] = other[k];
-        }
-        return obj;
-    }
-
-    function extendWithProtocols(ctr) {
-        var protocols = Array.prototype.slice.call(arguments, 1);
-        if (protocols.length === 1 && isArray(protocols[0])) {
-            protocols = protocols[0];
-        }
-        var i, protocol;
-        for (i = 0; i < protocols.length; i++) {
-            protocol = protocols[i];
-            if (!isProtocol(protocol))
-                throw new Error(
-                    str(prnStr(protocol), " is not a valid protocol")
-                );
-            ctr.prototype = extend(ctr.prototype, protocol.prototype);
-        }
-        return ctr;
-    }
-
     /**
      * @interface
      */
@@ -1037,59 +977,6 @@ var zera = (function () {
         });
     }
 
-    function isNil(x) {
-        return x == null;
-    }
-
-    // Array operations
-
-    function isArray(x) {
-        return Object.prototype.toString.call(x) === "[object Array]";
-    }
-
-    function isArrayLike(x) {
-        return x != null && isNumber(x.length);
-    }
-
-    function aget(a, i) {
-        return a == null ? null : a[i];
-    }
-
-    function aset(a, i, v) {
-        if (a != null) a[i] = v;
-        return a;
-    }
-
-    function alength(a) {
-        return a.length;
-    }
-
-    function intArray(x) {
-        if (isNumber(x) || isArray(x)) {
-            return new Int32Array(x);
-        } else if (isSeq(x)) {
-            return new Int32Array(intoArray(x));
-        }
-        throw new Error(
-            str("Don't know how to convert ", prnStr(x), " into an Int32Array")
-        );
-    }
-
-    function floatArray(x) {
-        if (isNumber(x) || isArray(x)) {
-            return new Float32Array(x);
-        } else if (isSeq(x)) {
-            return new Float32Array(intoArray(x));
-        }
-        throw new Error(
-            str(
-                "Don't know how to convert ",
-                prnStr(x),
-                " into an Float32Array"
-            )
-        );
-    }
-
     // Map Interface
 
     /**
@@ -2003,6 +1890,14 @@ var zera = (function () {
         return ret;
     };
 
+
+    function mapL(f, xs) {
+        if (isEmpty(xs)) return null;
+
+        buffer = [];
+        
+    }
+    
     // TODO: look into transducers
     function map(f, xs) {
         if (arguments.length === 2) {
@@ -2017,10 +1912,6 @@ var zera = (function () {
                 str("Expected 2 arguments, got: ", arguments.length)
             );
         }
-    }
-
-    function isFalsy(x) {
-        return x === false || x == null;
     }
 
     function filter(f, xs) {
@@ -2065,106 +1956,6 @@ var zera = (function () {
         }
     }
 
-    function prnStr(x) {
-        if (x == null) return "nil";
-        else if (isNumber(x)) return str(x);
-        else if (isBoolean(x)) {
-            return x ? "true" : "false";
-        } else if (isString(x)) {
-            return str('"', x, '"');
-        } else if (isEnv(x)) {
-            return "env";
-        } else if (isLazySeq(x)) {
-            return "(...)";
-        } else if (isList(x)) {
-            if (isEmpty(x)) {
-                return "()";
-            } else {
-                var y;
-                var ys = x;
-                var buffer = [];
-                while (ys !== null) {
-                    y = first(ys);
-                    ys = next(ys);
-                    buffer.push(prnStr(y));
-                }
-                return str("(", buffer.join(" "), ")");
-            }
-        } else if (isArray(x)) {
-            if (x.length === 0) {
-                return "(array)";
-            }
-            return str("(array ", x.map(prnStr).join(" "), ")");
-        } else if (isJSFn(x)) {
-            if (x.$zera$tag != null) {
-                return str(x.$zera$tag);
-            }
-            return str('#js/function "', x.toString(), '"');
-        } else if (isArrayLike(x)) {
-            if (x.toString) {
-                return x.toString();
-            } else {
-                return str(
-                    "#js/object {",
-                    Array.prototype.slice
-                        .call(x)
-                        .map(function (x, i) {
-                            return str(i, " ", prnStr(x));
-                        })
-                        .join(", "),
-                    "}"
-                );
-            }
-        } else {
-            return "" + x;
-        }
-    }
-
-    function prn(x) {
-        console.log(prnStr(x));
-    }
-
-    function isBoolean(x) {
-        return Object.prototype.toString.call(x) === "[object Boolean]";
-    }
-
-    function isTrue(x) {
-        return x === true;
-    }
-
-    function isFalse(x) {
-        return x === false;
-    }
-
-    // symbols can be quoted with ":", "'" or by surrounding in "'s
-    function isString(x) {
-        return Object.prototype.toString.call(x) === "[object String]";
-    }
-
-    function isError(x) {
-        return Object.prototype.toString.call(x) === "[object Error]";
-    }
-
-    function str() {
-        return Array.prototype.slice.call(arguments).join("");
-    }
-
-    function num(x) {
-        var type = Object.prototype.toString.call(x);
-        if (type === "[object Number]") {
-            return x;
-        } else if (type === "[object String]") {
-            var x_ = 1 * x;
-            if (isNaN(x_))
-                throw new Error(
-                    str("Cannot convert: ", prnStr(x), " to a number")
-                );
-            return x_;
-        } else {
-            throw new Error(str("Cannot convert: ", prnStr(x), " to a number"));
-        }
-    }
-
     function arrayToList(a) {
         if (a == null || a.length === 0) return PersistentList.EMPTY;
         else if (a.length === 1) return cons(a[0], PersistentList.EMPTY);
@@ -2174,58 +1965,6 @@ var zera = (function () {
             list = cons(a[i], list);
         }
         return list;
-    }
-
-    function isNumber(x) {
-        return (
-            !isNaN(x) && Object.prototype.toString.call(x) === "[object Number]"
-        );
-    }
-
-    var isInteger = (function () {
-        if (Number.isInteger) {
-            return Number.isInteger;
-        } else {
-            return function (x) {
-                return (
-                    !isNaN(x) &&
-                    x === parseInt(Number(x)) &&
-                    !isNaN(parseInt(x, 10))
-                );
-            };
-        }
-    })();
-
-    function isPositive(x) {
-        return x > 0;
-    }
-
-    function isNegative(x) {
-        return x < 0;
-    }
-
-    function isZero(x) {
-        return x === 0;
-    }
-
-    function isAtomic(x) {
-        return (
-            isBoolean(x) ||
-            isNumber(x) ||
-            isString(x) ||
-            isKeyword(x) ||
-            x == null
-        );
-    }
-
-    function equals(a, b) {
-        if (a == null) {
-            return b == null;
-        } else if (isJSFn(a.equals)) {
-            return a.equals(b);
-        } else {
-            return a === b;
-        }
     }
 
     var p = console.log.bind(console.log);
@@ -2431,6 +2170,7 @@ var zera = (function () {
     var incSym = function (x) {
         return x + 1;
     };
+
     function gensym(prefix) {
         if (prefix == null) var prefix = "G__";
         var s = Sym.intern([prefix, symN.deref()].join(""));
@@ -2758,6 +2498,7 @@ var zera = (function () {
     }
 
     function evalLetBlock(form, env_) {
+        pt('let', form);
         var rest = cdr(form);
         var binds = car(rest);
         var body = cdr(rest);
@@ -2907,10 +2648,6 @@ var zera = (function () {
         return x instanceof Fn;
     }
 
-    function isJSFn(x) {
-        return Object.prototype.toString.call(x) === "[object Function]";
-    }
-
     function isFunction(x) {
         return isFn(x) || isJSFn(x);
     }
@@ -2960,18 +2697,15 @@ var zera = (function () {
         }
     }
 
-    function pt(tag, val) {
-        p(str(tag, ": ", prnStr(val)));
-    }
-
     function evalApplication(form, env, stack) {
+        console.log('form', prnStr(form));
         var stack_ = conj(stack, car(form));
         var fn = evaluate(car(form), env, stack_);
+        console.log('fn', fn);
         var args = cdr(form);
-        var a = mapA(function (x) {
-            return evaluate(x, env, stack_);
-        }, args);
-        var args_ = list.apply(null, a);
+        console.log('args', prnStr(args));
+        var args_ = map((x) => evaluate(x, env, stack_), args);
+        console.log('args_', prnStr(args_));
         return apply(fn, args_);
     }
 
@@ -3820,6 +3554,8 @@ var zera = (function () {
     define(ZERA_NS, "nil?", isNil);
     define(ZERA_NS, "empty?", isEmpty);
     define(ZERA_NS, "list", list);
+    define(ZERA_NS, "array?", isArray);
+    define(ZERA_NS, "array-like?", isArrayLike);
     define(ZERA_NS, "array-map", arrayMap);
     define(ZERA_NS, "array-map?", isArrayMap);
     define(ZERA_NS, "map?", isMap);
