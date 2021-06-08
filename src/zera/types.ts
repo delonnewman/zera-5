@@ -6,14 +6,14 @@ export type ZeraObject = {
 
 export class ZeraType extends Function {
     $zera$tag: string;
-    $zera$isProtocol: false | null | undefined;
+    $zera$isProtocol?: false;
     $zera$isType: true;
 }
 
 export class ZeraProtocol extends Function {
     $zera$tag: string;
     $zera$isProtocol: true;
-    $zera$isType: false | null | undefined;
+    $zera$isType?: false;
 }
 
 export type ZeraTypelike = ZeraType | ZeraProtocol;
