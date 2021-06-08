@@ -1,15 +1,24 @@
+import { prnStr, str } from "./core";
+
 export type ZeraObject = {
     $zera$protocols: object;
 }
 
 export class ZeraType extends Function {
     $zera$tag: string;
-    $zera$isProtocol: boolean;
-    $zera$isType: boolean;
+    $zera$isProtocol: false | null | undefined;
+    $zera$isType: true;
 }
 
+export class ZeraProtocol extends Function {
+    $zera$tag: string;
+    $zera$isProtocol: true;
+    $zera$isType: false | null | undefined;
+}
 
-export function isa(child: ZeraObject, parent: ZeraType) {
+export type ZeraTypelike = ZeraType | ZeraProtocol;
+
+export function isa(child: ZeraObject, parent: ZeraTypelike) {
     if (child == null) return false;
     if (child instanceof parent) return true;
     var protocols = child.$zera$protocols;
@@ -17,21 +26,17 @@ export function isa(child: ZeraObject, parent: ZeraType) {
     return parent === protocols[parent.$zera$tag];
 }
 
-export function isProtocol(obj: ZeraType) {
+export function isProtocol(obj: any): boolean {
     return obj.$zera$isProtocol === true;
 }
 
-export function isType(obj: ZeraType) {
+export function isType(obj: any): boolean {
     return obj.$zera$isType === true;
 }
 
-export function initWithProtocols(obj: ZeraObject) {
-    var protocols = Array.prototype.slice.call(arguments, 1);
-    if (protocols.length === 1 && isArray(protocols[0])) {
-        protocols = protocols[0];
-    }
-    var i, protocol;
-    for (i = 0; i < protocols.length; i++) {
+export function initWithProtocols(obj: ZeraObject, ...protocols: Array<ZeraProtocol>) {
+    var i = 0, protocol: ZeraProtocol;
+    for (; i < protocols.length; i++) {
         protocol = protocols[i];
         if (!isProtocol(protocol))
             throw new Error(
@@ -41,24 +46,19 @@ export function initWithProtocols(obj: ZeraObject) {
     }
 }
 
-function extend(obj, other) {
-    if (obj == null) var obj = Object.create(null);
+export function extend(obj: object, other: object): object {
     var keys = Object.keys(other);
-    var i, k, v;
-    for (i = 0; i < keys.length; i++) {
+    var i = 0, k: string;
+    for (; i < keys.length; i++) {
         k = keys[i];
         obj[k] = other[k];
     }
     return obj;
 }
 
-function extendWithProtocols(ctr: Function) {
-    var protocols = Array.prototype.slice.call(arguments, 1);
-    if (protocols.length === 1 && isArray(protocols[0])) {
-        protocols = protocols[0];
-    }
-    var i, protocol;
-    for (i = 0; i < protocols.length; i++) {
+export function extendWithProtocols(ctr: ZeraType, ...protocols: Array<ZeraProtocol>): ZeraType {
+    var i = 0, protocol: ZeraProtocol;
+    for (; i < protocols.length; i++) {
         protocol = protocols[i];
         if (!isProtocol(protocol))
             throw new Error(
