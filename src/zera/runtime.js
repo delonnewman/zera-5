@@ -2,11 +2,12 @@
 // jshint eqnull: true
 // jshint evil: true
 
-var zera = (function() {
+var zera = (function () {
     "use strict";
 
-    var isNode = typeof module !== 'undefined' && typeof module.exports !== 'undefined';
-    var isBrowser = typeof window !== 'undefined';
+    var isNode =
+        typeof module !== "undefined" && typeof module.exports !== "undefined";
+    var isBrowser = typeof window !== "undefined";
 
     function isa(child, parent) {
         if (child == null) return false;
@@ -32,7 +33,10 @@ var zera = (function() {
         var i, protocol;
         for (i = 0; i < protocols.length; i++) {
             protocol = protocols[i];
-            if (!isProtocol(protocol)) throw new Error(str(prnStr(protocol), " is not a valid protocol"));
+            if (!isProtocol(protocol))
+                throw new Error(
+                    str(prnStr(protocol), " is not a valid protocol")
+                );
             protocol.call(obj);
         }
     }
@@ -56,7 +60,10 @@ var zera = (function() {
         var i, protocol;
         for (i = 0; i < protocols.length; i++) {
             protocol = protocols[i];
-            if (!isProtocol(protocol)) throw new Error(str(prnStr(protocol), " is not a valid protocol"));
+            if (!isProtocol(protocol))
+                throw new Error(
+                    str(prnStr(protocol), " is not a valid protocol")
+                );
             ctr.prototype = extend(ctr.prototype, protocol.prototype);
         }
         return ctr;
@@ -67,17 +74,16 @@ var zera = (function() {
      */
     function IMeta() {}
     IMeta.$zera$isProtocol = true;
-    IMeta.$zera$tag = 'zera.lang.IMeta';
-    IMeta.prototype.meta = function() {
-        throw new Error('unimplemented');
+    IMeta.$zera$tag = "zera.lang.IMeta";
+    IMeta.prototype.meta = function () {
+        throw new Error("unimplemented");
     };
 
     function meta(x) {
         if (x == null) return null;
         else if (isa(x, IMeta)) {
             return x.meta();
-        }
-        else {
+        } else {
             throw new Error("Don't now how to get metadata from: " + x);
         }
     }
@@ -88,19 +94,18 @@ var zera = (function() {
      */
     function IObj() {}
     IObj.$zera$isProtocol = true;
-    IObj.$zera$tag = 'zera.lang.IObj';
-    IObj.$zera$protocols = {'zera.lang.IMeta': IMeta};
+    IObj.$zera$tag = "zera.lang.IObj";
+    IObj.$zera$protocols = { "zera.lang.IMeta": IMeta };
     IObj.prototype = Object.create(IMeta.prototype);
-    IObj.prototype.withMeta = function(meta) {
-        throw new Error('unimplemented');
+    IObj.prototype.withMeta = function (meta) {
+        throw new Error("unimplemented");
     };
 
     function withMeta(x, meta) {
         if (x == null) return null;
         else if (isJSFn(x.withMeta)) {
             return x.withMeta(meta);
-        }
-        else {
+        } else {
             throw new Error("Don't now how to add metadata to: " + x);
         }
     }
@@ -112,21 +117,21 @@ var zera = (function() {
         this.$zera$meta = meta || arrayMap();
     }
 
-    AReference.$zera$tag = 'zera.lang.AReference';
+    AReference.$zera$tag = "zera.lang.AReference";
     AReference.$zera$isProtocol = true;
-    AReference.$zera$protocols = {'zera.lang.IMeta': IMeta};
+    AReference.$zera$protocols = { "zera.lang.IMeta": IMeta };
     AReference.prototype = Object.create(IMeta.prototype);
 
-    AReference.prototype.meta = function() {
+    AReference.prototype.meta = function () {
         return this.$zera$meta;
     };
 
-    AReference.prototype.alterMeta = function(f, args) {
+    AReference.prototype.alterMeta = function (f, args) {
         this.$zera$meta = apply(f, cons(this.$zera$meta, args));
         return this.$zera$meta;
     };
 
-    AReference.prototype.resetMeta = function(m) {
+    AReference.prototype.resetMeta = function (m) {
         this.$zera$meta = m;
         return this.$zera$meta;
     };
@@ -135,8 +140,7 @@ var zera = (function() {
         if (x == null) return null;
         else if (isJSFn(x.alterMeta)) {
             return x.alterMeta(f, args);
-        }
-        else {
+        } else {
             throw new Error("Don't now how to add alter metadata for: " + x);
         }
     }
@@ -145,8 +149,7 @@ var zera = (function() {
         if (x == null) return null;
         else if (isJSFn(x.resetMeta)) {
             return x.resetMeta(newM);
-        }
-        else {
+        } else {
             throw new Error("Don't now how to reset metadata for: " + x);
         }
     }
@@ -161,85 +164,99 @@ var zera = (function() {
         this.$zera$validator = validator;
         this.$zera$value = value;
     }
-    ARef.$zera$tag = 'zera.lang.ARef';
-    ARef.$zera$protocols = {'zera.lang.ARefernce': AReference, 'zera.lang.IMeta': IMeta};
+    ARef.$zera$tag = "zera.lang.ARef";
+    ARef.$zera$protocols = {
+        "zera.lang.ARefernce": AReference,
+        "zera.lang.IMeta": IMeta,
+    };
     ARef.$zera$isProtocol = true;
     ARef.prototype = Object.create(AReference.prototype);
 
     function processWatchers(ref, old, knew) {
-        var s, f,
+        var s,
+            f,
             watchers = ref.$zera$watchers;
         if (isEmpty(watchers)) return;
         for (s = watchers.entries(); s != null; s = s.next()) {
             var kv = s.first();
             f = kv.val();
-            if (f != null && (isFn(f) || isInvocable(f))) apply(f, list(kv.key(), ref, old, knew));
+            if (f != null && (isFn(f) || isInvocable(f)))
+                apply(f, list(kv.key(), ref, old, knew));
             else {
-                throw new Error('A watcher must be a function of 4 arguments');
+                throw new Error("A watcher must be a function of 4 arguments");
             }
         }
     }
 
-    ARef.prototype.deref = function() {
+    ARef.prototype.deref = function () {
         return this.$zera$value;
     };
 
-    ARef.prototype.validate = function(value) {
+    ARef.prototype.validate = function (value) {
         var v = this.$zera$validator;
         if (v != null && (isFn(v) || isInvocable(v))) {
-            if (!apply(v, list(value ? value : this.$zera$value))) throw new Error('Not a valid value for this atom');
+            if (!apply(v, list(value ? value : this.$zera$value)))
+                throw new Error("Not a valid value for this atom");
         }
     };
 
-    ARef.prototype.addWatch = function(key, f) {
-        this.$zera$watchers = this.$zera$watchers.assoc([key,  f]);
+    ARef.prototype.addWatch = function (key, f) {
+        this.$zera$watchers = this.$zera$watchers.assoc([key, f]);
         return this;
     };
 
-    ARef.prototype.removeWatch = function(key) {
+    ARef.prototype.removeWatch = function (key) {
         this.$zera$watchers = this.$zera$watchers.dissoc(key);
         return this;
     };
 
-    ARef.prototype.setValidator = function(f) {
+    ARef.prototype.setValidator = function (f) {
         this.$zera$validator = f;
         return this;
     };
 
     function addWatch(ref, key, f) {
         if (ref instanceof ARef) return ref.addWatch(key, f);
-        throw new Error('Can only add watchers to ARef instances (e.g. atoms and vars)');
+        throw new Error(
+            "Can only add watchers to ARef instances (e.g. atoms and vars)"
+        );
     }
 
     function removeWatch(ref, key, f) {
         if (ref instanceof ARef) return ref.removeWatch(key, f);
-        throw new Error('Can only remove watchers from ARef instances (e.g. atoms and vars)');
+        throw new Error(
+            "Can only remove watchers from ARef instances (e.g. atoms and vars)"
+        );
     }
 
     function setValidator(ref, key, f) {
         if (ref instanceof ARef) return ref.setValidator(key, f);
-        throw new Error('Can only set validators for ARef instances (e.g. atoms and vars)');
+        throw new Error(
+            "Can only set validators for ARef instances (e.g. atoms and vars)"
+        );
     }
 
     function deref(ref) {
         if (ref instanceof ARef) return ref.deref();
-        throw new Error('Can only dereference ARef instances (e.g. atoms and vars)');
+        throw new Error(
+            "Can only dereference ARef instances (e.g. atoms and vars)"
+        );
     }
 
     /**
      * @interface
      * @extends {IObj}
      */
-    function Named(){}
-    Named.$zera$tag = 'zera.lang.Named';
+    function Named() {}
+    Named.$zera$tag = "zera.lang.Named";
     Named.$zera$isProtocol = true;
-    Named.$zera$protocols = {'zera.lang.IObj': IObj};
-    Named.prototype.name = function() {
-        throw new Error('unimplemented');
+    Named.$zera$protocols = { "zera.lang.IObj": IObj };
+    Named.prototype.name = function () {
+        throw new Error("unimplemented");
     };
 
-    Named.prototype.namespace = function() {
-        throw new Error('unimplemented');
+    Named.prototype.namespace = function () {
+        throw new Error("unimplemented");
     };
 
     function ZeraType(name, fields, protocols) {
@@ -248,14 +265,25 @@ var zera = (function() {
         this.$zera$protocols = protocols;
     }
 
-    ZeraType.prototype.class = function() {
+    ZeraType.prototype.class = function () {
         return evaluate(this.$zera$typeName);
     };
 
-    ZeraType.prototype.toString = function() {
+    ZeraType.prototype.toString = function () {
         var fields = this.$zera$fields;
         var self = this;
-        return str("#<", this.$zera$typeName, " ", join(map(function(f) { return str(f, ": ", self[f]); }, fields), ', '), ">")
+        return str(
+            "#<",
+            this.$zera$typeName,
+            " ",
+            join(
+                map(function (f) {
+                    return str(f, ": ", self[f]);
+                }, fields),
+                ", "
+            ),
+            ">"
+        );
     };
 
     /**
@@ -269,117 +297,124 @@ var zera = (function() {
     }
 
     Sym.$zera$isType = true;
-    Sym.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj, 'zera.lang.IMeta': IMeta};
+    Sym.$zera$protocols = {
+        "zera.lang.Named": Named,
+        "zera.lang.IObj": IObj,
+        "zera.lang.IMeta": IMeta,
+    };
     Sym.prototype = Object.create(Named.prototype);
 
-    Sym.intern = function(rep) {
-        if (rep == null) throw new Error('Symbol representation cannot be nil');
-        var i = rep.indexOf('/');
-        if (i === -1 || rep === '/') {
+    Sym.intern = function (rep) {
+        if (rep == null) throw new Error("Symbol representation cannot be nil");
+        var i = rep.indexOf("/");
+        if (i === -1 || rep === "/") {
             return new Sym(null, rep);
-        }
-        else {
+        } else {
             return new Sym(rep.substring(0, i), rep.substring(i + 1));
         }
     };
 
-    Sym.$zera$tag = Sym.intern('zera.lang.Symbol');
+    Sym.$zera$tag = Sym.intern("zera.lang.Symbol");
 
-    Sym.prototype.name = function() {
+    Sym.prototype.name = function () {
         return this.$zera$name;
     };
 
-    Sym.prototype.namespace = function() {
+    Sym.prototype.namespace = function () {
         return this.$zera$ns;
     };
 
-    Sym.prototype.toString = function() {
+    Sym.prototype.toString = function () {
         if (this.$zera$ns == null) {
             return this.$zera$name;
         }
-        return str(this.$zera$ns, '/', this.$zera$name);
+        return str(this.$zera$ns, "/", this.$zera$name);
     };
 
-    Sym.prototype.isQualified = function() {
+    Sym.prototype.isQualified = function () {
         return !!this.$zera$ns;
     };
 
     // IObj
-    Sym.prototype.withMeta = function(meta) {
+    Sym.prototype.withMeta = function (meta) {
         return new Sym(this.$zera$ns, this.$zera$name, meta);
     };
 
     // IObj, IMeta
-    Sym.prototype.meta = function() {
+    Sym.prototype.meta = function () {
         return this.$zera$meta;
     };
 
     // Invokable
-    Sym.prototype.apply = function(x, args) {
-        if (args.length != 1) throw new Error('Symbols expect one and only one argument');
+    Sym.prototype.apply = function (x, args) {
+        if (args.length != 1)
+            throw new Error("Symbols expect one and only one argument");
         if (isJSFn(args[0].apply)) {
             return args[0].apply(null, [this]);
-        }
-        else {
-            throw new Error('Symbols expect and argument this is invokable');
+        } else {
+            throw new Error("Symbols expect and argument this is invokable");
         }
     };
 
-    Sym.prototype.equals = function(o) {
+    Sym.prototype.equals = function (o) {
         if (o == null || !isSymbol(o)) return false;
         return this.$zera$ns === o.$zera$ns && this.$zera$name === o.$zera$name;
     };
 
     // Symbols
-    var NIL_SYM = Sym.intern('nil');
-    var TRUE_SYM = Sym.intern('true');
-    var FALSE_SYM = Sym.intern('false');
-    var QUOTE_SYM = Sym.intern('quote');
-    var DEREF_SYM = Sym.intern('deref');
-    var DO_SYM = Sym.intern('do');
-    var DEF_SYM = Sym.intern('def');
-    var SET_SYM = Sym.intern('set!');
-    var FN_SYM = Sym.intern('fn');
-    var LET_SYM = Sym.intern('let');
-    var COND_SYM = Sym.intern('cond');
-    var LOOP_SYM = Sym.intern('loop');
-    var RECUR_SYM = Sym.intern('recur');
-    var THROW_SYM = Sym.intern('throw');
-    var NEW_SYM = Sym.intern('new');
-    var DOT_SYM = Sym.intern('.');
-    var MACRO_SYM = Sym.intern('defmacro');
-    var AMP_SYM = Sym.intern('&');
-    var THE_VAR = Sym.intern('var');
+    var NIL_SYM = Sym.intern("nil");
+    var TRUE_SYM = Sym.intern("true");
+    var FALSE_SYM = Sym.intern("false");
+    var QUOTE_SYM = Sym.intern("quote");
+    var DEREF_SYM = Sym.intern("deref");
+    var DO_SYM = Sym.intern("do");
+    var DEF_SYM = Sym.intern("def");
+    var SET_SYM = Sym.intern("set!");
+    var FN_SYM = Sym.intern("fn");
+    var LET_SYM = Sym.intern("let");
+    var COND_SYM = Sym.intern("cond");
+    var LOOP_SYM = Sym.intern("loop");
+    var RECUR_SYM = Sym.intern("recur");
+    var THROW_SYM = Sym.intern("throw");
+    var NEW_SYM = Sym.intern("new");
+    var DOT_SYM = Sym.intern(".");
+    var MACRO_SYM = Sym.intern("defmacro");
+    var AMP_SYM = Sym.intern("&");
+    var THE_VAR = Sym.intern("var");
 
     var SPECIAL_FORMS = {
-        'nil': true,
-        'true': true,
-        'false': true,
-        'quote': true,
-        'def': true,
-        'set!': true,
-        'fn': true,
-        'cond': true,
-        'loop': true,
-        'recur': true,
-        'throw': true,
-        'new': true,
-        '.': true,
-        'defmacro': true,
-        'var': true,
-        'do': true,
-        'let': true
+        nil: true,
+        true: true,
+        false: true,
+        quote: true,
+        def: true,
+        "set!": true,
+        fn: true,
+        cond: true,
+        loop: true,
+        recur: true,
+        throw: true,
+        new: true,
+        ".": true,
+        defmacro: true,
+        var: true,
+        do: true,
+        let: true,
     };
 
     function symbol() {
         if (arguments.length === 1) {
             return new Sym(null, arguments[0]);
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return new Sym(arguments[0], arguments[1]);
-        }
-        else {
-            throw new Error(str('Wrong number of arguments (', arguments.length, ') passed to symbol'));
+        } else {
+            throw new Error(
+                str(
+                    "Wrong number of arguments (",
+                    arguments.length,
+                    ") passed to symbol"
+                )
+            );
         }
     }
 
@@ -393,48 +428,56 @@ var zera = (function() {
      */
     function Keyword(sym) {
         this.$zera$sym = sym;
-        ZeraType.call(this, Keyword.$zera$typeName, null, Keyword.$zera$protocols);
+        ZeraType.call(
+            this,
+            Keyword.$zera$typeName,
+            null,
+            Keyword.$zera$protocols
+        );
     }
 
     Keyword.$zera$isType = true;
-    Keyword.$zera$protocols = {'zera.lang.Named': Named, 'zera.lang.IObj': IObj};
-    Keyword.$zera$tag = Sym.intern('zera.lang.Keyword');
+    Keyword.$zera$protocols = {
+        "zera.lang.Named": Named,
+        "zera.lang.IObj": IObj,
+    };
+    Keyword.$zera$tag = Sym.intern("zera.lang.Keyword");
     Keyword.prototype = Object.create(Named.prototype);
 
     Keyword.table = {};
 
-    Keyword.intern = function(sym_) {
+    Keyword.intern = function (sym_) {
         var sym = isSymbol(sym_) ? sym_ : Sym.intern(sym_);
         var kw = Keyword.table[sym];
         if (!kw) kw = Keyword.table[sym] = new Keyword(sym);
         return kw;
     };
 
-    Keyword.prototype.name = function() {
+    Keyword.prototype.name = function () {
         return this.$zera$sym.name();
     };
 
-    Keyword.prototype.namespace = function() {
+    Keyword.prototype.namespace = function () {
         return this.$zera$sym.namespace();
     };
 
-    Keyword.prototype.toString = function() {
-        return str(':', this.$zera$sym);
+    Keyword.prototype.toString = function () {
+        return str(":", this.$zera$sym);
     };
 
-    Keyword.prototype.equals = function(o) {
+    Keyword.prototype.equals = function (o) {
         if (o == null || !isKeyword(o)) return false;
         return this.namespace() === o.namespace() && this.name() === o.name();
     };
 
     // Invokable
-    Keyword.prototype.apply = function(x, args) {
-        if (args.length !== 1) throw new Error('Keywords expect one and only one argument');
+    Keyword.prototype.apply = function (x, args) {
+        if (args.length !== 1)
+            throw new Error("Keywords expect one and only one argument");
         if (isJSFn(args[0].apply)) {
             return args[0].apply(null, [this]);
-        }
-        else {
-            throw new Error('Symbols expect and argument this is invokable');
+        } else {
+            throw new Error("Symbols expect and argument this is invokable");
         }
     };
 
@@ -445,17 +488,20 @@ var zera = (function() {
     function keyword() {
         if (arguments.length === 1) {
             return Keyword.intern(new Sym(null, arguments[0]));
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return Keyword.intern(new Sym(arguments[0], arguments[1]));
-        }
-        else {
-            throw new Error(str('Wrong number of arguments expected 1 or 2, got: ', arguments.length));
+        } else {
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or 2, got: ",
+                    arguments.length
+                )
+            );
         }
     }
 
-    var DOC_KEY = keyword('doc');
-    var MACRO_KEY = keyword('macro');
+    var DOC_KEY = keyword("doc");
+    var MACRO_KEY = keyword("macro");
 
     function isNamed(x) {
         return isa(x, Named);
@@ -464,14 +510,18 @@ var zera = (function() {
     function name(sym) {
         if (isJSFn(sym.name)) return sym.name();
         else {
-            throw new Error(str("Don't know how to get the name of: ", prnStr(sym)));
+            throw new Error(
+                str("Don't know how to get the name of: ", prnStr(sym))
+            );
         }
     }
 
     function namespace(sym) {
         if (isJSFn(sym.namespace)) return sym.namespace();
         else {
-            throw new Error(str("Don't know how to get the namespace of: ", prnStr(sym)));
+            throw new Error(
+                str("Don't know how to get the namespace of: ", prnStr(sym))
+            );
         }
     }
 
@@ -483,39 +533,36 @@ var zera = (function() {
     }
 
     Seq.$zera$isProtocol = true;
-    Seq.$zera$tag = 'zera.lang.Seq';
-    Seq.$zera$protocols = {'zera.lang.IObj': IObj};
+    Seq.$zera$tag = "zera.lang.Seq";
+    Seq.$zera$protocols = { "zera.lang.IObj": IObj };
     Seq.prototype = Object.create(IObj.prototype);
 
-    Seq.prototype.first = function() {
-        throw new Error('unimplmented');
+    Seq.prototype.first = function () {
+        throw new Error("unimplmented");
     };
 
-    Seq.prototype.rest = function() {
-        throw new Error('unimplmented');
+    Seq.prototype.rest = function () {
+        throw new Error("unimplmented");
     };
 
-    Seq.prototype.cons = function(x) {
-        throw new Error('unimplmented');
+    Seq.prototype.cons = function (x) {
+        throw new Error("unimplmented");
     };
 
-    Seq.prototype.equals = function(other) {
+    Seq.prototype.equals = function (other) {
         var a, b, xa, xb, xsa, xsb;
         if (!isSeq(other)) {
             return false;
-        }
-        else if (this.isEmpty() && this.isEmpty()) {
+        } else if (this.isEmpty() && this.isEmpty()) {
             return true;
-        }
-        else if (this.count() != other.count()) {
+        } else if (this.count() != other.count()) {
             return false;
-        }
-        else {
+        } else {
             xsa = this;
             xsb = other;
             while (xsa != null) {
-                xa  = xsa.first();
-                xb  = xsb.first();
+                xa = xsa.first();
+                xb = xsb.first();
                 if (!equals(xa, xb)) {
                     return false;
                 }
@@ -531,18 +578,15 @@ var zera = (function() {
         else if (isSeq(x)) {
             if (isEmpty(x)) return null;
             return x;
-        }
-        else if (isFunction(x.seq)) {
+        } else if (isFunction(x.seq)) {
             var s = x.seq();
             if (isEmpty(s)) return null;
             return s;
-        }
-        else if (isArrayLike(x)) {
+        } else if (isArrayLike(x)) {
             if (x.length === 0) return null;
             return arrayToList(x);
-        }
-        else {
-            throw new Error(prnStr(x) + ' is not a valid Seq or Seqable');
+        } else {
+            throw new Error(prnStr(x) + " is not a valid Seq or Seqable");
         }
     }
 
@@ -560,10 +604,10 @@ var zera = (function() {
      * @interface
      * @extends {Seq}
      */
-    function List(){}
-    List.$zera$tag = 'zera.lang.List';
+    function List() {}
+    List.$zera$tag = "zera.lang.List";
     List.$zera$isProtocol = true;
-    List.$zera$protocols = {'zera.lang.Seq': Seq};
+    List.$zera$protocols = { "zera.lang.Seq": Seq };
     List.prototype = Object.create(Seq.prototype);
 
     function isList(x) {
@@ -577,43 +621,42 @@ var zera = (function() {
         ZeraType.call(this, Cons.$zera$tag, null, Cons.$zera$protocols);
     }
 
-    Cons.$zera$tag = Sym.intern('zera.lang.Cons');
+    Cons.$zera$tag = Sym.intern("zera.lang.Cons");
     Cons.$zera$isType = true;
-    Cons.$zera$protocols = {'zera.lang.List': List};
+    Cons.$zera$protocols = { "zera.lang.List": List };
     Cons.prototype = Object.create(Seq.prototype);
 
     // ISeq
-    Cons.prototype.first = function() {
+    Cons.prototype.first = function () {
         return this._first;
     };
 
     // ISeq
-    Cons.prototype.more = function() {
-        if (this._more == null)
-            return PersistentList.EMPTY;
+    Cons.prototype.more = function () {
+        if (this._more == null) return PersistentList.EMPTY;
         return this._more;
     };
 
     // ISeq
-    Cons.prototype.next = function() {
+    Cons.prototype.next = function () {
         return this.more().seq();
     };
 
-    Cons.prototype.count = function() {
+    Cons.prototype.count = function () {
         return 1 + count(this._more);
     };
 
     // Seqable
-    Cons.prototype.seq = function() {
+    Cons.prototype.seq = function () {
         return this;
     };
 
     // IMeta
-    Cons.prototype.withMeta = function(meta) {
+    Cons.prototype.withMeta = function (meta) {
         return new Cons(meta, this._first, this._more);
     };
 
-    Cons.prototype.meta = function() {
+    Cons.prototype.meta = function () {
         return this.$zera$meta;
     };
 
@@ -628,84 +671,101 @@ var zera = (function() {
         this.$zera$car = car;
         this.$zera$cdr = cdr;
         this.$zera$count = count;
-        ZeraType.call(this, PersistentList.$zera$tag, null, PersistentList.$zera$protocols);
+        ZeraType.call(
+            this,
+            PersistentList.$zera$tag,
+            null,
+            PersistentList.$zera$protocols
+        );
     }
 
-    PersistentList.$zera$tag = Sym.intern('zera.lang.PersistentList');
+    PersistentList.$zera$tag = Sym.intern("zera.lang.PersistentList");
     PersistentList.$zera$isType = true;
-    PersistentList.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.Seq': Seq, 'zera.lang.AMap': AMap, 'zera.lang.List': List};
+    PersistentList.$zera$protocols = {
+        "zera.lang.IMeta": IMeta,
+        "zera.lang.Seq": Seq,
+        "zera.lang.AMap": AMap,
+        "zera.lang.List": List,
+    };
     PersistentList.prototype = Object.create(Seq.prototype);
 
     PersistentList.EMPTY = new PersistentList(null, null, null, 0);
 
-    PersistentList.prototype.meta = function() {
+    PersistentList.prototype.meta = function () {
         return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
     };
 
-    PersistentList.prototype.withMeta = function(meta) {
-        return new PersistentList(meta, this.$zera$car, this.$zera$cdr, this.$zera$count);
+    PersistentList.prototype.withMeta = function (meta) {
+        return new PersistentList(
+            meta,
+            this.$zera$car,
+            this.$zera$cdr,
+            this.$zera$count
+        );
     };
 
-    PersistentList.prototype.first = function() {
+    PersistentList.prototype.first = function () {
         return this.$zera$car;
     };
 
-    PersistentList.prototype.rest = function() {
+    PersistentList.prototype.rest = function () {
         if (this.next() == null) {
             return PersistentList.EMPTY;
-        }
-        else {
+        } else {
             return this.next();
         }
     };
 
-    PersistentList.prototype.count = function() {
+    PersistentList.prototype.count = function () {
         return this.$zera$count;
     };
 
-    PersistentList.prototype.next = function() {
+    PersistentList.prototype.next = function () {
         return this.$zera$cdr;
     };
 
-    PersistentList.prototype.cons = function(x) {
+    PersistentList.prototype.cons = function (x) {
         if (this.isEmpty()) {
             return new PersistentList(this.$zera$meta, x, null, 1);
         }
-        return new PersistentList(this.$zera$meta, x, this, this.$zera$count + 1);
+        return new PersistentList(
+            this.$zera$meta,
+            x,
+            this,
+            this.$zera$count + 1
+        );
     };
 
-    PersistentList.prototype.conj = function(vals) {
-        var i, xs = this;
+    PersistentList.prototype.conj = function (vals) {
+        var i,
+            xs = this;
         for (i = 0; i < vals.length; i++) {
             xs = xs.cons(vals[i]);
         }
         return xs;
     };
 
-    PersistentList.prototype.isEmpty = function() {
+    PersistentList.prototype.isEmpty = function () {
         return this.$zera$count === 0;
     };
 
-    PersistentList.prototype.isList = function() {
+    PersistentList.prototype.isList = function () {
         return true;
     };
 
     // Seqable
-    PersistentList.prototype.seq = function() {
+    PersistentList.prototype.seq = function () {
         return this;
     };
 
     function cons(x, col) {
         if (col == null) {
             return new PersistentList(null, x, null, 1);
-        }
-        else if (isSeq(col)) {
+        } else if (isSeq(col)) {
             return new Cons(null, x, col);
-        }
-        else if (isSeqable(col)) {
+        } else if (isSeqable(col)) {
             return new Cons(null, x, seq(col));
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to cons: ", prnStr(col)));
         }
     }
@@ -713,7 +773,7 @@ var zera = (function() {
     function car(cons) {
         if (cons == null) return null;
         if (cons != null && isJSFn(cons.first)) return cons.first();
-        throw new Error(str('Not a valid Cons: ', prnStr(cons)));
+        throw new Error(str("Not a valid Cons: ", prnStr(cons)));
     }
 
     function cdr(cons) {
@@ -721,7 +781,7 @@ var zera = (function() {
         if (isJSFn(cons.next)) {
             return cons.next();
         }
-        throw new Error(str('Not a valid Cons: ', prnStr(cons)));
+        throw new Error(str("Not a valid Cons: ", prnStr(cons)));
     }
 
     function isCons(x) {
@@ -736,8 +796,7 @@ var zera = (function() {
     function list() {
         if (arguments.length === 0) {
             return PersistentList.EMPTY;
-        }
-        else if (arguments.length === 1) {
+        } else if (arguments.length === 1) {
             return cons(arguments[0], null);
         }
         var i, x;
@@ -850,7 +909,7 @@ var zera = (function() {
 
     LazyList.prototype = Object.create(List.prototype);
 
-    LazyList.prototype.sval = function() {
+    LazyList.prototype.sval = function () {
         if (this.fn != null) {
             this._sv = this.fn.call();
             this.fn = null;
@@ -861,7 +920,7 @@ var zera = (function() {
         return this._seq;
     };
 
-    LazyList.prototype.seq = function() {
+    LazyList.prototype.seq = function () {
         this.sval();
         if (this._sv != null) {
             var ls = this._sv;
@@ -874,7 +933,7 @@ var zera = (function() {
         return this._seq;
     };
 
-    LazyList.prototype.count = function() {
+    LazyList.prototype.count = function () {
         var c = 0,
             s;
         for (s = this; s != null; s = s.next()) {
@@ -883,11 +942,11 @@ var zera = (function() {
         return c;
     };
 
-    LazyList.prototype.cons = function(x) {
+    LazyList.prototype.cons = function (x) {
         return cons(x, this.seq());
     };
 
-    LazyList.prototype.first = function() {
+    LazyList.prototype.first = function () {
         this.seq();
         if (this._seq == null) {
             return null;
@@ -895,7 +954,7 @@ var zera = (function() {
         return this._seq.first();
     };
 
-    LazyList.prototype.next = function() {
+    LazyList.prototype.next = function () {
         this.seq();
         if (this._seq == null) {
             return null;
@@ -915,9 +974,14 @@ var zera = (function() {
 
     function take(n, xs) {
         if (arguments.length !== 2) {
-            throw new Error(str('Wrong number of arguments expected: 2, got: ', arguments.length));
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected: 2, got: ",
+                    arguments.length
+                )
+            );
         }
-        return lazySeq(function() {
+        return lazySeq(function () {
             if (n >= 0) {
                 return cons(first(xs), take(n - 1, rest(xs)));
             } else {
@@ -928,43 +992,47 @@ var zera = (function() {
 
     function N(n) {
         var n_ = n == null ? 0 : n;
-        return cons(n_, lazySeq(function() {
-            return N(n_ + 1);
-        }));
+        return cons(
+            n_,
+            lazySeq(function () {
+                return N(n_ + 1);
+            })
+        );
     }
 
     function range(x, y, z) {
-       var start, stop, step;
-       if (arguments.length === 1) {
+        var start, stop, step;
+        if (arguments.length === 1) {
             start = 0;
-            stop  = x;
-            step  = 1;
-        }
-        else if (arguments.length === 2) {
+            stop = x;
+            step = 1;
+        } else if (arguments.length === 2) {
             start = x;
-            stop  = y;
-            step  = 1;
-        }
-        else if (arguments.length === 3) {
+            stop = y;
+            step = 1;
+        } else if (arguments.length === 3) {
             start = x;
-            stop  = y;
-            step  = z;
+            stop = y;
+            step = z;
+        } else {
+            throw new Error(
+                str(
+                    "Expected between 1 and 3 arguments, got: ",
+                    arguments.length
+                )
+            );
         }
-        else {
-            throw new Error(str('Expected between 1 and 3 arguments, got: ', arguments.length));
-        }
-        return lazySeq(function() {
+        return lazySeq(function () {
             if (start === stop) {
                 return null;
-            }
-            else {
+            } else {
                 return cons(start, range(start + step, stop, step));
             }
         });
     }
 
     function repeat(n) {
-        return lazySeq(function() {
+        return lazySeq(function () {
             return cons(n, repeat(n));
         });
     }
@@ -976,7 +1044,7 @@ var zera = (function() {
     // Array operations
 
     function isArray(x) {
-        return Object.prototype.toString.call(x) === '[object Array]';
+        return Object.prototype.toString.call(x) === "[object Array]";
     }
 
     function isArrayLike(x) {
@@ -999,25 +1067,31 @@ var zera = (function() {
     function intArray(x) {
         if (isNumber(x) || isArray(x)) {
             return new Int32Array(x);
-        }
-        else if (isSeq(x)) {
+        } else if (isSeq(x)) {
             return new Int32Array(intoArray(x));
         }
-        throw new Error(str("Don't know how to convert ", prnStr(x), " into an Int32Array"));
+        throw new Error(
+            str("Don't know how to convert ", prnStr(x), " into an Int32Array")
+        );
     }
 
     function floatArray(x) {
         if (isNumber(x) || isArray(x)) {
             return new Float32Array(x);
-        }
-        else if (isSeq(x)) {
+        } else if (isSeq(x)) {
             return new Float32Array(intoArray(x));
         }
-        throw new Error(str("Don't know how to convert ", prnStr(x), " into an Float32Array"));
+        throw new Error(
+            str(
+                "Don't know how to convert ",
+                prnStr(x),
+                " into an Float32Array"
+            )
+        );
     }
 
     // Map Interface
-    
+
     /**
      * @constructor
      */
@@ -1028,24 +1102,24 @@ var zera = (function() {
     }
 
     MapEntry.$zera$isType = true;
-    MapEntry.$zera$tag = Sym.intern('zera.lang.MapEntry');
+    MapEntry.$zera$tag = Sym.intern("zera.lang.MapEntry");
 
-    MapEntry.prototype.key = function() {
+    MapEntry.prototype.key = function () {
         return this.$zera$key;
     };
 
-    MapEntry.prototype.val = function() {
+    MapEntry.prototype.val = function () {
         return this.$zera$val;
     };
 
     MapEntry.prototype.first = MapEntry.prototype.key;
-    MapEntry.prototype.next  = MapEntry.prototype.val;
+    MapEntry.prototype.next = MapEntry.prototype.val;
 
-    MapEntry.prototype.rest = function() {
+    MapEntry.prototype.rest = function () {
         return list(this.val());
     };
 
-    MapEntry.prototype.nth = function(n) {
+    MapEntry.prototype.nth = function (n) {
         if (n === 0) return this.key();
         else if (n === 1) return this.val();
         else {
@@ -1053,15 +1127,21 @@ var zera = (function() {
         }
     };
 
-    MapEntry.prototype.apply = function(obj, args) {
+    MapEntry.prototype.apply = function (obj, args) {
         if (args.length !== 1) {
-            throw new Error(str('Wrong number of arguments got: ', args.length, ', expected: 1'));
+            throw new Error(
+                str(
+                    "Wrong number of arguments got: ",
+                    args.length,
+                    ", expected: 1"
+                )
+            );
         }
         return this.nth(args[0]);
     };
 
-    MapEntry.prototype.toString = function() {
-        return str('[', prnStr(this.key()), ' ', prnStr(this.val()), ']');
+    MapEntry.prototype.toString = function () {
+        return str("[", prnStr(this.key()), " ", prnStr(this.val()), "]");
     };
 
     function isMapEntry(x) {
@@ -1072,24 +1152,31 @@ var zera = (function() {
         if (isMapEntry(x)) return x;
         else if (isArray(x) && x.length === 2) {
             return new MapEntry(x[0], x[1]);
-        }
-        else if (isVector(x) && x.count() === 2) {
+        } else if (isVector(x) && x.count() === 2) {
             return new MapEntry(nth(x, 0), nth(x, 1));
-        }
-        else {
-            throw new Error(str("Don't know how to coerce '", prnStr(x), "' into a zera.MapEntry"));
+        } else {
+            throw new Error(
+                str(
+                    "Don't know how to coerce '",
+                    prnStr(x),
+                    "' into a zera.MapEntry"
+                )
+            );
         }
     }
-    
+
     /**
      * @abstract
      * @implements {Seq}
      */
     function AMap() {}
     AMap.$zera$isProtocol = true;
-    AMap.$zera$tag = 'zera.lang.AMap';
-    AMap.$zera$protocols = {'zera.lang.IObj': IObj};
-    AMap.prototype = extendWithProtocols(AMap, Object.values(AMap.$zera$protocols));
+    AMap.$zera$tag = "zera.lang.AMap";
+    AMap.$zera$protocols = { "zera.lang.IObj": IObj };
+    AMap.prototype = extendWithProtocols(
+        AMap,
+        Object.values(AMap.$zera$protocols)
+    );
 
     /**
      * @constructor
@@ -1098,71 +1185,82 @@ var zera = (function() {
     // TODO: add IHashEq
     function ArrayMap(meta, array) {
         this.$zera$array = array ? array : [];
-        if (this.$zera$array.length % 2 !== 0) throw new Error('Maps should have an even number of entries');
+        if (this.$zera$array.length % 2 !== 0)
+            throw new Error("Maps should have an even number of entries");
         this.$zera$meta = meta;
         this.$zera$typeName = ArrayMap.$zera$tag;
         ZeraType.call(this, ArrayMap.$zera$tag, null, ArrayMap.$zera$protocols);
     }
 
-    ArrayMap.$zera$tag = Sym.intern('zera.lang.ArrayMap');
+    ArrayMap.$zera$tag = Sym.intern("zera.lang.ArrayMap");
     ArrayMap.$zera$isType = true;
-    ArrayMap.$zera$protocols = {'zera.lang.IMeta': IMeta, 'zera.lang.AMap': AMap};
+    ArrayMap.$zera$protocols = {
+        "zera.lang.IMeta": IMeta,
+        "zera.lang.AMap": AMap,
+    };
     ArrayMap.prototype = Object.create(AMap.prototype);
 
     ArrayMap.EMPTY = new ArrayMap(null, []);
 
-    ArrayMap.createFromEntries = function(entries) {
-        var i, e, a = [];
+    ArrayMap.createFromEntries = function (entries) {
+        var i,
+            e,
+            a = [];
         for (i = 0; i < entries.length; i++) {
             e = entries[i];
             if (isMapEntry(e)) {
-                a.push(e.key()); a.push(e.val());
-            }
-            else if (isArray(e) && e.length === 2) {
-                a.push(e[i]); a.push(e[i + 1]);
-            }
-            else {
-                throw new Error('Invalid map entry');
+                a.push(e.key());
+                a.push(e.val());
+            } else if (isArray(e) && e.length === 2) {
+                a.push(e[i]);
+                a.push(e[i + 1]);
+            } else {
+                throw new Error("Invalid map entry");
             }
         }
 
         return new ArrayMap(null, a);
     };
 
-    ArrayMap.prototype.count = function() {
+    ArrayMap.prototype.count = function () {
         return this.$zera$array.length / 2;
     };
 
-    ArrayMap.prototype.meta = function() {
+    ArrayMap.prototype.meta = function () {
         return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
     };
 
-    ArrayMap.prototype.withMeta = function(meta) {
+    ArrayMap.prototype.withMeta = function (meta) {
         return new ArrayMap(meta, this.$zera$array);
     };
 
-    ArrayMap.prototype.toString = function() {
-        var buff = [], i;
+    ArrayMap.prototype.toString = function () {
+        var buff = [],
+            i;
         var array = this.$zera$array;
         for (i = 0; i < array.length; i += 2) {
-            buff.push(str(prnStr(array[i]), ' ', prnStr(array[i + 1])));
+            buff.push(str(prnStr(array[i]), " ", prnStr(array[i + 1])));
         }
-        return str('{', buff.join(', '), '}');
+        return str("{", buff.join(", "), "}");
     };
 
-    ArrayMap.prototype.conj = function(entries) {
-        var i, x, array = this.$zera$array, a = [];
+    ArrayMap.prototype.conj = function (entries) {
+        var i,
+            x,
+            array = this.$zera$array,
+            a = [];
         for (i = 0; i < array.length; i++) {
             a.push(array[i]);
         }
         for (i = 0; i < entries.length; i++) {
             x = mapEntry(entries[i]);
-            a.push(x.key()); a.push(x.val());
+            a.push(x.key());
+            a.push(x.val());
         }
         return new ArrayMap(this.meta(), a);
     };
 
-    ArrayMap.prototype.entries = function() {
+    ArrayMap.prototype.entries = function () {
         var array = this.$zera$array;
         var i;
         var res = [];
@@ -1174,7 +1272,7 @@ var zera = (function() {
 
     ArrayMap.prototype.seq = ArrayMap.prototype.entries;
 
-    ArrayMap.prototype.keys = function() {
+    ArrayMap.prototype.keys = function () {
         var entries = this.$zera$array;
         var i;
         var res = [];
@@ -1184,7 +1282,7 @@ var zera = (function() {
         return list.apply(null, res);
     };
 
-    ArrayMap.prototype.vals = function() {
+    ArrayMap.prototype.vals = function () {
         var entries = this.$zera$array;
         var i;
         var res = [];
@@ -1194,8 +1292,10 @@ var zera = (function() {
         return list.apply(null, res);
     };
 
-    ArrayMap.prototype.find = function(key) {
-        var val, i, entries = this.$zera$array;
+    ArrayMap.prototype.find = function (key) {
+        var val,
+            i,
+            entries = this.$zera$array;
         for (i = 0; i < entries.length; i += 2) {
             if (equals(entries[i], key)) {
                 val = entries[i + 1];
@@ -1205,13 +1305,14 @@ var zera = (function() {
         return null;
     };
 
-    ArrayMap.prototype.apply = function(x, args) {
+    ArrayMap.prototype.apply = function (x, args) {
         return this.find(args[0]);
     };
 
-    ArrayMap.prototype.assoc = function(pairs) {
+    ArrayMap.prototype.assoc = function (pairs) {
         var i;
-        if (pairs.length % 2 !== 0) throw new Error('key value pairs must be even to assoc');
+        if (pairs.length % 2 !== 0)
+            throw new Error("key value pairs must be even to assoc");
         var entries = Array.prototype.slice.call(this.$zera$array);
         for (i = 0; i < pairs.length; i += 2) {
             entries.push(pairs[i]);
@@ -1220,8 +1321,10 @@ var zera = (function() {
         return new ArrayMap(null, entries);
     };
 
-    ArrayMap.prototype.dissoc = function(key) {
-        var i, newArray = [], array = this.$zera$array;
+    ArrayMap.prototype.dissoc = function (key) {
+        var i,
+            newArray = [],
+            array = this.$zera$array;
         for (i = 0; i < array.length; i += 2) {
             if (!equals(array[i], key)) {
                 newArray.push(array[i]);
@@ -1231,8 +1334,9 @@ var zera = (function() {
         return new ArrayMap(this.meta(), newArray);
     };
 
-    ArrayMap.prototype.containsKey = function(key) {
-        var i, array = this.$zera$array;
+    ArrayMap.prototype.containsKey = function (key) {
+        var i,
+            array = this.$zera$array;
         for (i = 0; i < array.length; i += 2) {
             if (equals(array[i], key)) return true;
         }
@@ -1242,15 +1346,13 @@ var zera = (function() {
     ArrayMap.prototype.contains = ArrayMap.prototype.containsKey;
 
     // Equals
-    ArrayMap.prototype.equals = function(other) {
+    ArrayMap.prototype.equals = function (other) {
         var a, i, key, val;
         if (!isArrayMap(other)) {
             return false;
-        }
-        else if (this.count() !== other.count()) {
+        } else if (this.count() !== other.count()) {
             return false;
-        }
-        else {
+        } else {
             a = this.$zera$array;
             for (i = 0; i < a.length; i += 2) {
                 key = a[i];
@@ -1262,7 +1364,10 @@ var zera = (function() {
     };
 
     function isMap(x) {
-        return x instanceof AMap || Object.prototype.toString.call(x) === '[object Map]'; 
+        return (
+            x instanceof AMap ||
+            Object.prototype.toString.call(x) === "[object Map]"
+        );
     }
 
     function isArrayMap(x) {
@@ -1276,16 +1381,19 @@ var zera = (function() {
     function entries(m) {
         if (isJSFn(m.entries)) return m.entries();
         else {
-            throw new Error(str("Don't know how to get the entries of: ", prnStr(m)));
+            throw new Error(
+                str("Don't know how to get the entries of: ", prnStr(m))
+            );
         }
     }
 
     function find(m, key) {
         if (isJSFn(m.find)) {
             return m.find(key);
-        }
-        else {
-            throw new Error(str("Don't know how to find value by key in: ", prnStr(m)));
+        } else {
+            throw new Error(
+                str("Don't know how to find value by key in: ", prnStr(m))
+            );
         }
     }
 
@@ -1294,13 +1402,13 @@ var zera = (function() {
             var val = m.find(key);
             if (alt == null) {
                 return val ? val : null;
-            }
-            else {
+            } else {
                 return val ? val : alt;
             }
-        }
-        else {
-            throw new Error(str("Don't know how to get value by key from: ", prnStr(m)));
+        } else {
+            throw new Error(
+                str("Don't know how to get value by key from: ", prnStr(m))
+            );
         }
     }
 
@@ -1308,8 +1416,7 @@ var zera = (function() {
         var pairs = Array.prototype.slice.call(arguments, 1);
         if (isJSFn(m.assoc)) {
             return m.assoc(pairs);
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to assoc: ", prnStr(m)));
         }
     }
@@ -1318,8 +1425,7 @@ var zera = (function() {
     function dissoc(m, k) {
         if (isJSFn(m.dissoc)) {
             return m.dissoc(k);
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to dissoc: ", prnStr(m)));
         }
     }
@@ -1327,26 +1433,27 @@ var zera = (function() {
     function keys(m) {
         if (isJSFn(m.keys)) {
             return m.keys();
-        }
-        else {
-            throw new Error(str("Don't know how to get keys from: ", prnStr(m)));
+        } else {
+            throw new Error(
+                str("Don't know how to get keys from: ", prnStr(m))
+            );
         }
     }
 
     function vals(m) {
         if (isJSFn(m.vals)) {
             return m.vals();
-        }
-        else {
-            throw new Error(str("Don't know how to get vals from: ", prnStr(m)));
+        } else {
+            throw new Error(
+                str("Don't know how to get vals from: ", prnStr(m))
+            );
         }
     }
 
     function key(m) {
         if (isJSFn(m.key)) {
             return m.key();
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to get key from: ", prnStr(m)));
         }
     }
@@ -1354,8 +1461,7 @@ var zera = (function() {
     function val(m) {
         if (isJSFn(m.val)) {
             return m.val();
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to get val from: ", prnStr(m)));
         }
     }
@@ -1363,11 +1469,9 @@ var zera = (function() {
     function containsKey(m, k) {
         if (m.containsKey) {
             return m.containsKey(k);
-        }
-        else if (isJSFn(m.has)) {
+        } else if (isJSFn(m.has)) {
             return m.has(k);
-        }
-        else {
+        } else {
             throw new Error(str("Not a valid map"));
         }
     }
@@ -1375,12 +1479,12 @@ var zera = (function() {
     function contains(col, k) {
         if (isJSFn(col.contains)) {
             return col.contains(k);
-        }
-        else if (isJSFn(col.has)) {
+        } else if (isJSFn(col.has)) {
             return col.has(k);
-        }
-        else {
-            throw new Error(str(prnStr(col), ' is not an associative collection'));
+        } else {
+            throw new Error(
+                str(prnStr(col), " is not an associative collection")
+            );
         }
     }
 
@@ -1390,9 +1494,9 @@ var zera = (function() {
         this.$zera$meta = meta;
     }
     ASet.$zera$isProtocol = true;
-    ASet.$zera$tag = 'zera.lang.ASet';
-    ASet.$zera$protocols = {'zera.lang.IObj': IObj};
-    ASet.prototype = Object.create(IObj.prototype); 
+    ASet.$zera$tag = "zera.lang.ASet";
+    ASet.$zera$protocols = { "zera.lang.IObj": IObj };
+    ASet.prototype = Object.create(IObj.prototype);
 
     function APersistentSet(meta, map) {
         this.$zera$rep = map || arrayMap();
@@ -1400,56 +1504,56 @@ var zera = (function() {
     }
 
     APersistentSet.$zera$isProtocol = true;
-    APersistentSet.$zera$tag = 'zera.lang.APersistentSet';
-    APersistentSet.$zera$protocols = {'zera.lang.ASet': ASet};
+    APersistentSet.$zera$tag = "zera.lang.APersistentSet";
+    APersistentSet.$zera$protocols = { "zera.lang.ASet": ASet };
 
     APersistentSet.prototype = Object.create(ASet.prototype);
 
-    APersistentSet.prototype.toString = function() {
-        return str('#{', this.toArray().join(' '), '}');
+    APersistentSet.prototype.toString = function () {
+        return str("#{", this.toArray().join(" "), "}");
     };
 
-    APersistentSet.prototype.toArray = function() {
+    APersistentSet.prototype.toArray = function () {
         return intoArray(this.seq());
     };
 
-    APersistentSet.prototype.get = function(key) {
+    APersistentSet.prototype.get = function (key) {
         return this.$zera$rep.find(key);
     };
 
-    APersistentSet.prototype.count = function() {
+    APersistentSet.prototype.count = function () {
         return this.$zera$rep.count();
     };
 
-    APersistentSet.prototype.seq = function() {
+    APersistentSet.prototype.seq = function () {
         return this.$zera$rep.keys();
     };
 
-    APersistentSet.prototype.apply = function(x, args) {
+    APersistentSet.prototype.apply = function (x, args) {
         return this.get(args[0]);
     };
 
-    APersistentSet.prototype.equals = function(o) {
+    APersistentSet.prototype.equals = function (o) {
         return o instanceof ASet && this.$zera$rep.equals(o.$zera$rep);
     };
 
-    APersistentSet.prototype.contains = function(val) {
+    APersistentSet.prototype.contains = function (val) {
         return this.$zera$rep.containsKey(val);
     };
 
-    APersistentSet.prototype.meta = function() {
+    APersistentSet.prototype.meta = function () {
         return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
     };
 
-    APersistentSet.prototype.first = function() {
+    APersistentSet.prototype.first = function () {
         return this.seq().first();
     };
 
-    APersistentSet.prototype.rest = function() {
+    APersistentSet.prototype.rest = function () {
         return this.seq().rest();
     };
 
-    APersistentSet.prototype.next = function() {
+    APersistentSet.prototype.next = function () {
         return this.seq().next();
     };
 
@@ -1459,11 +1563,15 @@ var zera = (function() {
     }
 
     HashSet.$zera$isType = true;
-    HashSet.$zera$tag = Sym.intern('zera.lang.HashSet');
-    HashSet.$zera$protocols = {'zera.lang.APersistentSet': APersistentSet, 'zera.lang.IObj': IObj};
+    HashSet.$zera$tag = Sym.intern("zera.lang.HashSet");
+    HashSet.$zera$protocols = {
+        "zera.lang.APersistentSet": APersistentSet,
+        "zera.lang.IObj": IObj,
+    };
 
-    HashSet.createFromArray = function(a) {
-        var i, entries = [];
+    HashSet.createFromArray = function (a) {
+        var i,
+            entries = [];
         for (i = 0; i < a.length; i++) {
             entries.push(a[i]);
             entries.push(a[i]);
@@ -1475,19 +1583,20 @@ var zera = (function() {
 
     HashSet.EMPTY = new HashSet(null, ArrayMap.EMPTY);
 
-    HashSet.prototype.conj = function(vals) {
-        var i, a = [];
+    HashSet.prototype.conj = function (vals) {
+        var i,
+            a = [];
         for (i = 0; i < vals.length; i++) {
             a.push([vals[i], vals[i]]);
         }
         return new HashSet(this.meta(), this.$zera$rep.conj(a));
     };
 
-    HashSet.prototype.withMeta = function(meta) {
+    HashSet.prototype.withMeta = function (meta) {
         return new HashSet(this.meta(), this.$zera$rep);
     };
 
-    HashSet.prototype.disjoin = function(key) {
+    HashSet.prototype.disjoin = function (key) {
         if (this.contains(key)) {
             return new HashSet(this.meta(), this.$zera$rep.dissoc(key));
         }
@@ -1502,8 +1611,7 @@ var zera = (function() {
         if (seq == null) return HashSet.EMPTY;
         if (isArrayLike(seq)) {
             return HashSet.createFromArray(seq);
-        }
-        else {
+        } else {
             var x = seq.first();
             var xs = seq.rest();
             var a = [];
@@ -1524,76 +1632,80 @@ var zera = (function() {
         ZeraType.call(this, Vector.$zera$tag, null, Vector.$zera$protocols);
     }
 
-    Vector.$zera$tag = Sym.intern('zera.lang.Vector');
+    Vector.$zera$tag = Sym.intern("zera.lang.Vector");
     Vector.$zera$isType = true;
-    Vector.$zera$protocols = {'zera.lang.IObj': IObj};
+    Vector.$zera$protocols = { "zera.lang.IObj": IObj };
     Vector.prototype = Object.create(IObj.prototype);
 
     Vector.EMPTY = new Vector(null, []);
 
-    Vector.prototype.toString = function() {
-        return str('[', this.rep.map(prnStr).join(' '), ']');
+    Vector.prototype.toString = function () {
+        return str("[", this.rep.map(prnStr).join(" "), "]");
     };
 
-    Vector.prototype.toArray = function() {
+    Vector.prototype.toArray = function () {
         return this.rep;
     };
 
     // IMeta
-    Vector.prototype.meta = function() {
+    Vector.prototype.meta = function () {
         return this.$zera$meta;
     };
 
     // Seqable
-    Vector.prototype.seq = function() {
+    Vector.prototype.seq = function () {
         return arrayToList(this.rep);
     };
 
-    Vector.prototype.count = function() {
+    Vector.prototype.count = function () {
         return this.rep.length;
     };
 
-    Vector.prototype.find = function(k) {
+    Vector.prototype.find = function (k) {
         return this.rep[k];
     };
 
-    Vector.prototype.contains = function(k) {
+    Vector.prototype.contains = function (k) {
         return this.rep[k] != null;
     };
 
     Vector.prototype.nth = Vector.prototype.find;
 
-    Vector.prototype.conj = function(x) {
+    Vector.prototype.conj = function (x) {
         return new Vector(null, this.rep.concat(x));
     };
 
     // Array
-    Vector.prototype.indexOf = function(v) {
+    Vector.prototype.indexOf = function (v) {
         return this.rep.indexOf(v);
     };
 
-    Vector.prototype.findIndex = function(f) {
+    Vector.prototype.findIndex = function (f) {
         return this.rep.findIndex(f);
     };
 
     // Fn
-    Vector.prototype.apply = function(obj, args) {
+    Vector.prototype.apply = function (obj, args) {
         if (args.length !== 1) {
-            throw new Error(str('Wrong number of arguments got: ', args.length, ', expected: 1'));
+            throw new Error(
+                str(
+                    "Wrong number of arguments got: ",
+                    args.length,
+                    ", expected: 1"
+                )
+            );
         }
         return this.find(args[0]);
     };
 
     // Equals
-    Vector.prototype.equals = function(other) {
+    Vector.prototype.equals = function (other) {
         var a, b, i;
         if (!isVector(other)) {
             return false;
-        }
-        else if (this.rep.length !== other.rep.length) {
+        } else if (this.rep.length !== other.rep.length) {
             return false;
-        }
-        else {
+        } else {
             a = this.rep;
             b = other.rep;
             for (i = 0; i < a.length; i++) {
@@ -1607,7 +1719,9 @@ var zera = (function() {
         if (isArray(v)) return v[n];
         else if (isJSFn(v.nth)) return v.nth(n);
         else {
-            throw new Error(str("Don't know how to get the nth element from: ", prnStr(v)));
+            throw new Error(
+                str("Don't know how to get the nth element from: ", prnStr(v))
+            );
         }
     }
 
@@ -1621,7 +1735,8 @@ var zera = (function() {
 
     function vec(s) {
         var v = Vector.EMPTY,
-            s_ = seq(s), x;
+            s_ = seq(s),
+            x;
         while (s_ !== null) {
             x = first(s_);
             s_ = next(s_);
@@ -1631,17 +1746,16 @@ var zera = (function() {
     }
 
     // Collection interface
-    
+
     function count(col) {
         // nil
         if (col == null) {
             return 0;
-        }
-        else if (isJSFn(col.count)) {
+        } else if (isJSFn(col.count)) {
             return col.count();
-        }
-        else if (isSeq(col)) {
-            var n = 0, s;
+        } else if (isSeq(col)) {
+            var n = 0,
+                s;
             for (s = col; s != null; s = s.next()) {
                 n++;
             }
@@ -1650,9 +1764,10 @@ var zera = (function() {
         // array-like
         else if (col.length != null) {
             return col.length;
-        }
-        else {
-            throw new Error(str("Don't know how to get the count of: ", prnStr(col)));
+        } else {
+            throw new Error(
+                str("Don't know how to get the count of: ", prnStr(col))
+            );
         }
     }
 
@@ -1666,8 +1781,7 @@ var zera = (function() {
                 xs.push(args[i]);
             }
             return xs;
-        }
-        else {
+        } else {
             throw new Error(str("Don't know how to conj: ", prnStr(xs)));
         }
     }
@@ -1704,39 +1818,42 @@ var zera = (function() {
         if (x == null) return true;
         else if (isSeq(x)) {
             return x.next() == null && x.first() == null;
-        }
-        else if (isJSFn(x.isEmpty)) return x.isEmpty();
+        } else if (isJSFn(x.isEmpty)) return x.isEmpty();
         else if (isJSFn(x.count)) return x.count() === 0;
         else if (isArrayLike(x)) return x.length === 0;
         else {
-            throw new Error(str("Don't know hot to determine if: ", prnStr(x), " is empty"));
+            throw new Error(
+                str("Don't know hot to determine if: ", prnStr(x), " is empty")
+            );
         }
     }
 
     function reduce(f) {
         var x, init, xs;
         if (arguments.length === 2) {
-            xs   = arguments[1];
+            xs = arguments[1];
             init = first(xs);
-            xs   = rest(xs);
+            xs = rest(xs);
         } else if (arguments.length === 3) {
             init = arguments[1];
-            xs   = arguments[2];
+            xs = arguments[2];
         } else {
-            throw new Error(str('Expected either 2 or 3 arguments, got: ', arguments.length));
+            throw new Error(
+                str("Expected either 2 or 3 arguments, got: ", arguments.length)
+            );
         }
         while (!isEmpty(xs)) {
-            x    = first(xs);
+            x = first(xs);
             init = apply(f, list(init, x));
-            xs   = rest(xs);
+            xs = rest(xs);
         }
         return init;
     }
 
     function join(col, delimiter) {
-        return reduce(function(s, x) {
+        return reduce(function (s, x) {
             if (s == null) return str(x);
-            return str(s, delimiter, x)
+            return str(s, delimiter, x);
         }, col);
     }
 
@@ -1744,24 +1861,24 @@ var zera = (function() {
         this.$zera$meta = meta;
     }
     AFn.$zera$isProtocol = true;
-    AFn.$zera$tag = 'zera.lang.AFn';
-    AFn.$zera$protocols = {'zera.lang.IObj': IObj};
+    AFn.$zera$tag = "zera.lang.AFn";
+    AFn.$zera$protocols = { "zera.lang.IObj": IObj };
     AFn.prototype = Object.create(IObj.prototype);
 
-    AFn.prototype.invoke = function() {
-        throw new Error('unimplemented');
+    AFn.prototype.invoke = function () {
+        throw new Error("unimplemented");
     };
 
-    AFn.prototype.call = function(obj) {
+    AFn.prototype.call = function (obj) {
         var args = Array.prototype.slice.call(arguments, 1);
         return this.invoke.apply(this, args);
     };
 
-    AFn.prototype.apply = function(obj, args) {
+    AFn.prototype.apply = function (obj, args) {
         return this.invoke.apply(this, args);
     };
 
-    AFn.prototype.meta = function() {
+    AFn.prototype.meta = function () {
         return this.$zera$meta;
     };
 
@@ -1774,32 +1891,37 @@ var zera = (function() {
         ZeraType.call(this, Fn.$zera$tag, null, Fn.$zera$protocols);
     }
 
-    Fn.$zera$tag = Sym.intern('zera.lang.Fn');
+    Fn.$zera$tag = Sym.intern("zera.lang.Fn");
     Fn.$zera$isType = true;
-    Fn.$zera$protocols = {'zera.lang.AFn': AFn};
+    Fn.$zera$protocols = { "zera.lang.AFn": AFn };
     Fn.prototype = Object.create(AFn.prototype);
 
-    Fn.prototype.isMethod = function() {
+    Fn.prototype.isMethod = function () {
         return this.$zera$isMethod;
     };
 
-    Fn.prototype.toString = function() {
-        return str('#<Fn arglists: ', prnStr(Object.values(this.$zera$arglists)), ', bodies: ', prnStr(Object.values(this.$zera$bodies)), '>');
+    Fn.prototype.toString = function () {
+        return str(
+            "#<Fn arglists: ",
+            prnStr(Object.values(this.$zera$arglists)),
+            ", bodies: ",
+            prnStr(Object.values(this.$zera$bodies)),
+            ">"
+        );
     };
 
-    Fn.prototype.analyze = function() {
+    Fn.prototype.analyze = function () {};
 
-    };
-
-    Fn.prototype.toFunction = function() {
+    Fn.prototype.toFunction = function () {
         var self = this;
-        return function() {
+        return function () {
             return self.invoke.apply(self, arguments);
         };
     };
 
-    Fn.prototype.invoke = function() {
-        var i, ret,
+    Fn.prototype.invoke = function () {
+        var i,
+            ret,
             args = Array.prototype.slice.call(arguments),
             argc = args.length,
             bodies = this.$zera$bodies,
@@ -1808,7 +1930,7 @@ var zera = (function() {
             names = this.$zera$arglists[argc];
 
         if (body == null) {
-            for (i = (argc * -1); i <= 0; i++) {
+            for (i = argc * -1; i <= 0; i++) {
                 body = bodies[i];
                 if (body != null) {
                     names = this.$zera$arglists[i];
@@ -1816,65 +1938,84 @@ var zera = (function() {
                 }
             }
             if (body == null) {
-                throw new Error(str('Wrong number of arguments, got: ', args.length, ' ', prnStr(this)));
+                throw new Error(
+                    str(
+                        "Wrong number of arguments, got: ",
+                        args.length,
+                        " ",
+                        prnStr(this)
+                    )
+                );
             }
         }
 
-        loop:
-            while (true) {
-                try {
-                    var namec = calculateArity(names);
-                    argc = count(args);
-                    if (namec < 0 && argc < (Math.abs(namec) - 1)) {
-                        throw new Error(str('Wrong number of arguments, expected at least: ', Math.abs(namec) - 1, ', got: ', argc));
-                    } else if (namec > 0 && namec !== argc) {
-                        throw new Error(str('Wrong number of arguments, expected: ', namec, ', got: ', argc));
-                    }
-            
-                    // bind arguments
-                    var binds = bindArguments(names, intoArray(args));
-                    for (i = 0; i < binds.length; i++) {
-                        var name = binds[i][0];
-                        var value = binds[i][1];
-                        defineLexically(env, name, value);
-                    }
-
-                    // evaluate body
-                    var exp = car(body),
-                        exprs = cdr(body);
-                    while (exp != null) {
-                        ret = evaluate(exp, env);
-                        exp = car(exprs);
-                        exprs = cdr(exprs);
-                    }
-                    break;
+        loop: while (true) {
+            try {
+                var namec = calculateArity(names);
+                argc = count(args);
+                if (namec < 0 && argc < Math.abs(namec) - 1) {
+                    throw new Error(
+                        str(
+                            "Wrong number of arguments, expected at least: ",
+                            Math.abs(namec) - 1,
+                            ", got: ",
+                            argc
+                        )
+                    );
+                } else if (namec > 0 && namec !== argc) {
+                    throw new Error(
+                        str(
+                            "Wrong number of arguments, expected: ",
+                            namec,
+                            ", got: ",
+                            argc
+                        )
+                    );
                 }
-                  catch (e) {
-                    //p(e.args);
-                    if (e instanceof RecursionPoint) {
-                        args = e.args;
-                        continue loop;
-                    }
-                    else {
-                        throw e;
-                    }
+
+                // bind arguments
+                var binds = bindArguments(names, intoArray(args));
+                for (i = 0; i < binds.length; i++) {
+                    var name = binds[i][0];
+                    var value = binds[i][1];
+                    defineLexically(env, name, value);
+                }
+
+                // evaluate body
+                var exp = car(body),
+                    exprs = cdr(body);
+                while (exp != null) {
+                    ret = evaluate(exp, env);
+                    exp = car(exprs);
+                    exprs = cdr(exprs);
+                }
+                break;
+            } catch (e) {
+                //p(e.args);
+                if (e instanceof RecursionPoint) {
+                    args = e.args;
+                    continue loop;
+                } else {
+                    throw e;
                 }
             }
+        }
         return ret;
     };
 
     // TODO: look into transducers
     function map(f, xs) {
         if (arguments.length === 2) {
-            return lazySeq(function() {
+            return lazySeq(function () {
                 if (isEmpty(xs)) {
                     return null;
                 }
                 return cons(apply(f, list(first(xs))), map(f, rest(xs)));
             });
-        }
-        else {
-            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
+        } else {
+            throw new Error(
+                str("Expected 2 arguments, got: ", arguments.length)
+            );
         }
     }
 
@@ -1884,7 +2025,7 @@ var zera = (function() {
 
     function filter(f, xs) {
         if (arguments.length === 2) {
-            return lazySeq(function() {
+            return lazySeq(function () {
                 if (isEmpty(xs)) {
                     return null;
                 }
@@ -1892,20 +2033,20 @@ var zera = (function() {
                     pred = apply(f, list(x));
                 if (isFalsy(pred)) {
                     return filter(f, rest(xs));
-                }
-                else {
+                } else {
                     return cons(x, filter(f, rest(xs)));
                 }
             });
-        }
-        else {
-            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
+        } else {
+            throw new Error(
+                str("Expected 2 arguments, got: ", arguments.length)
+            );
         }
     }
 
     function remove(f, xs) {
         if (arguments.length === 2) {
-            return lazySeq(function() {
+            return lazySeq(function () {
                 if (isEmpty(xs)) {
                     return null;
                 }
@@ -1913,14 +2054,14 @@ var zera = (function() {
                     pred = apply(f, list(x));
                 if (!isFalsy(pred)) {
                     return remove(f, rest(xs));
-                }
-                else {
+                } else {
                     return cons(x, remove(f, rest(xs)));
                 }
             });
-        }
-        else {
-            throw new Error(str('Expected 2 arguments, got: ', arguments.length));
+        } else {
+            throw new Error(
+                str("Expected 2 arguments, got: ", arguments.length)
+            );
         }
     }
 
@@ -1932,12 +2073,12 @@ var zera = (function() {
         } else if (isString(x)) {
             return str('"', x, '"');
         } else if (isEnv(x)) {
-            return 'env';
+            return "env";
         } else if (isLazySeq(x)) {
-            return '(...)';
+            return "(...)";
         } else if (isList(x)) {
             if (isEmpty(x)) {
-                return '()';
+                return "()";
             } else {
                 var y;
                 var ys = x;
@@ -1947,13 +2088,13 @@ var zera = (function() {
                     ys = next(ys);
                     buffer.push(prnStr(y));
                 }
-                return str('(', buffer.join(' '), ')');
+                return str("(", buffer.join(" "), ")");
             }
         } else if (isArray(x)) {
             if (x.length === 0) {
-                return '(array)';
+                return "(array)";
             }
-            return str('(array ', x.map(prnStr).join(' '), ')');
+            return str("(array ", x.map(prnStr).join(" "), ")");
         } else if (isJSFn(x)) {
             if (x.$zera$tag != null) {
                 return str(x.$zera$tag);
@@ -1962,13 +2103,17 @@ var zera = (function() {
         } else if (isArrayLike(x)) {
             if (x.toString) {
                 return x.toString();
-            }
-            else {
-                return str('#js/object {',
-                    Array.prototype.slice.call(x)
-                        .map(function(x, i) { return str(i, ' ', prnStr(x)); })
-                        .join(', '),
-                    '}');
+            } else {
+                return str(
+                    "#js/object {",
+                    Array.prototype.slice
+                        .call(x)
+                        .map(function (x, i) {
+                            return str(i, " ", prnStr(x));
+                        })
+                        .join(", "),
+                    "}"
+                );
             }
         } else {
             return "" + x;
@@ -1980,7 +2125,7 @@ var zera = (function() {
     }
 
     function isBoolean(x) {
-        return Object.prototype.toString.call(x) === '[object Boolean]';
+        return Object.prototype.toString.call(x) === "[object Boolean]";
     }
 
     function isTrue(x) {
@@ -1993,27 +2138,30 @@ var zera = (function() {
 
     // symbols can be quoted with ":", "'" or by surrounding in "'s
     function isString(x) {
-        return Object.prototype.toString.call(x) === '[object String]';
+        return Object.prototype.toString.call(x) === "[object String]";
     }
 
     function isError(x) {
-        return Object.prototype.toString.call(x) === '[object Error]';
+        return Object.prototype.toString.call(x) === "[object Error]";
     }
 
     function str() {
-        return Array.prototype.slice.call(arguments).join('');
+        return Array.prototype.slice.call(arguments).join("");
     }
 
     function num(x) {
         var type = Object.prototype.toString.call(x);
-        if (type === '[object Number]') {
+        if (type === "[object Number]") {
             return x;
-        } else if (type === '[object String]') {
+        } else if (type === "[object String]") {
             var x_ = 1 * x;
-            if (isNaN(x_)) throw new Error(str('Cannot convert: ', prnStr(x), ' to a number'));
+            if (isNaN(x_))
+                throw new Error(
+                    str("Cannot convert: ", prnStr(x), " to a number")
+                );
             return x_;
         } else {
-            throw new Error(str('Cannot convert: ', prnStr(x), ' to a number'));
+            throw new Error(str("Cannot convert: ", prnStr(x), " to a number"));
         }
     }
 
@@ -2029,19 +2177,24 @@ var zera = (function() {
     }
 
     function isNumber(x) {
-        return !isNaN(x) && Object.prototype.toString.call(x) === '[object Number]';
+        return (
+            !isNaN(x) && Object.prototype.toString.call(x) === "[object Number]"
+        );
     }
 
-    var isInteger = function() {
+    var isInteger = (function () {
         if (Number.isInteger) {
             return Number.isInteger;
-        }
-        else {
-            return function(x) {
-                return !isNaN(x) && x === parseInt(Number(x)) && !isNaN(parseInt(x, 10));
+        } else {
+            return function (x) {
+                return (
+                    !isNaN(x) &&
+                    x === parseInt(Number(x)) &&
+                    !isNaN(parseInt(x, 10))
+                );
             };
         }
-    }();
+    })();
 
     function isPositive(x) {
         return x > 0;
@@ -2056,17 +2209,21 @@ var zera = (function() {
     }
 
     function isAtomic(x) {
-        return isBoolean(x) || isNumber(x) || isString(x) || isKeyword(x) || x == null;
+        return (
+            isBoolean(x) ||
+            isNumber(x) ||
+            isString(x) ||
+            isKeyword(x) ||
+            x == null
+        );
     }
 
     function equals(a, b) {
         if (a == null) {
             return b == null;
-        }
-        else if (isJSFn(a.equals)) {
+        } else if (isJSFn(a.equals)) {
             return a.equals(b);
-        }
-        else {
+        } else {
             return a === b;
         }
     }
@@ -2076,33 +2233,33 @@ var zera = (function() {
     function is(expected, actual, msg) {
         if (expected === actual) {
             if (msg) {
-                p(str('passed - ', msg));
+                p(str("passed - ", msg));
             } else {
-                p('passed');
+                p("passed");
             }
         } else {
             if (msg) {
-                p(str('failed - ', msg));
+                p(str("failed - ", msg));
             } else {
-                p('failed');
+                p("failed");
             }
-            p('expected: ', expected);
-            p('got: ', actual);
+            p("expected: ", expected);
+            p("got: ", actual);
         }
     }
 
     function ok(value, msg) {
         if (value != null && value !== false) {
             if (msg) {
-                p(str('passed - ', msg));
+                p(str("passed - ", msg));
             } else {
-                p('passed');
+                p("passed");
             }
         } else {
             if (msg) {
-                p(str('failed - ', msg));
+                p(str("failed - ", msg));
             } else {
-                p('failed');
+                p("failed");
             }
         }
     }
@@ -2120,13 +2277,12 @@ var zera = (function() {
         ZeraType.call(this, Var.$zera$tag, null, Var.$zera$protocols);
     }
 
-
-    Var.$zera$tag = Sym.intern('zera.lang.Var');
+    Var.$zera$tag = Sym.intern("zera.lang.Var");
     Var.$zera$isType = true;
-    Var.$zera$protocols = {'zera.lang.ARef': ARef};
+    Var.$zera$protocols = { "zera.lang.ARef": ARef };
     Var.prototype = Object.create(ARef.prototype);
 
-    Var.intern = function(ns, sym, init) {
+    Var.intern = function (ns, sym, init) {
         var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
         var v = ns_.intern(sym);
         if (init != null) v.set(init);
@@ -2134,52 +2290,57 @@ var zera = (function() {
         return v;
     };
 
-    Var.prototype.get = function() {
+    Var.prototype.get = function () {
         return this.$zera$value;
     };
 
-    Var.prototype.resetMeta = function(m) {
+    Var.prototype.resetMeta = function (m) {
         this.$zera$meta = m;
         return this.$zera$meta;
     };
 
-    Var.prototype.meta = function() {
+    Var.prototype.meta = function () {
         return this.$zera$meta;
     };
 
-    Var.prototype.set = function(value) {
+    Var.prototype.set = function (value) {
         this.validate(value);
         if (this.$zera$value == null || this.isDynamic()) {
             var old = this.$zera$value;
             this.$zera$value = value;
             processWatchers(this, old, value);
             return value;
-        }
-        else {
+        } else {
             throw new Error("Can't set Var value once it has been set");
         }
     };
 
-    Var.prototype.setDynamic = function() {
-        this.$zera$meta = this.$zera$meta.assoc([Keyword.intern('dynamic'), true]);
+    Var.prototype.setDynamic = function () {
+        this.$zera$meta = this.$zera$meta.assoc([
+            Keyword.intern("dynamic"),
+            true,
+        ]);
         return this;
     };
 
-    Var.prototype.isDynamic = function() {
-        return !!this.$zera$meta.find(Keyword.intern('dynamic'));
+    Var.prototype.isDynamic = function () {
+        return !!this.$zera$meta.find(Keyword.intern("dynamic"));
     };
 
-    Var.prototype.setMacro = function() {
-        this.$zera$meta = this.$zera$meta.assoc([Keyword.intern('macro'), true]);
+    Var.prototype.setMacro = function () {
+        this.$zera$meta = this.$zera$meta.assoc([
+            Keyword.intern("macro"),
+            true,
+        ]);
         return this;
     };
 
-    Var.prototype.isMacro = function() {
-        return !!this.$zera$meta.find(Keyword.intern('macro'));
+    Var.prototype.isMacro = function () {
+        return !!this.$zera$meta.find(Keyword.intern("macro"));
     };
 
-    Var.prototype.toString = function() {
-        return str("#'", this.$zera$ns.name(), '/', this.$zera$name);
+    Var.prototype.toString = function () {
+        return str("#'", this.$zera$ns.name(), "/", this.$zera$name);
     };
 
     function define(ns, name, init) {
@@ -2192,12 +2353,12 @@ var zera = (function() {
 
     function varGet(v) {
         if (isVar(v)) return v.get();
-        throw new Error('var-get can only be used on Vars');
+        throw new Error("var-get can only be used on Vars");
     }
 
     function varSet(v, value) {
         if (isVar(v)) return v.set(value);
-        throw new Error('var-set can only be used on Vars');
+        throw new Error("var-set can only be used on Vars");
     }
 
     function Atom(meta, value, validator) {
@@ -2205,12 +2366,12 @@ var zera = (function() {
         ZeraType.call(this, Atom.$zera$tag, null, Atom.$zera$protocols);
     }
 
-    Atom.$zera$tag = Sym.intern('zera.lang.Atom');
+    Atom.$zera$tag = Sym.intern("zera.lang.Atom");
     Atom.$zera$isType = true;
-    Atom.$zera$protocols = {'zera.lang.ARef': ARef};
+    Atom.$zera$protocols = { "zera.lang.ARef": ARef };
     Atom.prototype = Object.create(ARef.prototype);
 
-    Atom.prototype.reset = function(newVal) {
+    Atom.prototype.reset = function (newVal) {
         this.validate(newVal);
         var oldVal = this.$zera$value;
         this.$zera$value = newVal;
@@ -2218,8 +2379,9 @@ var zera = (function() {
         return this;
     };
 
-    Atom.prototype.swap = function(f, args) {
-        if (!isFn(f) && !isInvocable(f)) throw new Error('Can only swap atomic value with a function');
+    Atom.prototype.swap = function (f, args) {
+        if (!isFn(f) && !isInvocable(f))
+            throw new Error("Can only swap atomic value with a function");
         var oldVal = this.$zera$value,
             newVal = apply(f, cons(oldVal, args));
         this.validate(newVal);
@@ -2228,7 +2390,7 @@ var zera = (function() {
         return this;
     };
 
-    Atom.prototype.compareAndSet = function(oldVal, newVal) {
+    Atom.prototype.compareAndSet = function (oldVal, newVal) {
         if (equals(this.$zera$value, oldVal)) {
             this.validate(newVal);
             this.$zera$value = newVal;
@@ -2237,8 +2399,8 @@ var zera = (function() {
         return this;
     };
 
-    Atom.prototype.toString = function() {
-        return str('#<Atom value: ', prnStr(this.$zera$value), '>');
+    Atom.prototype.toString = function () {
+        return str("#<Atom value: ", prnStr(this.$zera$value), ">");
     };
 
     function isAtom(x) {
@@ -2251,52 +2413,65 @@ var zera = (function() {
 
     function reset(atom, value) {
         if (isAtom(atom)) return atom.reset(value);
-        throw new Error('Can only reset the value of Atoms');
+        throw new Error("Can only reset the value of Atoms");
     }
 
     function swap(atom, f) {
         var args = Array.prototype.slice.call(arguments, 2);
         if (isAtom(atom)) return atom.swap(f, args);
-        throw new Error('Can only reset the value of Atoms');
+        throw new Error("Can only reset the value of Atoms");
     }
 
     function compareAndSet(atom, oldVal, newVal) {
         if (isAtom(atom)) return atom.compareAndSet(oldVal, newVal);
-        throw new Error('Can only compare and set the value of Atoms');
+        throw new Error("Can only compare and set the value of Atoms");
     }
 
     var symN = atom(1);
-    var incSym = function(x) { return x + 1; };
+    var incSym = function (x) {
+        return x + 1;
+    };
     function gensym(prefix) {
-        if (prefix == null) var prefix = 'G__';
-        var s = Sym.intern([prefix, symN.deref()].join(''));
+        if (prefix == null) var prefix = "G__";
+        var s = Sym.intern([prefix, symN.deref()].join(""));
         symN.swap(incSym);
         return s;
     }
 
     function Namespace(name) {
-        if (!isSymbol(name)) throw new Error(str('Namespace name should be a symbol, got: ', prnStr(name)));
-        this.$zera$name     = name;
+        if (!isSymbol(name))
+            throw new Error(
+                str("Namespace name should be a symbol, got: ", prnStr(name))
+            );
+        this.$zera$name = name;
         // TODO: should these be maps in atoms?
         this.$zera$mappings = {};
-        this.$zera$aliases  = {};
-        ZeraType.call(this, Namespace.$zera$tag, null, Namespace.$zera$protocols);
+        this.$zera$aliases = {};
+        ZeraType.call(
+            this,
+            Namespace.$zera$tag,
+            null,
+            Namespace.$zera$protocols
+        );
         AReference.call(this, name.meta());
     }
 
-    Namespace.$zera$tag = Sym.intern('zera.lang.Namespace');
-    Namespace.$zera$protocols = {'zera.lang.AReference': AReference, 'zera.lang.IMeta': IMeta};
+    Namespace.$zera$tag = Sym.intern("zera.lang.Namespace");
+    Namespace.$zera$protocols = {
+        "zera.lang.AReference": AReference,
+        "zera.lang.IMeta": IMeta,
+    };
     Namespace.$zera$isType = true;
 
     Namespace.prototype = Object.create(null);
 
     Namespace.namespaces = {};
 
-    Namespace.all = function() {
+    Namespace.all = function () {
         return list.apply(null, Object.values(Namespace.namespaces));
     };
 
-    Namespace.findOrCreate = function(name) {
+    Namespace.findOrCreate = function (name) {
         var ns = Namespace.namespaces[name];
         if (ns != null) return ns;
         else {
@@ -2306,7 +2481,7 @@ var zera = (function() {
         return ns;
     };
 
-    Namespace.findOrDie = function(name) {
+    Namespace.findOrDie = function (name) {
         var ns = Namespace.namespaces[name];
         if (ns != null) return ns;
         else {
@@ -2314,50 +2489,52 @@ var zera = (function() {
         }
     };
 
-    Namespace.prototype.name = function() {
+    Namespace.prototype.name = function () {
         return this.$zera$name;
     };
 
-    Namespace.prototype.meta = function() {
+    Namespace.prototype.meta = function () {
         return this.$zera$meta;
     };
 
-    Namespace.prototype.mappings = function() {
+    Namespace.prototype.mappings = function () {
         return objectToMap(this.$zera$mappings, symbol);
     };
 
-    Namespace.prototype.mapping = function(sym) {
+    Namespace.prototype.mapping = function (sym) {
         return this.$zera$mappings[sym];
     };
 
-    Namespace.prototype.refer = function(sym, v) {
+    Namespace.prototype.refer = function (sym, v) {
         this.$zera$mappings[sym] = v;
         return this;
     };
 
-    Namespace.prototype.intern = function(sym) {
-        if (!isSymbol(sym)) throw new Error('Namespace can only intern symbols');
-        if (sym.namespace() != null) throw new Error('Cannot intern namespace-qualified symbol');
+    Namespace.prototype.intern = function (sym) {
+        if (!isSymbol(sym))
+            throw new Error("Namespace can only intern symbols");
+        if (sym.namespace() != null)
+            throw new Error("Cannot intern namespace-qualified symbol");
         var v = new Var(null, this, sym);
         this.$zera$mappings[sym] = v;
         return v;
     };
 
-    Namespace.prototype.findInternedVar = function(sym) {
+    Namespace.prototype.findInternedVar = function (sym) {
         return this.$zera$mappings[sym];
     };
 
-    Namespace.prototype.toString = function() {
-        return str('#<Namespace name: ', this.$zera$name, '>');
+    Namespace.prototype.toString = function () {
+        return str("#<Namespace name: ", this.$zera$name, ">");
     };
 
-    Namespace.prototype.getAliases = function() {
+    Namespace.prototype.getAliases = function () {
         return objectToMap(this.$zera$aliases);
     };
 
-    Namespace.prototype.addAlias = function(sym, ns) {
+    Namespace.prototype.addAlias = function (sym, ns) {
         if (sym == null || ns == null) {
-            throw new Error('Expecting Symbol + Namespace');
+            throw new Error("Expecting Symbol + Namespace");
         }
 
         if (!this.$zera$aliases[sym]) {
@@ -2365,17 +2542,19 @@ var zera = (function() {
         }
     };
 
-    Namespace.prototype.lookupAlias = function(sym) {
+    Namespace.prototype.lookupAlias = function (sym) {
         return this.$zera$aliases[sym];
     };
 
-    Namespace.prototype.removeAlias = function(alias) {
+    Namespace.prototype.removeAlias = function (alias) {
         delete this.$zera$aliases[alias];
     };
 
-    Namespace.prototype.toJSModule = function() {
+    Namespace.prototype.toJSModule = function () {
         return mapO(
-            function(v, k) { return v.get(); },
+            function (v, k) {
+                return v.get();
+            },
             this.$zera$mappings,
             zeraNameToJS
         );
@@ -2414,11 +2593,15 @@ var zera = (function() {
         return null;
     }
 
-    var ZERA_NS    = Namespace.findOrCreate(Sym.intern('zera.core'));
-    var CURRENT_NS = Var.intern(ZERA_NS, Sym.intern('*ns*'), ZERA_NS).setDynamic();
+    var ZERA_NS = Namespace.findOrCreate(Sym.intern("zera.core"));
+    var CURRENT_NS = Var.intern(
+        ZERA_NS,
+        Sym.intern("*ns*"),
+        ZERA_NS
+    ).setDynamic();
 
     function alias(sym, ns) {
-        return CURRENT_NS.get().addAlias(sym, ns);   
+        return CURRENT_NS.get().addAlias(sym, ns);
     }
 
     function nsAliases(ns) {
@@ -2432,25 +2615,25 @@ var zera = (function() {
     function env(parent) {
         if (parent) {
             return {
-                vars: {'*ns*': parent.vars['*ns*'] || CURRENT_NS.get()},
-                parent: parent
+                vars: { "*ns*": parent.vars["*ns*"] || CURRENT_NS.get() },
+                parent: parent,
             };
         } else {
             return {
                 vars: {},
-                parent: null
+                parent: null,
             };
         }
     }
 
     function isEnv(x) {
-        return x != null && x.vars !== void(0);
+        return x != null && x.vars !== void 0;
     }
 
     function lookup(env, name) {
         if (env == null) {
             return null;
-        } else if (env.vars != null && env.vars[name] !== void(0)) {
+        } else if (env.vars != null && env.vars[name] !== void 0) {
             return env;
         } else {
             if (env.parent == null) {
@@ -2458,7 +2641,7 @@ var zera = (function() {
             } else {
                 var scope = env.parent;
                 while (scope != null) {
-                    if (scope.vars != null && scope.vars[name] !== void(0)) {
+                    if (scope.vars != null && scope.vars[name] !== void 0) {
                         return scope;
                     }
                     scope = scope.parent;
@@ -2469,7 +2652,7 @@ var zera = (function() {
     }
 
     function defineLexically(env, name, value) {
-        if (typeof value !== 'undefined') {
+        if (typeof value !== "undefined") {
             env.vars[name] = value;
             return null;
         } else {
@@ -2479,19 +2662,21 @@ var zera = (function() {
     }
 
     function findVar(sym, returnNull) {
-        var ERROR_UNDEFINED_VAR = new Error(str('Undefined variable: ', sym));
-        var ns, v, scope, name = sym.name();
+        var ERROR_UNDEFINED_VAR = new Error(str("Undefined variable: ", sym));
+        var ns,
+            v,
+            scope,
+            name = sym.name();
         if (sym.isQualified()) {
             ns = CURRENT_NS.get().lookupAlias(sym.namespace());
             ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
-            v  = ns.mapping(name);
+            v = ns.mapping(name);
             if (!v) {
                 if (!returnNull) throw ERROR_UNDEFINED_VAR;
                 return null;
             }
             return v;
-        }
-        else {
+        } else {
             v = CURRENT_NS.get().mapping(name);
             if (v) return v;
             else {
@@ -2501,7 +2686,6 @@ var zera = (function() {
                 throw ERROR_UNDEFINED_VAR;
             }
         }
-
     }
 
     // 1) if namespace-qualified lookup in namespace
@@ -2510,26 +2694,27 @@ var zera = (function() {
     // 4) lookup in default namespace
     // (could go back and put default imports in top then they'll always be found lexically unless they've been redefined and should be more performant)
     function evalSymbol(sym, env) {
-        var MACRO_ERROR = str('Macros cannot be evaluated in this context');
-        var ns, v, scope, name = sym.name();
+        var MACRO_ERROR = str("Macros cannot be evaluated in this context");
+        var ns,
+            v,
+            scope,
+            name = sym.name();
         // 1) namespace-qualified
         if (sym.isQualified()) {
             ns = CURRENT_NS.get().lookupAlias(sym.namespace());
             ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
-            v  = ns.mapping(name);
-            if (!v) throw new Error(str('Undefined variable: ', sym));
+            v = ns.mapping(name);
+            if (!v) throw new Error(str("Undefined variable: ", sym));
             if (v.isMacro()) throw new Error(MACRO_ERROR);
             return v.get();
-        }
-        else {
+        } else {
             // 2) lookup in lexical environment
             scope = lookup(env, name);
             if (scope != null) {
                 return scope.vars[name];
-            }
-            else {
+            } else {
                 // 3) lookup in scoped namespace
-                ns = env.vars['*ns*'];
+                ns = env.vars["*ns*"];
                 v = ns && ns.mapping(name);
                 if (v) {
                     if (v.isMacro()) {
@@ -2537,8 +2722,7 @@ var zera = (function() {
                         throw new Error(MACRO_ERROR);
                     }
                     return v.get();
-                }
-                else {
+                } else {
                     // 4) lookup in current namespace
                     v = CURRENT_NS.get().mapping(name);
                     if (v) {
@@ -2547,15 +2731,14 @@ var zera = (function() {
                             throw new Error(MACRO_ERROR);
                         }
                         return v.get();
-                    }
-                    else {
+                    } else {
                         // 5) lookup in default namespace
                         v = ZERA_NS.mapping(name);
                         if (v) {
                             if (v.isMacro()) throw new Error(MACRO_ERROR);
                             return v.get();
                         }
-                        throw new Error(str('Undefined variable: ', sym));
+                        throw new Error(str("Undefined variable: ", sym));
                     }
                 }
             }
@@ -2581,7 +2764,9 @@ var zera = (function() {
         var scope = env(env_);
 
         if (!isVector(binds) && count(binds) % 2 === 0) {
-            throw new Error('Bindings should be a vector with an even number of elements');
+            throw new Error(
+                "Bindings should be a vector with an even number of elements"
+            );
         }
         binds = binds.toArray();
 
@@ -2589,14 +2774,16 @@ var zera = (function() {
         for (i = 0; i < binds.length; i += 2) {
             name = binds[i];
             sname = str(name);
-            if (sname.endsWith('#')) {
+            if (sname.endsWith("#")) {
                 name = gensym(str(sname.slice(0, sname.length - 1)));
             }
             defineLexically(scope, name);
             defineLexically(scope, name, evaluate(binds[i + 1], scope));
         }
-        
-        var x = car(body), xs = body.rest(), ret;
+
+        var x = car(body),
+            xs = body.rest(),
+            ret;
         while (x != null) {
             ret = evaluate(x, scope);
             x = xs.first();
@@ -2612,7 +2799,9 @@ var zera = (function() {
         var ns = CURRENT_NS.get();
         if (name.isQualified()) {
             if (name.namespace() !== str(ns.name())) {
-                throw new Error('Cannot define var in a namespace other than the current namespace');
+                throw new Error(
+                    "Cannot define var in a namespace other than the current namespace"
+                );
             }
             name = Sym.intern(name.name());
         }
@@ -2624,7 +2813,10 @@ var zera = (function() {
         var rest = cdr(form);
         var name = car(rest);
         var value = car(cdr(rest));
-        if (name == null || value == null) throw new Error('Malformed assignment expecting: (set! target value)');
+        if (name == null || value == null)
+            throw new Error(
+                "Malformed assignment expecting: (set! target value)"
+            );
         return set(env, name, evaluate(value, env));
     }
 
@@ -2669,7 +2861,8 @@ var zera = (function() {
         if (obj == null) return ArrayMap.EMPTY;
         var keys = Object.getOwnPropertyNames(obj);
         if (keys.length === 0) return null;
-        var i, entries = [];
+        var i,
+            entries = [];
         for (i = 0; i < keys.length; i++) {
             entries.push(apply(keyFn_, [keys[i]]));
             entries.push(obj[keys[i]]);
@@ -2680,15 +2873,23 @@ var zera = (function() {
     function evalConditional(form, env) {
         var preds = cdr(form);
         if (count(preds) % 2 !== 0) {
-            throw new Error(str('cond requires an even number of predicates: ', prnStr(form)));
+            throw new Error(
+                str(
+                    "cond requires an even number of predicates: ",
+                    prnStr(form)
+                )
+            );
         }
         var i = 1,
-            x, y, rest, xs = preds;
+            x,
+            y,
+            rest,
+            xs = preds;
         while (i < count(preds)) {
             rest = cdr(xs);
             x = car(xs);
             y = car(rest);
-            if (x === 'else') {
+            if (x === "else") {
                 return evaluate(y, env);
             } else {
                 x = evaluate(x, env);
@@ -2707,7 +2908,7 @@ var zera = (function() {
     }
 
     function isJSFn(x) {
-        return Object.prototype.toString.call(x) === '[object Function]';
+        return Object.prototype.toString.call(x) === "[object Function]";
     }
 
     function isFunction(x) {
@@ -2733,14 +2934,16 @@ var zera = (function() {
     }
 
     function bindArguments(names, values) {
-        var i, xs, capture = false, args = [];
+        var i,
+            xs,
+            capture = false,
+            args = [];
         for (i = 0; i < names.length; i++) {
             if (capture === true) {
                 xs = values.slice(i - 1, values.length);
                 args.push([names[i], list.apply(null, xs)]);
                 break;
-            }
-            else {
+            } else {
                 args.push([names[i], values[i]]);
             }
             if (equals(names[i], AMP_SYM)) capture = true;
@@ -2752,21 +2955,22 @@ var zera = (function() {
         if (isArray(x)) return x[first(args)];
         if (isInvocable(x)) {
             return x.apply(null, intoArray(args));
-        }
-        else {
-            throw new Error(str('Not a valid function: ', prnStr(x), ''));
+        } else {
+            throw new Error(str("Not a valid function: ", prnStr(x), ""));
         }
     }
 
     function pt(tag, val) {
-        p(str(tag, ': ', prnStr(val)));
+        p(str(tag, ": ", prnStr(val)));
     }
 
     function evalApplication(form, env, stack) {
         var stack_ = conj(stack, car(form));
         var fn = evaluate(car(form), env, stack_);
         var args = cdr(form);
-        var a = mapA(function(x) { return evaluate(x, env, stack_); }, args);
+        var a = mapA(function (x) {
+            return evaluate(x, env, stack_);
+        }, args);
         var args_ = list.apply(null, a);
         return apply(fn, args_);
     }
@@ -2787,7 +2991,10 @@ var zera = (function() {
                 bodies_ = {};
             for (var i = 0; i < arglists.length; i++) {
                 if (!isVector(arglists[i])) {
-                    throw new Error('A multi-body function should have a body of lists where the first element is a vector, got: ' + prnStr(form));
+                    throw new Error(
+                        "A multi-body function should have a body of lists where the first element is a vector, got: " +
+                            prnStr(form)
+                    );
                 }
                 var arglist = arglists[i].toArray();
                 var arity = calculateArity(arglist);
@@ -2795,18 +3002,30 @@ var zera = (function() {
                 bodies_[arity] = bodies[i];
             }
             return new Fn(form.meta(), env(env_), arglists_, bodies_, isMethod);
+        } else if (isVector(names)) {
+            return new Fn(
+                form.meta(),
+                env(env_),
+                [names.toArray()],
+                [body],
+                isMethod
+            );
         }
-        else if (isVector(names)) {
-            return new Fn(form.meta(), env(env_), [names.toArray()], [body], isMethod);
-        }
-        throw new Error(str('function arguments should be a vector or a list of vectors, got: ', prnStr(form)));
+        throw new Error(
+            str(
+                "function arguments should be a vector or a list of vectors, got: ",
+                prnStr(form)
+            )
+        );
     }
 
     function evalMacroDefinition(form) {
         var rest = cdr(form),
             name = car(rest),
             fnrest = cdr(rest),
-            form_ =  cons(FN_SYM, fnrest).withMeta(arrayMap(keyword('macro'), true));
+            form_ = cons(FN_SYM, fnrest).withMeta(
+                arrayMap(keyword("macro"), true)
+            );
         var val = evalFunction(form_);
         return Var.intern(CURRENT_NS.get(), name, val).setMacro();
     }
@@ -2815,38 +3034,44 @@ var zera = (function() {
         return isList(x) && isSymbol(car(x));
     }
 
-    var AMP_FORM = Sym.intern('&form');
-    var AMP_ENV = Sym.intern('&env');
+    var AMP_FORM = Sym.intern("&form");
+    var AMP_ENV = Sym.intern("&env");
 
     // TODO: set &form and &env in macro scope
     function macroexpand(form, env_, stack) {
         var stack_;
         if (isTaggedValue(form)) {
-            var sym  = car(form);
+            var sym = car(form);
             stack_ = conj(stack, sym);
             var name = sym.toString();
             if (SPECIAL_FORMS[name]) {
                 return form;
-            }
-            else if (name !== '.-' && name.startsWith('.-')) {
-                return list('.', car(cdr(form)), Sym.intern(name.slice(1)));
-            }
-            else if (name !== '.' && name.startsWith('.')) {
-                return list(DOT_SYM, car(cdr(form)), cons(Sym.intern(name.slice(1)), cdr(cdr(form))));
-            }
-            else if (name.endsWith('.')) {
-                return cons(NEW_SYM, cons(Sym.intern(name.replace(/\.$/, '')), cdr(form)));
-            }
-            else {
+            } else if (name !== ".-" && name.startsWith(".-")) {
+                return list(".", car(cdr(form)), Sym.intern(name.slice(1)));
+            } else if (name !== "." && name.startsWith(".")) {
+                return list(
+                    DOT_SYM,
+                    car(cdr(form)),
+                    cons(Sym.intern(name.slice(1)), cdr(cdr(form)))
+                );
+            } else if (name.endsWith(".")) {
+                return cons(
+                    NEW_SYM,
+                    cons(Sym.intern(name.replace(/\.$/, "")), cdr(form))
+                );
+            } else {
                 var v = findVar(sym, true); // will return null on error rather than throw an exception
                 if (v == null) return form;
                 if (v.isMacro()) {
                     var scope = env(env_);
                     defineLexically(scope, AMP_ENV, scope);
                     defineLexically(scope, AMP_FORM, form);
-                    return macroexpand(apply(v.get(), next(form)), scope, stack_);
-                }
-                else {
+                    return macroexpand(
+                        apply(v.get(), next(form)),
+                        scope,
+                        stack_
+                    );
+                } else {
                     return form;
                 }
             }
@@ -2859,7 +3084,7 @@ var zera = (function() {
     }
 
     function evalRecursionPoint(form, env) {
-        var args = mapA(function(x) {
+        var args = mapA(function (x) {
             return evaluate(x, env);
         }, cdr(form));
         throw new RecursionPoint(args);
@@ -2872,14 +3097,16 @@ var zera = (function() {
         var ret = null;
 
         if (count(binds) % 2 !== 0) {
-            throw new Error('loop requires an even number of bindings');
+            throw new Error("loop requires an even number of bindings");
         }
 
         // bind variables & collect names
         var i;
         var binds_ = intoArray(binds);
         var names = [],
-            name, value, evaled;
+            name,
+            value,
+            evaled;
         for (i = 0; i < binds_.length; i += 2) {
             name = binds_[i];
             value = binds_[i + 1];
@@ -2889,44 +3116,52 @@ var zera = (function() {
             defineLexically(scope, name, evaled);
         }
 
-        loop:
-            while (true) {
-                try {
-                    // evaluate body
-                    var exp = car(body),
-                        exprs = cdr(body);
-                    while (exp != null) {
-                        ret = evaluate(exp, scope);
-                        exp = car(exprs);
-                        exprs = cdr(exprs);
+        loop: while (true) {
+            try {
+                // evaluate body
+                var exp = car(body),
+                    exprs = cdr(body);
+                while (exp != null) {
+                    ret = evaluate(exp, scope);
+                    exp = car(exprs);
+                    exprs = cdr(exprs);
+                }
+                break;
+            } catch (e) {
+                //p(e.args);
+                if (e instanceof RecursionPoint) {
+                    if (names.length !== e.args.length) {
+                        throw new Error(
+                            str(
+                                "Wrong number or arguments, expected: ",
+                                names.length,
+                                " got: ",
+                                e.args.length
+                            )
+                        );
                     }
-                    break;
-                } catch (e) {
-                    //p(e.args);
-                    if (e instanceof RecursionPoint) {
-                        if (names.length !== e.args.length) {
-                            throw new Error(str('Wrong number or arguments, expected: ', names.length, ' got: ', e.args.length));
-                        }
-                        for (i = 0; i < names.length; i++) {
-                            defineLexically(scope, names[i], e.args[i]);
-                        }
-                        continue loop;
-                    } else {
-                        throw e;
+                    for (i = 0; i < names.length; i++) {
+                        defineLexically(scope, names[i], e.args[i]);
                     }
+                    continue loop;
+                } else {
+                    throw e;
                 }
             }
+        }
         return ret;
     }
 
     function evalClassInstantiation(form, env) {
         var ctr = evaluate(car(cdr(form)), env);
-        if (ctr.$zera$isProtocol === true) throw new Error('Protocols cannot be instantiated');
-        if (!isJSFn(ctr)) throw new Error('class given is not a valid constructor');
-        var args = mapA(function(x) {
+        if (ctr.$zera$isProtocol === true)
+            throw new Error("Protocols cannot be instantiated");
+        if (!isJSFn(ctr))
+            throw new Error("class given is not a valid constructor");
+        var args = mapA(function (x) {
             return evaluate(x, env);
         }, cdr(cdr(form)));
-        return new(ctr.bind.apply(ctr, [].concat(ctr, args)));
+        return new (ctr.bind.apply(ctr, [].concat(ctr, args)))();
     }
 
     // member access
@@ -2942,7 +3177,7 @@ var zera = (function() {
         if (isSymbol(member)) {
             var smember = member.toString();
             val = obj[smember];
-            if (smember.startsWith('-')) {
+            if (smember.startsWith("-")) {
                 return obj[smember.slice(1)];
             } else if (isJSFn(val)) {
                 return val.call(obj);
@@ -2952,15 +3187,17 @@ var zera = (function() {
         } else if (isList(member)) {
             var name = str(car(member));
             val = obj[name];
-            if (name.startsWith('-')) {
+            if (name.startsWith("-")) {
                 return obj[name.slice(1)];
             } else if (isJSFn(val)) {
-                var args = mapA(function(x) {
+                var args = mapA(function (x) {
                     return evaluate(x, env);
                 }, cdr(member));
                 return val.apply(obj, args);
             } else {
-                throw new Error(str('invalid member access: "', prnStr(form), '"'));
+                throw new Error(
+                    str('invalid member access: "', prnStr(form), '"')
+                );
             }
         } else {
             throw new Error(str('invalid member access: "', prnStr(form), '"'));
@@ -2974,14 +3211,16 @@ var zera = (function() {
 
     function evalVar(form, env) {
         var exp = car(cdr(form));
-        if (!isSymbol(exp)) throw new Error('Var name should be a Symbol, got: ' + prnStr(exp));
-        if (!exp.namespace()) throw new Error('Var name should be fully qualified');
+        if (!isSymbol(exp))
+            throw new Error("Var name should be a Symbol, got: " + prnStr(exp));
+        if (!exp.namespace())
+            throw new Error("Var name should be fully qualified");
         var ns = Namespace.findOrDie(exp.namespace());
         return ns.findInternedVar(exp.name());
     }
-    
+
     function evalDoBlock(form, env) {
-        var x  = first(rest(form)),
+        var x = first(rest(form)),
             xs = rest(rest(form)),
             ret;
         while (x != null) {
@@ -2993,7 +3232,9 @@ var zera = (function() {
     }
 
     function evalArray(form, env) {
-        return form.map(function(x) { return evaluate(x, env); });
+        return form.map(function (x) {
+            return evaluate(x, env);
+        });
     }
 
     function evalVector(form, env) {
@@ -3013,36 +3254,42 @@ var zera = (function() {
         var a = [];
         if (from == null) {
             return a;
-        }
-        else if (isFunction(from.toArray)) {
+        } else if (isFunction(from.toArray)) {
             return from.toArray();
-        }
-        else if (isArray(from)) {
+        } else if (isArray(from)) {
             return from;
-        }
-        else if (isSeq(from) || isSeqable(from)) {
+        } else if (isSeq(from) || isSeqable(from)) {
             var s;
             for (s = seq(from); s != null; s = s.next()) {
                 a.push(s.first());
             }
             return a;
+        } else {
+            throw new Error(
+                str(
+                    "Don't know how to convert ",
+                    prnStr(from),
+                    " into an array"
+                )
+            );
         }
-        else {
-            throw new Error(str("Don't know how to convert ", prnStr(from), " into an array"));
-        }
-        
+
         return a;
     }
 
     function evalMap(form, env) {
-        var seq = map(function(x) { return [evaluate(x.key(), env), evaluate(x.val(), env)]; }, form),
+        var seq = map(function (x) {
+                return [evaluate(x.key(), env), evaluate(x.val(), env)];
+            }, form),
             m = into(ArrayMap.EMPTY, seq);
         if (form.meta()) return m.withMeta(form.meta());
         return m;
     }
 
     function evalSet(form, env) {
-        var seq = map(function(x) { return evaluate(x, env); }, form),
+        var seq = map(function (x) {
+                return evaluate(x, env);
+            }, form),
             s = into(HashSet.EMPTY, seq);
         if (form.meta()) return s.withMeta(form.meta());
         return s;
@@ -3050,10 +3297,13 @@ var zera = (function() {
 
     function processMethodDef(meth) {
         var name = first(meth);
-        var forms = cons(Sym.intern('fn'), rest(meth));
+        var forms = cons(Sym.intern("fn"), rest(meth));
         var fn = evalFunction(forms, top, true);
-        return function() {
-            return fn.invoke.apply(fn, [this].concat(Array.prototype.slice.call(arguments)));
+        return function () {
+            return fn.invoke.apply(
+                fn,
+                [this].concat(Array.prototype.slice.call(arguments))
+            );
         };
     }
 
@@ -3071,15 +3321,23 @@ var zera = (function() {
 
     // macro
     function defineType(name, fields) {
-        if (!isVector(fields)) throw new Error('fields should be a vector if symbols');
+        if (!isVector(fields))
+            throw new Error("fields should be a vector if symbols");
         var specs = Array.prototype.slice.call(arguments, 2);
 
         var argc = count(fields);
-        var tag = Sym.intern(str(CURRENT_NS.get().name(), '/', name));
+        var tag = Sym.intern(str(CURRENT_NS.get().name(), "/", name));
 
-        var type = function() {
+        var type = function () {
             if (arguments.length !== argc) {
-                throw new Error(str('Wrong number of arguments got: ', arguments.length, ', expected: ', argc));
+                throw new Error(
+                    str(
+                        "Wrong number of arguments got: ",
+                        arguments.length,
+                        ", expected: ",
+                        argc
+                    )
+                );
             }
             var fields_ = seq(fields);
             var fname = first(fields_);
@@ -3095,7 +3353,12 @@ var zera = (function() {
 
         type.prototype = Object.create(ZeraType.prototype);
 
-        var i, spec, meth, protocol = null, proto, protocols = {}; // TODO: change to a transient-map
+        var i,
+            spec,
+            meth,
+            protocol = null,
+            proto,
+            protocols = {}; // TODO: change to a transient-map
         for (i = 0; i < specs.length; i++) {
             spec = specs[i];
             if (isList(spec)) {
@@ -3103,11 +3366,13 @@ var zera = (function() {
                     // TODO: add parent protocols to mapping (see collectProtocols)
                     // TODO: check if method is declared as part of the protocol in scope
                 }
-                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                if (count(spec) < 2)
+                    throw new Error(
+                        "A method signature must have a name and a vector of arguments"
+                    );
                 meth = first(spec);
                 type.prototype[meth] = processMethodDef(spec);
-            }
-            else if (isSymbol(spec)) {
+            } else if (isSymbol(spec)) {
                 protocol = evaluate(spec);
                 protocols[protocol.$zera$tag] = protocol;
             }
@@ -3126,40 +3391,46 @@ var zera = (function() {
         if (isString(x)) {
             doc = x;
             specs = Array.prototype.slice.call(arguments, 2);
-        }
-        else {
+        } else {
             specs = Array.prototype.slice.call(arguments, 1);
         }
 
-        var proto = function() {
+        var proto = function () {
             this.$zera$typeName = proto.$zera$tag;
         };
 
         proto.$zera$isProtocol = true;
-        proto.$zera$tag = Sym.intern(str(CURRENT_NS.get().name(), '/', name));
+        proto.$zera$tag = Sym.intern(str(CURRENT_NS.get().name(), "/", name));
 
-        var i, spec, meth, protocol = null, proto, protocols = arrayMap(); // TODO: change to a transient-map
+        var i,
+            spec,
+            meth,
+            protocol = null,
+            proto,
+            protocols = arrayMap(); // TODO: change to a transient-map
         for (i = 0; i < specs.length; i++) {
             spec = specs[i];
             if (isList(spec)) {
                 if (protocol !== null) {
                     // TODO: check if method is declared as part of the protocol in scope
                     proto = evaluate(protocol);
-                    protocols = protocols.assoc(protocol,  proto);
+                    protocols = protocols.assoc(protocol, proto);
                 }
                 // TODO: add parent protocols to mapping (see collectProtocols)
-                if (count(spec) < 2) throw new Error('A method signature must have a name and a vector of arguments');
+                if (count(spec) < 2)
+                    throw new Error(
+                        "A method signature must have a name and a vector of arguments"
+                    );
                 meth = first(spec);
                 proto.prototype[meth] = processMethodDef(spec);
-            }
-            else if (isSymbol(spec)) {
+            } else if (isSymbol(spec)) {
                 protocol = evaluate(spec);
             }
         }
 
         proto.$zera$protocols = protocols;
 
-        if (doc) name = name.withMeta(arrayMap(keyword('doc'), doc));
+        if (doc) name = name.withMeta(arrayMap(keyword("doc"), doc));
         return list(DEF_SYM, name, proto);
     }
 
@@ -3168,10 +3439,10 @@ var zera = (function() {
     }
 
     var top = env();
-    var MSG_KEY = keyword('msg');
-    var FN_KEY = keyword('fn');
-    var FILE_KEY = keyword('file');
-    var LINE_KEY = keyword('line');
+    var MSG_KEY = keyword("msg");
+    var FN_KEY = keyword("fn");
+    var FILE_KEY = keyword("file");
+    var LINE_KEY = keyword("line");
 
     function ZeraError(msg, stack, parent) {
         this.msg = msg;
@@ -3192,119 +3463,116 @@ var zera = (function() {
                 recur = false;
                 if (form == null || NIL_SYM.equals(form)) {
                     ret = null;
-                }
-                else if (isSelfEvaluating(form)) {
+                } else if (isSelfEvaluating(form)) {
                     ret = form;
-                }
-                else if (isMap(form)) {
+                } else if (isMap(form)) {
                     ret = evalMap(form, env);
-                }
-                else if (isVector(form)) {
+                } else if (isVector(form)) {
                     ret = evalVector(form, env);
-                }
-                else if (isArray(form)) {
+                } else if (isArray(form)) {
                     ret = evalArray(form, env);
-                }
-                else if (isSet(form)) {
+                } else if (isSet(form)) {
                     ret = evalSet(form, env);
-                }
-                else if (isSymbol(form)) {
+                } else if (isSymbol(form)) {
                     ret = evalSymbol(form, env);
-                }
-                else if (isList(form)) {
+                } else if (isList(form)) {
                     if (isEmpty(form)) return form;
                     var tag = str(car(form));
                     switch (tag) {
-                        case 'quote':
+                        case "quote":
                             ret = evalQuote(form);
                             break;
-                        case 'do':
+                        case "do":
                             ret = evalDoBlock(form, env);
                             break;
-                        case 'let':
+                        case "let":
                             ret = evalLetBlock(form, env);
                             break;
-                        case 'def':
+                        case "def":
                             ret = evalDefinition(form, env);
                             break;
-                        case 'var':
+                        case "var":
                             ret = evalVar(form, env);
                             break;
-                        case 'set!':
+                        case "set!":
                             ret = evalAssignment(form, env);
                             break;
-                        case 'cond':
+                        case "cond":
                             ret = evalConditional(form, env);
                             break;
-                        case 'fn':
+                        case "fn":
                             ret = evalFunction(form, env);
                             break;
-                        case 'loop':
+                        case "loop":
                             ret = evalLoop(form, env);
                             break;
-                        case 'recur':
+                        case "recur":
                             ret = evalRecursionPoint(form, env);
                             break;
-                        case 'throw':
+                        case "throw":
                             ret = evalThrownException(form, env);
                             break;
-                        case 'new':
+                        case "new":
                             ret = evalClassInstantiation(form, env);
                             break;
-                        case '.':
+                        case ".":
                             ret = evalMemberAccess(form, env);
                             break;
-                        case 'defmacro':
+                        case "defmacro":
                             ret = evalMacroDefinition(form, env);
                             break;
                         default:
                             ret = evalApplication(form, env, stack);
                             break;
                     }
-                }
-                else {
-                    console.error('Invalid form', form);
+                } else {
+                    console.error("Invalid form", form);
                     throw new Error(str('invalid form: "', form, '"'));
                 }
             }
             return ret;
-        }
-        catch (e) {
+        } catch (e) {
             if (e instanceof ZeraError) {
                 throw new ZeraError(e.msg, e.stack, e.parent);
-            }
-            else if (isError(e)) {
+            } else if (isError(e)) {
                 throw new ZeraError(e.message, intoArray(stack), e);
-            }
-            else if (isString(e)) {
+            } else if (isString(e)) {
                 throw new ZeraError(e, intoArray(stack), new Error(e));
-            }
-            else {
+            } else {
                 throw e;
             }
         }
     }
 
-    var JS_GLOBAL_OBJECT = Var.intern(ZERA_NS, Sym.intern('*js-global-object*'), isNode ? 'global' : 'window').setDynamic();
+    var JS_GLOBAL_OBJECT = Var.intern(
+        ZERA_NS,
+        Sym.intern("*js-global-object*"),
+        isNode ? "global" : "window"
+    ).setDynamic();
 
     function compileKeyword(form, env) {
         if (form.namespace()) {
-            return str('zera.core.keyword("', form.namespace(), '", "', form.name(), '")');
-        }
-        else {
+            return str(
+                'zera.core.keyword("',
+                form.namespace(),
+                '", "',
+                form.name(),
+                '")'
+            );
+        } else {
             return str('zera.core.keyword("', form.name(), '")');
         }
     }
 
     var SPECIALS = {
-        '+': '__PLUS__',
-        '-': '__MINUS__',
-        '!': '__BANG__',
-        '?': '__QEST__',
-        '*': '__STAR__',
-        '>': '__GT__',
-        '<': '__LT__',
-        '=': '__EQ__'
+        "+": "__PLUS__",
+        "-": "__MINUS__",
+        "!": "__BANG__",
+        "?": "__QEST__",
+        "*": "__STAR__",
+        ">": "__GT__",
+        "<": "__LT__",
+        "=": "__EQ__",
     };
 
     function encodeName(name) {
@@ -3336,15 +3604,15 @@ var zera = (function() {
     }
 
     function isRegExp(x) {
-        return Object.prototype.toString.call(x) === '[object RegExp]';
+        return Object.prototype.toString.call(x) === "[object RegExp]";
     }
 
     function isDate(x) {
-        return Object.prototype.toString.call(x) === '[object Date]';
+        return Object.prototype.toString.call(x) === "[object Date]";
     }
 
     function isObject(x) {
-        return Object.prototype.toString.call(x) === '[object Object]';
+        return Object.prototype.toString.call(x) === "[object Object]";
     }
 
     function isEven(x) {
@@ -3363,8 +3631,7 @@ var zera = (function() {
     function mapA(f, l) {
         if (isEmpty(l)) {
             return [];
-        }
-        else {
+        } else {
             return intoArray(seq(l)).map(f);
         }
     }
@@ -3372,11 +3639,16 @@ var zera = (function() {
     // Function -> Object -> Object
     // Function -> Object -> Function -> Object
     function mapO(f, obj, keyXForm) {
-        var i, key, val, key_, keys = Object.keys(obj), o = {};
+        var i,
+            key,
+            val,
+            key_,
+            keys = Object.keys(obj),
+            o = {};
         for (i = 0; i < keys.length; i++) {
-            key  = keys[i];
+            key = keys[i];
             key_ = isJSFn(keyXForm) ? keyXForm.call(null, key) : key;
-            val  = obj[key];
+            val = obj[key];
             o[key_] = f.call(null, val, key, key_);
         }
         return o;
@@ -3388,40 +3660,49 @@ var zera = (function() {
     }
 
     var names = {
-        '=': 'eq',
-        'not=': 'noteq',
-        '<': 'lt',
-        '>': 'gt',
-        '<=': 'lteq',
-        '>=': 'gteq',
-        '+': 'add',
-        '-': 'sub',
-        '*': 'mult',
-        '/': 'div'
+        "=": "eq",
+        "not=": "noteq",
+        "<": "lt",
+        ">": "gt",
+        "<=": "lteq",
+        ">=": "gteq",
+        "+": "add",
+        "-": "sub",
+        "*": "mult",
+        "/": "div",
     };
 
     function zeraNameToJS(x) {
         if (names[x]) return names[x];
-        var prefix = null, parts;
-        if (x.endsWith('?')) {
-            prefix = 'is';
+        var prefix = null,
+            parts;
+        if (x.endsWith("?")) {
+            prefix = "is";
             x = x.slice(0, x.length - 1);
-        }
-        else if (x.endsWith('!')) {
+        } else if (x.endsWith("!")) {
             x = x.slice(0, x.length - 1);
+        } else if (x.startsWith("*") && x.endsWith("*")) {
+            return x
+                .slice(0, x.length - 1)
+                .slice(1)
+                .split("-")
+                .map(function (s) {
+                    return s.toUpperCase();
+                })
+                .join("_");
         }
-        else if (x.startsWith('*') && x.endsWith('*')) {
-            return x.slice(0, x.length - 1).slice(1).split('-').map(function(s) { return s.toUpperCase(); }).join('_');
-        }
-        if (x.indexOf("->") !== -1) parts = x.split("->").reduce(function(a, x) { return [].concat(a, "to", x); });
-        else parts = prefix ? [].concat(prefix, x.split('-')) : x.split('-');
-        return [].concat(parts[0], parts.slice(1).map(cap)).join('');
+        if (x.indexOf("->") !== -1)
+            parts = x.split("->").reduce(function (a, x) {
+                return [].concat(a, "to", x);
+            });
+        else parts = prefix ? [].concat(prefix, x.split("-")) : x.split("-");
+        return [].concat(parts[0], parts.slice(1).map(cap)).join("");
     }
 
     function readJS(exp) {
         var i;
         if (isString(exp)) {
-            if (exp.startsWith(':')) {
+            if (exp.startsWith(":")) {
                 return Keyword.intern(exp.substring(1));
             } else if (exp.startsWith("'")) {
                 return list(QUOTE_SYM, Sym.intern(exp.substring(1)));
@@ -3432,13 +3713,16 @@ var zera = (function() {
             }
         } else if (isArray(exp)) {
             if (exp.length === 0) return PersistentList.EMPTY;
-            if (exp.length === 1) return cons(readJS(exp[0]), PersistentList.EMPTY);
+            if (exp.length === 1)
+                return cons(readJS(exp[0]), PersistentList.EMPTY);
             var xs = null;
-            var last = null, x;
+            var last = null,
+                x;
             for (i = exp.length - 1; i >= 0; i--) {
                 // use & to read pairs
-                if (exp[i] === '&') {
-                    if (exp.length === 2) return cons(PersistentList.EMPTY, readJS(last));
+                if (exp[i] === "&") {
+                    if (exp.length === 2)
+                        return cons(PersistentList.EMPTY, readJS(last));
                     i--;
                     x = cons(readJS(exp[i]), last);
                     if (exp.length === 3) return x;
@@ -3611,12 +3895,14 @@ var zera = (function() {
     define(ZERA_NS, "vector", vector);
     define(ZERA_NS, "vec", vec);
     define(ZERA_NS, "nth", nth);
-    define(ZERA_NS, 'aset', aset);
-    define(ZERA_NS, 'aget', aget);
-    define(ZERA_NS, 'alength', alength);
-    define(ZERA_NS, 'int-array', intArray);
-    define(ZERA_NS, 'float-array', floatArray);
-    define(ZERA_NS, "array", function() { return Array.prototype.slice.call(arguments); });
+    define(ZERA_NS, "aset", aset);
+    define(ZERA_NS, "aget", aget);
+    define(ZERA_NS, "alength", alength);
+    define(ZERA_NS, "int-array", intArray);
+    define(ZERA_NS, "float-array", floatArray);
+    define(ZERA_NS, "array", function () {
+        return Array.prototype.slice.call(arguments);
+    });
     define(ZERA_NS, "object->map", objectToMap);
     define(ZERA_NS, "object?", isObject);
     define(ZERA_NS, "read-js", readJS);
@@ -3624,63 +3910,69 @@ var zera = (function() {
     define(ZERA_NS, "inst?", isDate);
     define(ZERA_NS, "regex?", isRegExp);
 
-    define(ZERA_NS, 'deftype', defineType).setMacro();
-    define(ZERA_NS, 'defprotocol', defineProtocol).setMacro();
+    define(ZERA_NS, "deftype", defineType).setMacro();
+    define(ZERA_NS, "defprotocol", defineProtocol).setMacro();
 
-    define(ZERA_NS, "identical?", function(a, b) {
+    define(ZERA_NS, "identical?", function (a, b) {
         return a === b;
     });
 
-    define(ZERA_NS, "equiv?", function(a, b) {
+    define(ZERA_NS, "equiv?", function (a, b) {
         return a == b;
     });
 
     define(ZERA_NS, "=", equals);
-    define(ZERA_NS, "not=", function(a, b) { return !equals(a, b); });
+    define(ZERA_NS, "not=", function (a, b) {
+        return !equals(a, b);
+    });
 
-    define(ZERA_NS, "assert", function(x) {
-        if (x == null || x === false) throw new Error(str('Assert failed: ', prnStr(x)));
+    define(ZERA_NS, "assert", function (x) {
+        if (x == null || x === false)
+            throw new Error(str("Assert failed: ", prnStr(x)));
         return null;
     });
 
-    define(ZERA_NS, "not", function(x) {
+    define(ZERA_NS, "not", function (x) {
         return !x;
     });
 
     // bit operations
-    define(ZERA_NS, "bit-not", function(x) {
+    define(ZERA_NS, "bit-not", function (x) {
         return ~x;
     });
-    define(ZERA_NS, "bit-and", function(a, b) {
+    define(ZERA_NS, "bit-and", function (a, b) {
         return a & b;
     });
-    define(ZERA_NS, "bit-or", function(a, b) {
+    define(ZERA_NS, "bit-or", function (a, b) {
         return a || b;
     });
-    define(ZERA_NS, "bit-shift-left", function(a, b) {
+    define(ZERA_NS, "bit-shift-left", function (a, b) {
         return a << b;
     });
-    define(ZERA_NS, "bit-shift-right", function(a, b) {
+    define(ZERA_NS, "bit-shift-right", function (a, b) {
         return a >> b;
     });
-    define(ZERA_NS, "unsigned-bit-shift-right", function(a, b) {
+    define(ZERA_NS, "unsigned-bit-shift-right", function (a, b) {
         return a >>> b;
     });
 
     // TODO: rewrite these to match the Clojure API
-    function lt (a, b) {
+    function lt(a, b) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
             return true;
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return a < b;
-        }
-        else {
+        } else {
             if (a < b) {
-                var i, ret,
+                var i,
+                    ret,
                     y = b,
                     more = Array.prototype.slice.call(arguments, 2);
                 for (i = 0; i < more.length; i++) {
@@ -3693,21 +3985,24 @@ var zera = (function() {
             return false;
         }
     }
-    define(ZERA_NS, '<', lt);
+    define(ZERA_NS, "<", lt);
 
     function lteq(a, b) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
             return true;
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return a <= b;
-        }
-        else {
+        } else {
             if (a <= b) {
-                var i, ret,
+                var i,
+                    ret,
                     y = b,
                     more = Array.prototype.slice.call(arguments, 2);
                 for (i = 0; i < more.length; i++) {
@@ -3720,21 +4015,24 @@ var zera = (function() {
             return false;
         }
     }
-    define(ZERA_NS, '<=', lteq);
+    define(ZERA_NS, "<=", lteq);
 
-    var gt = function(a, b) {
+    var gt = function (a, b) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
             return true;
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return a > b;
-        }
-        else {
+        } else {
             if (a > b) {
-                var i, ret,
+                var i,
+                    ret,
                     y = b,
                     more = Array.prototype.slice.call(arguments, 2);
                 for (i = 0; i < more.length; i++) {
@@ -3747,21 +4045,24 @@ var zera = (function() {
             return false;
         }
     };
-    define(ZERA_NS, '>', gt);
+    define(ZERA_NS, ">", gt);
 
-    var gteq = function(a, b) {
+    var gteq = function (a, b) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
             return true;
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return a >= b;
-        }
-        else {
+        } else {
             if (a >= b) {
-                var i, ret,
+                var i,
+                    ret,
                     y = b,
                     more = Array.prototype.slice.call(arguments, 2);
                 for (i = 0; i < more.length; i++) {
@@ -3774,58 +4075,58 @@ var zera = (function() {
             return false;
         }
     };
-    define(ZERA_NS, '>=', gteq);
+    define(ZERA_NS, ">=", gteq);
 
-    var add = function(x) {
+    var add = function (x) {
         if (arguments.length === 0) {
             return 0;
-        }
-        else if (x == null) return null;
+        } else if (x == null) return null;
         else if (arguments.length === 1) {
-            if (!isNumber(x)) throw new Error('Only numbers can be added');
+            if (!isNumber(x)) throw new Error("Only numbers can be added");
             return x;
-        }
-        else {
-            var i, sum = 0;
+        } else {
+            var i,
+                sum = 0;
             for (i = 0; i < arguments.length; i++) {
-                sum += 1*arguments[i];
+                sum += 1 * arguments[i];
             }
             return sum;
         }
     };
     define(ZERA_NS, "+", add);
 
-    var sub = function(x, y) {
+    var sub = function (x, y) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
-            if (!isNumber(x)) throw new Error('Only numbers can be subtracted');
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error("Only numbers can be subtracted");
             return -x;
-        }
-        else if (arguments.length === 2) {
+        } else if (arguments.length === 2) {
             return x - y;
-        }
-        else {
-            var i, sum = arguments[0] - arguments[1];
+        } else {
+            var i,
+                sum = arguments[0] - arguments[1];
             for (i = 2; i < arguments.length; i++) {
-                sum -= 1*arguments[i];
+                sum -= 1 * arguments[i];
             }
             return sum;
         }
     };
-    define(ZERA_NS, '-', sub);
+    define(ZERA_NS, "-", sub);
 
-    var mult = function(x) {
+    var mult = function (x) {
         if (arguments.length === 0) {
             return 1;
-        }
-        else if (x == null) return null;
+        } else if (x == null) return null;
         else if (arguments.length === 1) {
-            if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
+            if (!isNumber(x)) throw new Error("Only numbers can be multiplied");
             return x;
-        }
-        else {
+        } else {
             var sum = 1;
             var i;
             for (i = 0; i < arguments.length; i++) {
@@ -3834,17 +4135,20 @@ var zera = (function() {
             return sum;
         }
     };
-    define(ZERA_NS, '*', mult);
+    define(ZERA_NS, "*", mult);
 
-    var div = function(x) {
+    var div = function (x) {
         if (arguments.length === 0) {
-            throw new Error(str('Wrong number of arguments expected 1 or more, got: ', arguments.length));
-        }
-        else if (arguments.length === 1) {
-            if (!isNumber(x)) throw new Error('Only numbers can be multiplied');
+            throw new Error(
+                str(
+                    "Wrong number of arguments expected 1 or more, got: ",
+                    arguments.length
+                )
+            );
+        } else if (arguments.length === 1) {
+            if (!isNumber(x)) throw new Error("Only numbers can be multiplied");
             return 1 / x;
-        }
-        else {
+        } else {
             var sum = 1;
             var i;
             for (i = 0; i < arguments.length; i++) {
@@ -3853,10 +4157,10 @@ var zera = (function() {
             return sum;
         }
     };
-    define(ZERA_NS, '/', div);
+    define(ZERA_NS, "/", div);
 
     function symbolImporter(ns) {
-        return function(name) {
+        return function (name) {
             try {
                 var val = eval(name);
                 if (val != null) {
@@ -3868,305 +4172,317 @@ var zera = (function() {
         };
     }
 
-    define(ZERA_NS, '*platform*', Keyword.intern('js'));
+    define(ZERA_NS, "*platform*", Keyword.intern("js"));
 
-    var JS_NS = Namespace.findOrCreate(Sym.intern('js'));
-    define(JS_NS, 'function?', isJSFn);
-    define(JS_NS, 'object->map', objectToMap);
+    var JS_NS = Namespace.findOrCreate(Sym.intern("js"));
+    define(JS_NS, "function?", isJSFn);
+    define(JS_NS, "object->map", objectToMap);
 
     // import js stuff
     [
-        'Array',
-        'ArrayBuffer',
-        'AsyncFunction',
-        'Atomics',
-        'Boolean',
-        'DataView',
-        'Date',
-        'Error',
-        'EvalError',
-        'Float32Array',
-        'Float64Array',
-        'Function',
-        'Generator',
-        'GeneratorFunction',
-        'Infinity',
-        'Int32Array',
-        'Int64Array',
-        'Int8Array',
-        'InternalError',
-        'Intl',
-        'JSON',
-        'Map',
-        'Math',
-        'NaN',
-        'Number',
-        'Object',
-        'Promise',
-        'Proxy',
-        'RangeError',
-        'ReferenceError',
-        'Reflect',
-        'RegExp',
-        'Set',
-        'String',
-        'Symbol',
-        'SyntaxError',
-        'TypeError',
-        'TypedArray',
-        'URIError',
-        'Uint16Array',
-        'Uint32Array',
-        'Uint8Array',
-        'Uint8ClampedArray',
-        'WeakMap',
-        'WeakSet',
-        'decodeURI',
-        'decodeURIComponent',
-        'encodeURI',
-        'encodeURIComponent',
-        'eval',
-        'isFinite',
-        'isNaN',
-        'parseFloat',
-        'parseInt',
-        'uneval',
-        'SIMD',
-        'WebAssembly',
-        'window',
-        'document',
-        'navigator',
-        'location',
-        'localStorage',
-        'console',
-        'setInterval',
-        'setTimeout',
-        'clearInterval',
-        'clearTimeout'
+        "Array",
+        "ArrayBuffer",
+        "AsyncFunction",
+        "Atomics",
+        "Boolean",
+        "DataView",
+        "Date",
+        "Error",
+        "EvalError",
+        "Float32Array",
+        "Float64Array",
+        "Function",
+        "Generator",
+        "GeneratorFunction",
+        "Infinity",
+        "Int32Array",
+        "Int64Array",
+        "Int8Array",
+        "InternalError",
+        "Intl",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "Proxy",
+        "RangeError",
+        "ReferenceError",
+        "Reflect",
+        "RegExp",
+        "Set",
+        "String",
+        "Symbol",
+        "SyntaxError",
+        "TypeError",
+        "TypedArray",
+        "URIError",
+        "Uint16Array",
+        "Uint32Array",
+        "Uint8Array",
+        "Uint8ClampedArray",
+        "WeakMap",
+        "WeakSet",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "eval",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "uneval",
+        "SIMD",
+        "WebAssembly",
+        "window",
+        "document",
+        "navigator",
+        "location",
+        "localStorage",
+        "console",
+        "setInterval",
+        "setTimeout",
+        "clearInterval",
+        "clearTimeout",
     ].forEach(symbolImporter(JS_NS));
 
     if (isBrowser) {
-        var DOM_NS = Namespace.findOrCreate(Sym.intern('js.dom'));
-        define(ZERA_NS, '*platform*', Keyword.intern('js/browser'));
-        define(ZERA_NS, '*platform-info*', arrayMap(
-            Keyword.intern('platform/name'), navigator.userAgent,
-            Keyword.intern('platform/version'), navigator.userAgent
-        ));
+        var DOM_NS = Namespace.findOrCreate(Sym.intern("js.dom"));
+        define(ZERA_NS, "*platform*", Keyword.intern("js/browser"));
+        define(
+            ZERA_NS,
+            "*platform-info*",
+            arrayMap(
+                Keyword.intern("platform/name"),
+                navigator.userAgent,
+                Keyword.intern("platform/version"),
+                navigator.userAgent
+            )
+        );
         [
-            'Attr',
-            'ByteString',
-            'CDATASection',
-            'CharacterData',
-            'ChildNode',
-            'CSSPrimitiveValue',
-            'CSSValue',
-            'CSSValueList',
-            'Comment',
-            'CustomEvent',
-            'Document',
-            'DocumentFragment',
-            'DocumentType',
-            'DOMError',
-            'DOMException',
-            'DOMImplmentation',
-            'DOMString',
-            'DOMTimeStamp',
-            'DOMStringList',
-            'DOMTokenList',
-            'Element',
-            'Event',
-            'EventTarget',
-            'MutationObserver',
-            'MutationRecord',
-            'Node',
-            'NodeFilter',
-            'NodeIterator',
-            'NodeList',
-            'ParentNode',
-            'ProcessingInstruction',
-            'Range',
-            'Text',
-            'TreeWalker',
-            'URL',
-            'Window',
-            'Worker',
-            'XMLDocument',
-            'HTMLAnchorElement',
-            'HTMLAreaElement',
-            'HTMLAudioElement',
-            'HTMLBaseElement',
-            'HTMLBodyElement',
-            'HTMLBREElement',
-            'HTMLButtonElement',
-            'HTMLCanvasElement',
-            'HTMLDataElement',
-            'HTMLDataListElement',
-            'HTMLDialogElement',
-            'HTMLDivElement',
-            'HTMLDListElement',
-            'HTMLEmbedElement',
-            'HTMLFieldSetElement',
-            'HTMLFontElement',
-            'HTMLFormElement',
-            'HTMLFrameSetElement',
-            'HTMLHeadElement',
-            'HTMLHtmlElement',
-            'HTMLHRElement',
-            'HTMLIFrameElement',
-            'HTMLImageElement',
-            'HTMLInputElement',
-            'HTMLKeygenElement',
-            'HTMLLabelElement',
-            'HTMLLIElement',
-            'HTMLLinkElement',
-            'HTMLMapElement',
-            'HTMLMediaElement',
-            'HTMLMetaElement',
-            'HTMLMeterElement',
-            'HTMLModElement',
-            'HTMLObjectElement',
-            'HTMLOListElement',
-            'HTMLOptGroupElement',
-            'HTMLOptionElement',
-            'HTMLOutputElement',
-            'HTMLParagraphElement',
-            'HTMLParamElement',
-            'HTMLPreElement',
-            'HTMLProgressElement',
-            'HTMLQuoteElement',
-            'HTMLScriptElement',
-            'HTMLSelectElement',
-            'HTMLSourceElement',
-            'HTMLSpanElement',
-            'HTMLStyleElement',
-            'HTMLTableElement',
-            'HTMLTableCaptionElement',
-            'HTMLTableCellElement',
-            'HTMLTableDataCellElement',
-            'HTMLTableHeaderCellElement',
-            'HTMLTableColElement',
-            'HTMLTableRowElement',
-            'HTMLTableSectionElement',
-            'HTMLTextAreaElement',
-            'HTMLTimeElement',
-            'HTMLTitleElement',
-            'HTMLTrackElement',
-            'HTMLUListElement',
-            'HTMLUnknownElement',
-            'HTMLVideoElement',
-            'CanvasRenderingContext2D',
-            'CanvasGradient',
-            'CanvasPattern',
-            'TextMetrics',
-            'ImageData',
-            'CanvasPixelArray',
-            'NotifyAudioAvailableEvent',
-            'HTMLFormControlsCollection',
-            'HTMLOptionsCollection',
-            'DOMStringMap',
-            'RadioNodeList',
-            'MediaError'
+            "Attr",
+            "ByteString",
+            "CDATASection",
+            "CharacterData",
+            "ChildNode",
+            "CSSPrimitiveValue",
+            "CSSValue",
+            "CSSValueList",
+            "Comment",
+            "CustomEvent",
+            "Document",
+            "DocumentFragment",
+            "DocumentType",
+            "DOMError",
+            "DOMException",
+            "DOMImplmentation",
+            "DOMString",
+            "DOMTimeStamp",
+            "DOMStringList",
+            "DOMTokenList",
+            "Element",
+            "Event",
+            "EventTarget",
+            "MutationObserver",
+            "MutationRecord",
+            "Node",
+            "NodeFilter",
+            "NodeIterator",
+            "NodeList",
+            "ParentNode",
+            "ProcessingInstruction",
+            "Range",
+            "Text",
+            "TreeWalker",
+            "URL",
+            "Window",
+            "Worker",
+            "XMLDocument",
+            "HTMLAnchorElement",
+            "HTMLAreaElement",
+            "HTMLAudioElement",
+            "HTMLBaseElement",
+            "HTMLBodyElement",
+            "HTMLBREElement",
+            "HTMLButtonElement",
+            "HTMLCanvasElement",
+            "HTMLDataElement",
+            "HTMLDataListElement",
+            "HTMLDialogElement",
+            "HTMLDivElement",
+            "HTMLDListElement",
+            "HTMLEmbedElement",
+            "HTMLFieldSetElement",
+            "HTMLFontElement",
+            "HTMLFormElement",
+            "HTMLFrameSetElement",
+            "HTMLHeadElement",
+            "HTMLHtmlElement",
+            "HTMLHRElement",
+            "HTMLIFrameElement",
+            "HTMLImageElement",
+            "HTMLInputElement",
+            "HTMLKeygenElement",
+            "HTMLLabelElement",
+            "HTMLLIElement",
+            "HTMLLinkElement",
+            "HTMLMapElement",
+            "HTMLMediaElement",
+            "HTMLMetaElement",
+            "HTMLMeterElement",
+            "HTMLModElement",
+            "HTMLObjectElement",
+            "HTMLOListElement",
+            "HTMLOptGroupElement",
+            "HTMLOptionElement",
+            "HTMLOutputElement",
+            "HTMLParagraphElement",
+            "HTMLParamElement",
+            "HTMLPreElement",
+            "HTMLProgressElement",
+            "HTMLQuoteElement",
+            "HTMLScriptElement",
+            "HTMLSelectElement",
+            "HTMLSourceElement",
+            "HTMLSpanElement",
+            "HTMLStyleElement",
+            "HTMLTableElement",
+            "HTMLTableCaptionElement",
+            "HTMLTableCellElement",
+            "HTMLTableDataCellElement",
+            "HTMLTableHeaderCellElement",
+            "HTMLTableColElement",
+            "HTMLTableRowElement",
+            "HTMLTableSectionElement",
+            "HTMLTextAreaElement",
+            "HTMLTimeElement",
+            "HTMLTitleElement",
+            "HTMLTrackElement",
+            "HTMLUListElement",
+            "HTMLUnknownElement",
+            "HTMLVideoElement",
+            "CanvasRenderingContext2D",
+            "CanvasGradient",
+            "CanvasPattern",
+            "TextMetrics",
+            "ImageData",
+            "CanvasPixelArray",
+            "NotifyAudioAvailableEvent",
+            "HTMLFormControlsCollection",
+            "HTMLOptionsCollection",
+            "DOMStringMap",
+            "RadioNodeList",
+            "MediaError",
         ].forEach(symbolImporter(DOM_NS));
     }
 
     if (isNode) {
-        var NODE_NS = Namespace.findOrCreate(Sym.intern('js.node'));
-        define(ZERA_NS, '*platform*', Keyword.intern("js/node"));
-        define(ZERA_NS, '*platform-info*', arrayMap(
-            Keyword.intern('platform/name'), "node",
-            Keyword.intern('platform/version'), process.version
-        ));
+        var NODE_NS = Namespace.findOrCreate(Sym.intern("js.node"));
+        define(ZERA_NS, "*platform*", Keyword.intern("js/node"));
+        define(
+            ZERA_NS,
+            "*platform-info*",
+            arrayMap(
+                Keyword.intern("platform/name"),
+                "node",
+                Keyword.intern("platform/version"),
+                process.version
+            )
+        );
         [
-            'Buffer',
-            '__dirname',
-            '__filename',
-            'clearImmediate',
-            'console',
-            'exports',
-            'global',
-            'process',
-            'setImmediate',
-            'require'
+            "Buffer",
+            "__dirname",
+            "__filename",
+            "clearImmediate",
+            "console",
+            "exports",
+            "global",
+            "process",
+            "setImmediate",
+            "require",
         ].forEach(symbolImporter(NODE_NS));
     }
 
     //
     // Reader
-    // 
+    //
 
     function PushBackReader(str) {
-        this.limit  = str.length - 1;
-        this.stream = str.split('');
+        this.limit = str.length - 1;
+        this.stream = str.split("");
         this.position = 0;
         this._line = 1;
         this._column = 1;
     }
 
-    PushBackReader.prototype.line = function() {
+    PushBackReader.prototype.line = function () {
         return this._line;
     };
 
-    PushBackReader.prototype.column = function() {
+    PushBackReader.prototype.column = function () {
         return this._column;
     };
 
-    PushBackReader.prototype.read = function() {
+    PushBackReader.prototype.read = function () {
         if (this.position > this.limit) return null;
         var ch = this.stream[this.position];
         this.position++;
-        if (ch === '\n') {
+        if (ch === "\n") {
             this._column = 1;
             this._line++;
-        }
-        else {
+        } else {
             this._column++;
         }
         return ch;
     };
 
-    PushBackReader.prototype.skip = function(n) {
+    PushBackReader.prototype.skip = function (n) {
         this.position += n;
     };
 
-    PushBackReader.prototype.reset = function() {
+    PushBackReader.prototype.reset = function () {
         this.position = 0;
     };
 
-    PushBackReader.prototype.unread = function(ch) {
+    PushBackReader.prototype.unread = function (ch) {
         this.position -= 1;
         this.stream[this.position] = ch;
     };
 
     function stringReader(r, doublequote, opts) {
         var buff = [];
-    
+
         var ch;
         for (ch = r.read(); ch !== '"'; ch = r.read()) {
-            if (ch === null) throw new Error('EOF while reading string');
-            if (ch === '\\') { // escape
+            if (ch === null) throw new Error("EOF while reading string");
+            if (ch === "\\") {
+                // escape
                 ch = r.read();
-                if (ch === null) throw new Error('EOF while reading string');
+                if (ch === null) throw new Error("EOF while reading string");
                 switch (ch) {
-                    case 't':
-                        ch = '\t';
+                    case "t":
+                        ch = "\t";
                         break;
-                    case 'r':
-                        ch = '\r';
+                    case "r":
+                        ch = "\r";
                         break;
-                    case 'n':
-                        ch = '\n';
+                    case "n":
+                        ch = "\n";
                         break;
-                    case '\\':
+                    case "\\":
                         break;
                     case '"':
                         break;
-                    case 'b':
-                        ch = '\b';
+                    case "b":
+                        ch = "\b";
                         break;
-                    case 'f':
-                        ch = '\f';
+                    case "f":
+                        ch = "\f";
                         break;
-                    case 'u':
+                    case "u":
                         // TODO: add Unicode support
                         throw new Error("Don't know how to read unicode yet");
                     default:
@@ -4176,14 +4492,14 @@ var zera = (function() {
             }
             buff.push(ch);
         }
-        return buff.join('');
+        return buff.join("");
     }
 
     function commentReader(r, semicolon, opts) {
         var ch;
         do {
             ch = r.read();
-        } while (ch !== null && ch !== '\n' && ch !== '\r');
+        } while (ch !== null && ch !== "\n" && ch !== "\r");
         return r;
     }
 
@@ -4194,9 +4510,11 @@ var zera = (function() {
         while (true) {
             var ch = r.read();
             while (isWhitespace(ch)) ch = r.read();
-            
+
             if (ch === null) {
-                throw new Error('EOF while reading, starting at line: ' + firstline);
+                throw new Error(
+                    "EOF while reading, starting at line: " + firstline
+                );
             }
 
             if (ch === delim) break;
@@ -4206,8 +4524,7 @@ var zera = (function() {
                 var ret = macrofn.call(null, r, ch, opts);
                 // no op macros return the reader
                 if (ret !== r) a.push(ret);
-            }
-            else {
+            } else {
                 r.unread(ch);
                 var x = read(r, true, null, isRecursive, opts);
                 if (x !== r) a.push(x);
@@ -4219,49 +4536,50 @@ var zera = (function() {
 
     function listReader(r, openparen, opts) {
         var meta = arrayMap(
-            Keyword.intern('line'), r.line(),
-            Keyword.intern('column'), r.column()
+            Keyword.intern("line"),
+            r.line(),
+            Keyword.intern("column"),
+            r.column()
         );
-        var a = readDelimitedList(')', r, true, opts);
+        var a = readDelimitedList(")", r, true, opts);
         return list.apply(null, a).withMeta(meta);
     }
 
     function unmatchedDelimiterReader(r, delim, opts) {
-        throw new Error('Unmatched delimiter: ' + delim);
+        throw new Error("Unmatched delimiter: " + delim);
     }
 
     function vectorReader(r, openbracket, opts) {
-        var a = readDelimitedList(']', r, true, opts);
+        var a = readDelimitedList("]", r, true, opts);
         return new Vector(null, a);
     }
 
     function mapReader(r, openbracket, opts) {
-        var a = readDelimitedList('}', r, true, opts);
+        var a = readDelimitedList("}", r, true, opts);
         return arrayMap.apply(null, a);
     }
 
     function characterReader(r, slash, opts) {
         var ch = r.read();
-        if (ch === null) throw new Error('EOF while reading character');
+        if (ch === null) throw new Error("EOF while reading character");
         var token = readToken(r, ch, false);
         if (token.length === 1) return token;
-        else if (token === 'newline') return '\n';
-        else if (token === 'space') return ' ';
-        else if (token === 'tab') return '\t';
-        else if (token === 'backspace') return '\b';
-        else if (token === 'formfeed') return '\f';
-        else if (token === 'return') return '\r';
-        else if (token.startsWith('u')) {
+        else if (token === "newline") return "\n";
+        else if (token === "space") return " ";
+        else if (token === "tab") return "\t";
+        else if (token === "backspace") return "\b";
+        else if (token === "formfeed") return "\f";
+        else if (token === "return") return "\r";
+        else if (token.startsWith("u")) {
             throw new Error("Don't know how to read unicode characters");
-        }
-        else if (token.startsWith('o')) {
+        } else if (token.startsWith("o")) {
             throw new Error("Don't know how to read octal characters");
         }
     }
 
-    var TAG_KEY    = Keyword.intern('tag');
-    var LINE_KEY   = Keyword.intern('line');
-    var COLUMN_KEY = Keyword.intern('colunm');
+    var TAG_KEY = Keyword.intern("tag");
+    var LINE_KEY = Keyword.intern("line");
+    var COLUMN_KEY = Keyword.intern("colunm");
 
     function metaReader(r, hat, opts) {
         var line = r.line();
@@ -4270,14 +4588,14 @@ var zera = (function() {
         // FIXME: we probably don't have any use for tags
         if (isSymbol(meta) || isString(meta)) {
             meta = arrayMap(TAG_KEY, meta);
-        }
-        else if (isKeyword(meta)) {
+        } else if (isKeyword(meta)) {
             meta = arrayMap(meta, true);
+        } else if (!isMap(meta)) {
+            throw new Error(
+                "Metadata must be a Symbol, Keyword, String or Map"
+            );
         }
-        else if (!isMap(meta)) {
-            throw new Error('Metadata must be a Symbol, Keyword, String or Map');
-        }
-        
+
         var x = _read(r, true, null, true, opts);
         if (isa(x, IMeta)) {
             if (isSeq(x)) {
@@ -4294,15 +4612,14 @@ var zera = (function() {
                 xmeta = xmeta.assoc([key(kv), val(kv)]);
             }
             return x.withMeta(xmeta);
-        }
-        else {
-            throw new Error('Metadata can only be applied to IMetas');
+        } else {
+            throw new Error("Metadata can only be applied to IMetas");
         }
     }
 
     function dispatchReader(r, hash, opts) {
         var ch = r.read();
-        if (ch === null) throw new Error('EOF while reading character');
+        if (ch === null) throw new Error("EOF while reading character");
         var fn = DISPATCH_MACROS[ch];
 
         if (fn == null) {
@@ -4311,13 +4628,13 @@ var zera = (function() {
                 r.unread(ch);
                 return taggedReader.call(null, ch, opts);
             }*/
-            throw new Error('No dispatch macro for: ' + ch);
+            throw new Error("No dispatch macro for: " + ch);
         }
         return fn.call(null, r, ch, opts);
     }
 
     function wrappingReader(sym) {
-        return function(r, quote, opts) {
+        return function (r, quote, opts) {
             var x = _read(r, true, null, true, opts);
             return list(sym, x);
         };
@@ -4329,35 +4646,35 @@ var zera = (function() {
     }
 
     function setReader(r, leftbracket, opts) {
-        return HashSet.createFromArray(readDelimitedList('}', r, true, opts));
+        return HashSet.createFromArray(readDelimitedList("}", r, true, opts));
     }
 
     var MACROS = {
         '"': stringReader,
-        ';': commentReader,
+        ";": commentReader,
         "'": wrappingReader(QUOTE_SYM),
-        '@': wrappingReader(DEREF_SYM),
-        '^': metaReader,
-        '(': listReader,
-        ')': unmatchedDelimiterReader,
-        '[': vectorReader,
-        ']': unmatchedDelimiterReader,
-        '{': mapReader,
-        '}': unmatchedDelimiterReader,
-        '\\': characterReader,
-        '#': dispatchReader
+        "@": wrappingReader(DEREF_SYM),
+        "^": metaReader,
+        "(": listReader,
+        ")": unmatchedDelimiterReader,
+        "[": vectorReader,
+        "]": unmatchedDelimiterReader,
+        "{": mapReader,
+        "}": unmatchedDelimiterReader,
+        "\\": characterReader,
+        "#": dispatchReader,
     };
 
     // TODO: implement dispatch macros
     var DISPATCH_MACROS = {
-        '^': metaReader,
+        "^": metaReader,
         "'": varReader,
-        '{': setReader
+        "{": setReader,
     };
 
     function isWhitespace(ch) {
         if (ch == null) return false;
-        return ch === ',' || ch.match(/^\s$/);
+        return ch === "," || ch.match(/^\s$/);
     }
 
     function isDigit(ch) {
@@ -4369,7 +4686,7 @@ var zera = (function() {
     }
 
     function isTerminatingMacro(ch) {
-        return (ch !== '#' && ch !== '\'' && isMacro(ch));
+        return ch !== "#" && ch !== "'" && isMacro(ch);
     }
 
     function getMacro(ch) {
@@ -4382,7 +4699,7 @@ var zera = (function() {
         var r = new PushBackReader(str);
         var res, ret;
         while (true) {
-            res = read(r, {eofIsError: false, eofValue: {$zera$eof: true}});
+            res = read(r, { eofIsError: false, eofValue: { $zera$eof: true } });
             if (res.$zera$eof !== true) ret = res;
             if (res.$zera$eof === true) return ret;
         }
@@ -4392,7 +4709,7 @@ var zera = (function() {
     function readNumber(r, initch) {
         var buff = [initch];
 
-        while(true) {
+        while (true) {
             var ch = r.read();
             if (ch === null || isWhitespace(ch) || isMacro(ch)) {
                 r.unread(ch);
@@ -4401,9 +4718,9 @@ var zera = (function() {
             buff.push(ch);
         }
 
-        var s = buff.join('');
+        var s = buff.join("");
         var n = matchNumber(s);
-        if (n === null) throw new Error('Invalid number: ' + s);
+        if (n === null) throw new Error("Invalid number: " + s);
         return n;
     }
 
@@ -4411,58 +4728,54 @@ var zera = (function() {
     function matchNumber(s) {
         var m = s.match(/(\-|\+)?\d+/);
         if (m !== null) {
-            return 1*s;
+            return 1 * s;
         }
         return null;
     }
 
     function nonConstituent(ch) {
-        return ch === '@' || ch === '`' || ch === '~';
+        return ch === "@" || ch === "`" || ch === "~";
     }
 
     function readToken(r, initch, leadConstituent) {
         if (leadConstituent && nonConstituent(initch)) {
-            throw new Error('Invalid leading character: ' + initch);
+            throw new Error("Invalid leading character: " + initch);
         }
 
         var buff = [initch];
-        while(true) {
+        while (true) {
             var ch = r.read();
             if (ch === null || isWhitespace(ch) || isTerminatingMacro(ch)) {
                 r.unread(ch);
-                return buff.join('');
-            }
-            else if (nonConstituent(ch)) {
-                throw new Error('Invalid constituent character: ' + ch);
+                return buff.join("");
+            } else if (nonConstituent(ch)) {
+                throw new Error("Invalid constituent character: " + ch);
             }
             buff.push(ch);
         }
     }
 
     function matchSymbol(s) {
-        if (s.charAt(0) === ':') {
+        if (s.charAt(0) === ":") {
             return Keyword.intern(Sym.intern(s.substring(1)));
-        }
-        else if (s.endsWith('#')) {
-            return Sym.intern(s).withMeta(arrayMap(keyword('autosym'), true));
+        } else if (s.endsWith("#")) {
+            return Sym.intern(s).withMeta(arrayMap(keyword("autosym"), true));
         }
         return Sym.intern(s);
     }
 
     function interpretToken(s) {
-        if (s === 'nil') {
+        if (s === "nil") {
             return null;
-        }
-        else if (s === 'true') {
+        } else if (s === "true") {
             return true;
-        }
-        else if (s === 'false') {
+        } else if (s === "false") {
             return false;
         }
 
         var ret = matchSymbol(s);
         if (ret !== null) return ret;
-        throw new Error('Invalid token: ' + s);
+        throw new Error("Invalid token: " + s);
     }
 
     function read(r, opts) {
@@ -4481,7 +4794,7 @@ var zera = (function() {
 
             while (isWhitespace(ch)) ch = r.read();
             if (ch === null) {
-                if (eofIsError) throw new Error('EOF while reading');
+                if (eofIsError) throw new Error("EOF while reading");
                 return eofValue;
             }
 
@@ -4497,7 +4810,7 @@ var zera = (function() {
                 return ret;
             }
 
-            if (ch === '+' || ch === '-') {
+            if (ch === "+" || ch === "-") {
                 var ch2 = r.read();
                 if (isDigit(ch2)) {
                     r.unread(ch2);
@@ -4515,7 +4828,7 @@ var zera = (function() {
         var r = new PushBackReader(s);
         var res, ret;
         while (true) {
-            res = read(r, {eofIsError: false, eofValue: null});
+            res = read(r, { eofIsError: false, eofValue: null });
             if (res != null) {
                 ret = evaluate(res);
             }
@@ -4525,16 +4838,19 @@ var zera = (function() {
 
     function compileString(s) {
         var r = new PushBackReader(s);
-        var res, ret, buff = [], cEnv = env();
+        var res,
+            ret,
+            buff = [],
+            cEnv = env();
         while (true) {
-            res = read(r, {eofIsError: false, eofValue: null});
+            res = read(r, { eofIsError: false, eofValue: null });
             if (res != null) {
                 ret = compile(res, cEnv);
                 if (ret != null) buff.push(ret);
             }
             if (res == null) break;
         }
-        return buff.join(';\n');
+        return buff.join(";\n");
     }
 
     var api = {
@@ -4562,11 +4878,11 @@ var zera = (function() {
             Namespace: Namespace,
             RecursionPoint: RecursionPoint,
             ZeraError: ZeraError,
-            env: env
+            env: env,
         },
         reader: {
             PushBackReader: PushBackReader,
-            readString: readString
+            readString: readString,
         },
         core: ZERA_NS.toJSModule(),
         JS_GLOBAL_OBJECT: JS_GLOBAL_OBJECT,
@@ -4576,29 +4892,31 @@ var zera = (function() {
         readJS: readJS,
         readJSON: readJSON,
         readString: readString,
-        evalString: evalString
+        evalString: evalString,
     };
 
     if (isNode) {
-        var fs = require('fs');
+        var fs = require("fs");
 
-        api.loadJSONFile = function(file) {
+        api.loadJSONFile = function (file) {
             var ret = null;
-            JSON.parse(fs.readFileSync(file).toString()).forEach(function(line) {
+            JSON.parse(fs.readFileSync(file).toString()).forEach(function (
+                line
+            ) {
                 ret = evalJS(line);
             });
             return ret;
         };
 
-        api.loadFile = function(file) {
+        api.loadFile = function (file) {
             return evalString(fs.readFileSync(file).toString());
         };
 
-        api.compileFile = function(file) {
+        api.compileFile = function (file) {
             return compileString(fs.readFileSync(file).toString());
         };
 
-        define(ZERA_NS, 'load-file', api.loadFile);
+        define(ZERA_NS, "load-file", api.loadFile);
 
         global.zera = api;
 
@@ -4606,5 +4924,4 @@ var zera = (function() {
     }
 
     return api;
-
-}());
+})();

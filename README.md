@@ -1,14 +1,11 @@
-NAME
-====
+# NAME
 
 Zera
 
-DESCRIPTION
-===========
+# DESCRIPTION
 
 A light-weight Clojure implementation
 
-AUTHOR
-======
+# AUTHOR
 
 Delon Newman <contact@delonnewman.name>

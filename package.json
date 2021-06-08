@@ -1,21 +1,23 @@
 {
-  "name": "zera",
-  "version": "0.0.1",
-  "description": "",
-  "main": "./index.js",
-  "dependencies": {
-    "y18n": ">=4.0.1",
-    "yargs": "^13.3.0"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://drnewman@bitbucket.org/thesheepishlions/5.git"
-  },
-  "author": "Delon Newman",
-  "license": "MIT",
-  "homepage": "https://bitbucket.org/thesheepishlions/5#readme"
+    "name": "zera",
+    "version": "0.0.1",
+    "description": "",
+    "main": "./index.js",
+    "dependencies": {
+        "y18n": ">=4.0.1",
+        "yargs": "^13.3.0"
+    },
+    "devDependencies": {
+        "prettier": "2.3.1"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://drnewman@bitbucket.org/thesheepishlions/5.git"
+    },
+    "author": "Delon Newman",
+    "license": "MIT",
+    "homepage": "https://bitbucket.org/thesheepishlions/5#readme"
 }
