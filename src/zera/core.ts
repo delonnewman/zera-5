@@ -1,7 +1,9 @@
-import { Seq, isSeq, isSeqable, seq } from "./lang/Seq"
+import { ISeq, ISeqable, Seqable, Seq, isSeq, isSeqable } from "./lang/Seq"
 import { PersistentList } from "./lang/PersistentList"
 
 export type Env = { vars: { [key: string]: any } };
+
+export type ArrayLike = { length: number, 0: any };
 
 export class RecursionPoint {
     public args: any[];
@@ -475,4 +477,65 @@ export function intoArray(from: any): any[] {
             )
         );
     }
+}
+
+export function seq(value: any): ISeq | null {
+    if (value == null) return null;
+    else if (isSeq(value)) {
+        if (isEmpty(value)) return null;
+        else return value;
+    } else if (isJSFn(value.seq)) {
+        var s = value.seq();
+        if (isEmpty(s)) return null;
+        return s;
+    } else if (isArrayLike(value)) {
+        if (value.length === 0) return null;
+        else return arrayToList(value);
+    } else {
+        throw new Error(`${prnStr(value)} is not a valid Seq or Seqable`);
+    }
+}
+
+
+export function cons(x: any, col: ISeq | null): ISeq {
+    if (col == null) {
+        return new PersistentList(null, x, null, 1);
+    } else if (isSeq(col)) {
+        return col.cons(x);
+    } else if (isSeqable(col)) {
+        let s = seq(col);
+        if (s == null) return PersistentList.EMPTY.cons(x);
+        else return s.cons(x);
+    } else {
+        throw new Error(str("Don't know how to cons: ", prnStr(col)));
+    }
+}
+
+export function list(...args: any[]): PersistentList {
+    if (args.length === 0) {
+        return PersistentList.EMPTY;
+    } else if (args.length === 1) {
+        return cons(args[0], null);
+    }
+    var i, x;
+    var xs = null;
+    for (i = args.length - 1; i >= 0; i--) {
+        x = args[i];
+        xs = cons(x, xs);
+    }
+    return xs;
+}
+
+function car(cons) {
+    if (cons == null) return null;
+    if (cons != null && isJSFn(cons.first)) return cons.first();
+    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
+}
+
+function cdr(cons) {
+    if (cons == null) return null;
+    if (isJSFn(cons.next)) {
+        return cons.next();
+    }
+    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
 }

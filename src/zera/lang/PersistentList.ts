@@ -1,128 +1,86 @@
-/**
- * @constructor
- * @implements {Seq}
- */
-function PersistentList(meta, car, cdr, count) {
-    Seq.call(this, meta);
-    this.$zera$car = car;
-    this.$zera$cdr = cdr;
-    this.$zera$count = count;
-    ZeraType.call(
-        this,
-        PersistentList.$zera$tag,
-        null,
-        PersistentList.$zera$protocols
-    );
-}
+import { Seq, ISeq } from "./Seq";
+import { Counted } from "./Counted";
+import { MetaData } from "./IMeta";
+import { zeraProtocol } from "../types";
 
-PersistentList.$zera$tag = Sym.intern("zera.lang.PersistentList");
-PersistentList.$zera$isType = true;
-PersistentList.$zera$protocols = {
-    "zera.lang.IMeta": IMeta,
-    "zera.lang.Seq": Seq,
-    "zera.lang.AMap": AMap,
-    "zera.lang.List": List,
-};
-PersistentList.prototype = Object.create(Seq.prototype);
+// TODO: add IPersistentList, IPersistentStack, IReduce
 
-PersistentList.EMPTY = new PersistentList(null, null, null, 0);
+@zeraProtocol('zera.lang.PersistentList', Seq)
+export class PersistentList extends Seq implements ISeq, Counted {
+    private $zera$car: any;
+    private $zera$cdr: ISeq | null;
+    private $zera$count: number;
 
-PersistentList.prototype.meta = function() {
-    return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
-};
-
-PersistentList.prototype.withMeta = function(meta) {
-    return new PersistentList(
-        meta,
-        this.$zera$car,
-        this.$zera$cdr,
-        this.$zera$count
-    );
-};
-
-PersistentList.prototype.first = function() {
-    return this.$zera$car;
-};
-
-PersistentList.prototype.rest = function() {
-    if (this.next() == null) {
-        return PersistentList.EMPTY;
-    } else {
-        return this.next();
+    constructor(meta: MetaData | null, car: any, cdr: ISeq | null, count: number) {
+        super(meta);
+        this.$zera$car = car;
+        this.$zera$cdr = cdr;
+        this.$zera$count = count;
     }
-};
 
-PersistentList.prototype.count = function() {
-    return this.$zera$count;
-};
+    static EMPTY = new PersistentList(null, null, null, 0);
 
-PersistentList.prototype.next = function() {
-    return this.$zera$cdr;
-};
-
-PersistentList.prototype.cons = function(x) {
-    if (this.isEmpty()) {
-        return new PersistentList(this.$zera$meta, x, null, 1);
+    withMeta(meta: MetaData) {
+        return new PersistentList(
+            meta,
+            this.$zera$car,
+            this.$zera$cdr,
+            this.$zera$count
+        );
     }
-    return new PersistentList(
-        this.$zera$meta,
-        x,
-        this,
-        this.$zera$count + 1
-    );
-};
 
-PersistentList.prototype.conj = function(vals) {
-    var i,
-        xs = this;
-    for (i = 0; i < vals.length; i++) {
-        xs = xs.cons(vals[i]);
+    first(): any {
+        return this.$zera$car;
     }
-    return xs;
-};
 
-PersistentList.prototype.isEmpty = function() {
-    return this.$zera$count === 0;
-};
+    rest(): any {
+        if (this.next() == null) {
+            return PersistentList.EMPTY;
+        } else {
+            return this.next();
+        }
+    }
 
-PersistentList.prototype.isList = function() {
-    return true;
-};
+    count(): number {
+        return this.$zera$count;
+    }
 
-// Seqable
-PersistentList.prototype.seq = function() {
-    return this;
-};
+    next(): ISeq | null {
+        return this.$zera$cdr;
+    }
 
-function cons(x, col) {
-    if (col == null) {
-        return new PersistentList(null, x, null, 1);
-    } else if (isSeq(col)) {
-        return new Cons(null, x, col);
-    } else if (isSeqable(col)) {
-        return new Cons(null, x, seq(col));
-    } else {
-        throw new Error(str("Don't know how to cons: ", prnStr(col)));
+    cons(x: any): PersistentList {
+        if (this.isEmpty()) {
+            return new PersistentList(this.$zera$meta, x, null, 1);
+        }
+        return new PersistentList(
+            this.$zera$meta,
+            x,
+            this,
+            this.$zera$count + 1
+        );
+    }
+
+    conj(vals: any[]): PersistentList {
+        var i,
+            xs: PersistentList = this;
+        for (i = 0; i < vals.length; i++) {
+            xs = xs.cons(vals[i]);
+        }
+        return xs;
+    }
+
+    isEmpty() {
+        return this.$zera$count === 0;
+    }
+
+    // NOTE: not sure why this is necessary
+    isList() {
+        return true;
     }
 }
 
-function isPersistentList(x) {
-    return isa(x, PersistentList);
-}
-
-// make a list out of conses
-function list() {
-    if (arguments.length === 0) {
-        return PersistentList.EMPTY;
-    } else if (arguments.length === 1) {
-        return cons(arguments[0], null);
-    }
-    var i, x;
-    var xs = null;
-    for (i = arguments.length - 1; i >= 0; i--) {
-        x = arguments[i];
-        xs = cons(x, xs);
-    }
-    return xs;
+export function isPersistentList(x: any): boolean {
+    return x instanceof PersistentList;
 }
 

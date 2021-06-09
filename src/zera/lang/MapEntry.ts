@@ -1,60 +1,88 @@
-/**
- * @constructor
- */
-function MapEntry(key, val) {
-    this.$zera$key = key;
-    this.$zera$val = val;
-    ZeraType.call(this, MapEntry.$zera$tag, null, {});
+import { zeraType } from "../types";
+import { ISeq } from "./Seq";
+import { IFn } from "./AFn";
+import { list, str, prnStr, isArray, isJSFn } from "../core";
+
+@zeraType('zera.lang.MapEntry')
+export class MapEntry implements ISeq, IFn {
+    private $zera$key: any;
+    private $zera$val: any;
+
+    constructor(key: any, val: any) {
+        this.$zera$key = key;
+        this.$zera$val = val;
+    }
+
+    key() {
+        return this.$zera$key;
+    }
+
+    val() {
+        return this.$zera$val;
+    }
+
+    first() {
+        return this.key();
+    }
+
+    next() {
+        return this.val();
+    }
+
+    rest() {
+        return list(this.val());
+    }
+
+    cons(value: any): ISeq {
+        throw new Error("MapEntry doesn't implement cons");
+    }
+
+    equals(value: any): boolean {
+        if (!isMapEntry(value)) return false;
+
+        return value.val() == this.val() && value.key() == value.key();
+    }
+
+    // TODO: Add indexed interface
+    nth(n: number): any {
+        if (n === 0) return this.key();
+        else if (n === 1) return this.val();
+        else {
+            return null;
+        }
+    }
+
+    invoke(...args: any[]) {
+        if (args.length !== 1) {
+            throw new Error(
+                str(
+                    "Wrong number of arguments got: ",
+                    args.length,
+                    ", expected: 1"
+                )
+            );
+        }
+        return this.nth(args[0]);
+    }
+
+    apply(_: any, args: any[]) {
+        return this.invoke.apply(this, args);
+    }
+
+    call(_: any, ...args: any[]) {
+        return this.invoke.apply(this, args);
+    }
+
+    toString(): string {
+        return str("[", prnStr(this.key()), " ", prnStr(this.val()), "]");
+    }
 }
 
-MapEntry.$zera$isType = true;
-MapEntry.$zera$tag = Sym.intern("zera.lang.MapEntry");
-
-MapEntry.prototype.key = function() {
-    return this.$zera$key;
-};
-
-MapEntry.prototype.val = function() {
-    return this.$zera$val;
-};
-
-MapEntry.prototype.first = MapEntry.prototype.key;
-MapEntry.prototype.next = MapEntry.prototype.val;
-
-MapEntry.prototype.rest = function() {
-    return list(this.val());
-};
-
-MapEntry.prototype.nth = function(n) {
-    if (n === 0) return this.key();
-    else if (n === 1) return this.val();
-    else {
-        return null;
-    }
-};
-
-MapEntry.prototype.apply = function(obj, args) {
-    if (args.length !== 1) {
-        throw new Error(
-            str(
-                "Wrong number of arguments got: ",
-                args.length,
-                ", expected: 1"
-            )
-        );
-    }
-    return this.nth(args[0]);
-};
-
-MapEntry.prototype.toString = function() {
-    return str("[", prnStr(this.key()), " ", prnStr(this.val()), "]");
-};
-
-function isMapEntry(x) {
+export function isMapEntry(x: any): boolean {
     return x instanceof MapEntry;
 }
 
-function mapEntry(x) {
+export function mapEntry(x: any): MapEntry {
     if (isMapEntry(x)) return x;
     else if (isArray(x) && x.length === 2) {
         return new MapEntry(x[0], x[1]);
@@ -68,5 +96,21 @@ function mapEntry(x) {
                 "' into a zera.MapEntry"
             )
         );
+    }
+}
+
+export function key(m: MapEntry): any {
+    if (isJSFn(m.key)) {
+        return m.key();
+    } else {
+        throw new Error(str("Don't know how to get key from: ", prnStr(m)));
+    }
+}
+
+export function val(m: MapEntry) {
+    if (isJSFn(m.val)) {
+        return m.val();
+    } else {
+        throw new Error(str("Don't know how to get val from: ", prnStr(m)));
     }
 }

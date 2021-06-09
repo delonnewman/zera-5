@@ -1,16 +1,17 @@
 import { zeraProtocol } from "../types";
+import { IMap } from "./AMap";
 
 export interface IMeta {
     meta(): any;
 }
 
-export type MetaData = any;
+export type MetaData = IMap;
 
 @zeraProtocol('zera.lang.AMeta')
 export class AMeta implements IMeta {
-    protected $zera$meta: MetaData;
+    protected $zera$meta: MetaData | null;
 
-    constructor(meta: MetaData) {
+    constructor(meta: MetaData | null) {
         this.$zera$meta = meta;
     }
 
@@ -19,7 +20,7 @@ export class AMeta implements IMeta {
     }
 }
 
-export function meta(x: any): MetaData {
+export function meta(x: any): MetaData | null {
     if (x == null) return null;
     else if (x instanceof AMeta) {
         return x.meta();

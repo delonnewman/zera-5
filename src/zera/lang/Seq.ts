@@ -1,34 +1,43 @@
 import { IMeta } from "./IMeta"
 import { IObj, AObj } from "./IObj"
 import { zeraProtocol } from "../types"
-import { equals, isEmpty, isJSFn, isArrayLike, arrayToList, prnStr } from "../core"
+import { equals, isJSFn, isArrayLike, ArrayLike } from "../core"
 
-export interface ISeq {
+export interface ISeqable {
+    seq(): ISeq;
+}
+
+export interface ISeq extends ISeqable {
     first(): any;
-    rest(): Seq;
-    next(): Seq | null;
+    rest(): ISeq;
+    next(): ISeq | null;
     equals(other: any): boolean;
-    cons(value: any): Seq;
+    cons(value: any): ISeq;
 }
 
 @zeraProtocol('zera.lang.Seq', AObj)
 export class Seq extends AObj implements IObj, IMeta, ISeq {
+    seq(): ISeq {
+        return this;
+    }
+
     first(): any {
         throw new Error("unimplmented");
     }
 
-    rest(): Seq {
+    rest(): ISeq {
         throw new Error("unimplmented");
     }
 
-    next(): Seq | null {
+    next(): ISeq | null {
         throw new Error("unimplmented");
     }
 
-    cons(value: any): Seq {
+    cons(value: any): ISeq {
         throw new Error("unimplmented");
     }
 
+    // TODO: this should go elsewhere
     isEmpty(): boolean {
         throw new Error("unimplmented");
     }
@@ -62,22 +71,7 @@ export class Seq extends AObj implements IObj, IMeta, ISeq {
     }
 }
 
-export function seq(value: any): Seq | null {
-    if (value == null) return null;
-    else if (isSeq(value)) {
-        if (isEmpty(value)) return null;
-        else return value;
-    } else if (isJSFn(value.seq)) {
-        var s = value.seq();
-        if (isEmpty(s)) return null;
-        return s;
-    } else if (isArrayLike(value)) {
-        if (value.length === 0) return null;
-        else return arrayToList(value);
-    } else {
-        throw new Error(`${prnStr(value)} is not a valid Seq or Seqable`);
-    }
-}
+export type Seqable = ISeqable | null | ArrayLike;
 
 export function isSeq(value: any): boolean {
     return value instanceof Seq;

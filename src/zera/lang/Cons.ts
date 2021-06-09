@@ -1,63 +1,50 @@
-function Cons(meta, first, more) {
-    Seq.call(this, meta);
-    this._first = first;
-    this._more = more;
-    ZeraType.call(this, Cons.$zera$tag, null, Cons.$zera$protocols);
-}
+import { Seq, ISeq } from "./Seq";
+import { zeraType } from "../types";
+import { MetaData } from "./IMeta";
+import { count } from "../core";
 
-Cons.$zera$tag = Sym.intern("zera.lang.Cons");
-Cons.$zera$isType = true;
-Cons.$zera$protocols = { "zera.lang.List": List };
-Cons.prototype = Object.create(Seq.prototype);
+@zeraType('zera.lang.Cons', List)
+export class Cons extends Seq implements ISeq {
+    private _first: any;
+    private _more: ISeq;
 
-// ISeq
-Cons.prototype.first = function() {
-    return this._first;
-};
-
-// ISeq
-Cons.prototype.more = function() {
-    if (this._more == null) return PersistentList.EMPTY;
-    return this._more;
-};
-
-// ISeq
-Cons.prototype.next = function() {
-    return this.more().seq();
-};
-
-Cons.prototype.count = function() {
-    return 1 + count(this._more);
-};
-
-// Seqable
-Cons.prototype.seq = function() {
-    return this;
-};
-
-// IMeta
-Cons.prototype.withMeta = function(meta) {
-    return new Cons(meta, this._first, this._more);
-};
-
-Cons.prototype.meta = function() {
-    return this.$zera$meta;
-};
-
-function car(cons) {
-    if (cons == null) return null;
-    if (cons != null && isJSFn(cons.first)) return cons.first();
-    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
-}
-
-function cdr(cons) {
-    if (cons == null) return null;
-    if (isJSFn(cons.next)) {
-        return cons.next();
+    constructor(meta: MetaData, first: any, more: ISeq) {
+        super(meta);
+        this._first = first;
+        this._more = more;
     }
-    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
+
+    // ISeq
+    first(): any {
+        return this._first;
+    }
+
+    // ISeq
+    more(): ISeq {
+        if (this._more == null) return PersistentList.EMPTY;
+        return this._more;
+    }
+
+    // ISeq
+    next() {
+        return this.more().seq();
+    }
+
+    count() {
+        return 1 + count(this._more);
+    }
+
+    // Seqable
+    seq() {
+        return this;
+    }
+
+    // IMeta
+    withMeta(meta: MetaData) {
+        return new Cons(meta, this._first, this._more);
+    }
 }
 
-function isCons(x) {
-    return isa(x, Cons);
+export function isCons(x: any): boolean {
+    return x instanceof Cons;
 }

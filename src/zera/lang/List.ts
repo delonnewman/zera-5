@@ -1,7 +1,3 @@
-/**
- * @interface
- * @extends {Seq}
- */
 function List() { }
 List.$zera$tag = "zera.lang.List";
 List.$zera$isProtocol = true;
