@@ -4,11 +4,13 @@ export interface IMeta {
     meta(): any;
 }
 
+export type MetaData = any;
+
 @zeraProtocol('zera.lang.AMeta')
 export class AMeta implements IMeta {
-    private $zera$meta;
+    protected $zera$meta: MetaData;
 
-    constructor(meta: any) {
+    constructor(meta: MetaData) {
         this.$zera$meta = meta;
     }
 
@@ -17,7 +19,7 @@ export class AMeta implements IMeta {
     }
 }
 
-export function meta(x: any): any {
+export function meta(x: any): MetaData {
     if (x == null) return null;
     else if (x instanceof AMeta) {
         return x.meta();

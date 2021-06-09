@@ -56,40 +56,6 @@ var zera = (function () {
 
     var p = console.log.bind(console.log);
 
-    function is(expected, actual, msg) {
-        if (expected === actual) {
-            if (msg) {
-                p(str("passed - ", msg));
-            } else {
-                p("passed");
-            }
-        } else {
-            if (msg) {
-                p(str("failed - ", msg));
-            } else {
-                p("failed");
-            }
-            p("expected: ", expected);
-            p("got: ", actual);
-        }
-    }
-
-    function ok(value, msg) {
-        if (value != null && value !== false) {
-            if (msg) {
-                p(str("passed - ", msg));
-            } else {
-                p("passed");
-            }
-        } else {
-            if (msg) {
-                p(str("failed - ", msg));
-            } else {
-                p("failed");
-            }
-        }
-    }
-
     function evalQuote(form) {
         return car(cdr(form));
     }
@@ -161,16 +127,6 @@ var zera = (function () {
                 }
                 return null;
             }
-        }
-    }
-
-    function defineLexically(env, name, value) {
-        if (typeof value !== "undefined") {
-            env.vars[name] = value;
-            return null;
-        } else {
-            env.vars[name] = null;
-            return null;
         }
     }
 
@@ -430,46 +386,6 @@ var zera = (function () {
         return isJSFn(x.apply);
     }
 
-    function isAmp(x) {
-        return equals(x, AMP_SYM);
-    }
-
-    function calculateArity(args) {
-        var argc = args.length,
-            i = args.findIndex(isAmp);
-        if (i !== -1) {
-            argc = -1 * (argc - 1);
-        }
-        return argc;
-    }
-
-    function bindArguments(names, values) {
-        var i,
-            xs,
-            capture = false,
-            args = [];
-        for (i = 0; i < names.length; i++) {
-            if (capture === true) {
-                xs = values.slice(i - 1, values.length);
-                args.push([names[i], list.apply(null, xs)]);
-                break;
-            } else {
-                args.push([names[i], values[i]]);
-            }
-            if (equals(names[i], AMP_SYM)) capture = true;
-        }
-        return args;
-    }
-
-    function apply(x, args) {
-        if (isArray(x)) return x[first(args)];
-        if (isInvocable(x)) {
-            return x.apply(null, intoArray(args));
-        } else {
-            throw new Error(str("Not a valid function: ", prnStr(x), ""));
-        }
-    }
-
     function evalApplication(form, env, stack) {
         console.log('form', prnStr(form));
         var stack_ = conj(stack, car(form));
@@ -584,10 +500,6 @@ var zera = (function () {
             }
         }
         return form;
-    }
-
-    function RecursionPoint(args) {
-        this.args = args;
     }
 
     function evalRecursionPoint(form, env) {
@@ -755,33 +667,6 @@ var zera = (function () {
             from = rest(from);
         }
         return to;
-    }
-
-    function intoArray(from) {
-        var a = [];
-        if (from == null) {
-            return a;
-        } else if (isFunction(from.toArray)) {
-            return from.toArray();
-        } else if (isArray(from)) {
-            return from;
-        } else if (isSeq(from) || isSeqable(from)) {
-            var s;
-            for (s = seq(from); s != null; s = s.next()) {
-                a.push(s.first());
-            }
-            return a;
-        } else {
-            throw new Error(
-                str(
-                    "Don't know how to convert ",
-                    prnStr(from),
-                    " into an array"
-                )
-            );
-        }
-
-        return a;
     }
 
     function evalMap(form, env) {

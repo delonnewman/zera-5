@@ -1,24 +1,48 @@
-function AFn(meta) {
-    this.$zera$meta = meta;
+import { zeraProtocol } from "../types"
+import { IObj, AObj } from "./IObj"
+import { Seq } from "./Seq"
+import { isArray, first, intoArray, prnStr } from "../core"
+
+export interface IInvoke {
+    invoke(...args: any[]): any;
 }
-AFn.$zera$isProtocol = true;
-AFn.$zera$tag = "zera.lang.AFn";
-AFn.$zera$protocols = { "zera.lang.IObj": IObj };
-AFn.prototype = Object.create(IObj.prototype);
 
-AFn.prototype.invoke = function() {
-    throw new Error("unimplemented");
-};
+@zeraProtocol('zera.lang.AInvoke', AObj)
+export class AInvoke extends AObj implements IInvoke, IObj {
+    invoke() {
+        throw new Error("unimplemented");
+    }
+}
 
-AFn.prototype.call = function(obj) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    return this.invoke.apply(this, args);
-};
+export interface IFn extends IInvoke {
+    call(_: any, ...args: any[]): any;
+    apply(_: any, args: any[]): any;
+}
 
-AFn.prototype.apply = function(obj, args) {
-    return this.invoke.apply(this, args);
-};
+@zeraProtocol('zera.lang.AFn', AInvoke)
+export class AFn extends AInvoke implements IFn, IObj {
+    call(_: any, ...args: any) {
+        return this.invoke.apply(this, args);
+    }
 
-AFn.prototype.meta = function() {
-    return this.$zera$meta;
-};
+    apply(_: any, args: any) {
+        return this.invoke.apply(this, args);
+    }
+}
+
+export function isFn(fn: any): boolean {
+    return fn instanceof AFn;
+}
+
+export function isInvokable(x: any): boolean {
+    return x instanceof AInvoke;
+}
+
+export function apply(fn: any, args: Seq): any {
+    if (isArray(fn)) return fn[first(args)];
+    if (isInvokable(fn)) {
+        return fn.apply(null, intoArray(args));
+    } else {
+        throw new Error(`Not a valid function: ${prnStr(fn)}`);
+    }
+}

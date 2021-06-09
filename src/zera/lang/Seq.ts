@@ -1,73 +1,90 @@
 import { IMeta } from "./IMeta"
+import { IObj, AObj } from "./IObj"
+import { zeraProtocol } from "../types"
+import { equals, isEmpty, isJSFn, isArrayLike, arrayToList, prnStr } from "../core"
 
-function Seq(meta) {
-    this.$zera$meta = meta;
+export interface ISeq {
+    first(): any;
+    rest(): Seq;
+    next(): Seq | null;
+    equals(other: any): boolean;
+    cons(value: any): Seq;
 }
 
-Seq.$zera$isProtocol = true;
-Seq.$zera$tag = "zera.lang.Seq";
-Seq.$zera$protocols = { "zera.lang.IObj": IObj };
-Seq.prototype = Object.create(IObj.prototype);
-
-Seq.prototype.first = function() {
-    throw new Error("unimplmented");
-};
-
-Seq.prototype.rest = function() {
-    throw new Error("unimplmented");
-};
-
-Seq.prototype.cons = function(x) {
-    throw new Error("unimplmented");
-};
-
-Seq.prototype.equals = function(other) {
-    var a, b, xa, xb, xsa, xsb;
-    if (!isSeq(other)) {
-        return false;
-    } else if (this.isEmpty() && this.isEmpty()) {
-        return true;
-    } else if (this.count() != other.count()) {
-        return false;
-    } else {
-        xsa = this;
-        xsb = other;
-        while (xsa != null) {
-            xa = xsa.first();
-            xb = xsb.first();
-            if (!equals(xa, xb)) {
-                return false;
-            }
-            xsa = xsa.next();
-            xsb = xsb.next();
-        }
-        return true;
+@zeraProtocol('zera.lang.Seq', AObj)
+export class Seq extends AObj implements IObj, IMeta, ISeq {
+    first(): any {
+        throw new Error("unimplmented");
     }
-};
 
-function seq(x) {
-    if (x == null) return null;
-    else if (isSeq(x)) {
-        if (isEmpty(x)) return null;
-        return x;
-    } else if (isFunction(x.seq)) {
-        var s = x.seq();
+    rest(): Seq {
+        throw new Error("unimplmented");
+    }
+
+    next(): Seq | null {
+        throw new Error("unimplmented");
+    }
+
+    cons(value: any): Seq {
+        throw new Error("unimplmented");
+    }
+
+    isEmpty(): boolean {
+        throw new Error("unimplmented");
+    }
+
+    count(): number {
+        throw new Error("unimplmented");
+    }
+
+    equals(other: any): boolean {
+        var xa, xb, xsa, xsb;
+        if (!isSeq(other)) {
+            return false;
+        } else if (this.isEmpty() && this.isEmpty()) {
+            return true;
+        } else if (this.count() != other.count()) {
+            return false;
+        } else {
+            xsa = this;
+            xsb = other;
+            while (xsa != null) {
+                xa = xsa.first();
+                xb = xsb.first();
+                if (!equals(xa, xb)) {
+                    return false;
+                }
+                xsa = xsa.next();
+                xsb = xsb.next();
+            }
+            return true;
+        }
+    }
+}
+
+export function seq(value: any): Seq | null {
+    if (value == null) return null;
+    else if (isSeq(value)) {
+        if (isEmpty(value)) return null;
+        else return value;
+    } else if (isJSFn(value.seq)) {
+        var s = value.seq();
         if (isEmpty(s)) return null;
         return s;
-    } else if (isArrayLike(x)) {
-        if (x.length === 0) return null;
-        return arrayToList(x);
+    } else if (isArrayLike(value)) {
+        if (value.length === 0) return null;
+        else return arrayToList(value);
     } else {
-        throw new Error(prnStr(x) + " is not a valid Seq or Seqable");
+        throw new Error(`${prnStr(value)} is not a valid Seq or Seqable`);
     }
 }
 
-function isSeq(x) {
-    return isa(x, Seq);
+export function isSeq(value: any): boolean {
+    return value instanceof Seq;
 }
 
-function isSeqable(x) {
-    if (x == null) return true;
-    if (isArrayLike(x)) return true;
-    return isJSFn(x.seq);
+export function isSeqable(value: any) {
+    if (value == null) return true;
+    if (isArrayLike(value)) return true;
+    return isJSFn(value.seq);
 }

@@ -1,5 +1,15 @@
-import { Seq } from "./lang/Seq"
+import { Seq, isSeq, isSeqable, seq } from "./lang/Seq"
 import { PersistentList } from "./lang/PersistentList"
+
+export type Env = { vars: { [key: string]: any } };
+
+export class RecursionPoint {
+    public args: any[];
+
+    constructor(args: any[]) {
+        this.args = args;
+    }
+}
 
 export function isNil(x: any): boolean {
     return x == null;
@@ -401,3 +411,68 @@ export function floatArray(x: any): Float32Array {
     );
 }
 
+export function isAmp(x: any): boolean {
+    return equals(x, AMP_SYM);
+}
+
+export function calculateArity(args: any[]): number {
+    var argc = args.length,
+        i = args.findIndex(isAmp);
+    if (i !== -1) {
+        argc = -1 * (argc - 1);
+    }
+    return argc;
+}
+
+export function bindArguments(names: any[], values: any[]): any[] {
+    var i,
+        xs,
+        capture = false,
+        args = [];
+    for (i = 0; i < names.length; i++) {
+        if (capture === true) {
+            xs = values.slice(i - 1, values.length);
+            args.push([names[i], list.apply(null, xs)]);
+            break;
+        } else {
+            args.push([names[i], values[i]]);
+        }
+        if (equals(names[i], AMP_SYM)) capture = true;
+    }
+    return args;
+}
+
+export function defineLexically(env: Env, name: any, value: any) {
+    if (typeof value !== "undefined") {
+        env.vars[name] = value;
+        return null;
+    } else {
+        env.vars[name] = null;
+        return null;
+    }
+}
+
+export function intoArray(from: any): any[] {
+    var a: any[] = [];
+    if (from == null) {
+        return a;
+    } else if (isJSFn(from.toArray)) {
+        return from.toArray();
+    } else if (isArray(from)) {
+        return from;
+    } else if (isSeq(from) || isSeqable(from)) {
+        var s;
+        for (s = seq(from); s != null; s = s.next()) {
+            a.push(s.first());
+        }
+        return a;
+    } else {
+        throw new Error(
+            str(
+                "Don't know how to convert ",
+                prnStr(from),
+                " into an array"
+            )
+        );
+    }
+}
