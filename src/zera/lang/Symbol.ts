@@ -1,20 +1,18 @@
-import { AObj, IObj } from "./IObj"
-import { AMeta } from "./IMeta"
-import { Named } from "./Named"
-import { zeraType } from "../types"
-import { isJSFn } from "../core"
+import { MetaData } from "./IMeta";
+import { IFn } from "./AFn";
+import { Named } from "./Named";
+import { zeraType } from "../types";
+import { isJSFn } from "../core";
 
-@zeraType('zera.lang.Symbol', Named, AObj, AMeta)
-export class Symbol extends Named {
+@zeraType('zera.lang.Symbol', Named)
+export class Symbol extends Named implements IFn {
     private $zera$ns: string | null;
     private $zera$name: string;
-    private $zera$meta: any;
 
-    constructor(ns: string | null, name: string, meta = {}) {
-        super();
+    constructor(ns: string | null, name: string, meta: MetaData | null = null) {
+        super(meta);
         this.$zera$ns = ns;
         this.$zera$name = name;
-        this.$zera$meta = meta;
     }
 
     static intern(rep: string): Symbol {
@@ -45,26 +43,27 @@ export class Symbol extends Named {
         return !!this.$zera$ns;
     }
 
-    // IObj
-    withMeta(meta: any): IObj {
+    withMeta(meta: MetaData): Symbol {
         return new Symbol(this.$zera$ns, this.$zera$name, meta);
     }
 
-    // IObj, IMeta
-    meta(): any {
-        return this.$zera$meta;
-    }
-
-    // Invokable
-    apply(_: null, args: any[]) {
+    invoke(...args: any[]) {
         if (args.length != 1)
             throw new Error("Symbols expect one and only one argument");
 
         if (isJSFn(args[0].apply)) {
             return args[0].apply(null, [this]);
         } else {
-            throw new Error("Symbols expect and argument this is invokable");
+            throw new Error("Symbols expect an argument this is invokable");
         }
+    }
+
+    call(_: any, ...args: any[]) {
+        return this.invoke.apply(this, args);
+    }
+
+    apply(_: any, args: any[]) {
+        return this.invoke.apply(this, args);
     }
 
     equals(o: any) {

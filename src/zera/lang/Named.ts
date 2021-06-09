@@ -1,6 +1,6 @@
-import { AObj } from "./IObj"
-import { zeraProtocol } from "../types"
-import { prnStr } from "../core"
+import { AObj } from "./IObj";
+import { zeraProtocol } from "../types";
+import { prnStr } from "../core";
 
 export interface INamed {
     name(): string;
@@ -8,12 +8,12 @@ export interface INamed {
 }
 
 @zeraProtocol('zera.lang.Named', AObj)
-export class Named {
-    name() {
+export class Named extends AObj implements INamed {
+    name(): string {
         throw new Error("unimplemented");
     }
 
-    namespace() {
+    namespace(): string {
         throw new Error("unimplemented");
     }
 }

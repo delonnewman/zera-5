@@ -1,12 +1,11 @@
-import { AObj, IObj } from "./IObj"
-import { AMeta } from "./IMeta"
-import { Named } from "./Named"
-import { zeraType } from "../types"
-import { isJSFn } from "../core"
-import { Symbol, isSymbol } from "./Symbol"
+import { Named } from "./Named";
+import { zeraType } from "../types";
+import { isJSFn } from "../core";
+import { Symbol } from "./Symbol";
+import { IFn, AFn } from "./AFn";
 
-@zeraType('zera.lang.Keyword', Named, AObj)
-export class Keyword extends Named {
+@zeraType('zera.lang.Keyword', Named, AFn)
+export class Keyword extends Named implements IFn {
     static table: { [key: string]: Keyword } = {};
 
     private $zera$sym: Symbol;
@@ -39,16 +38,23 @@ export class Keyword extends Named {
         return this.namespace() === o.namespace() && this.name() === o.name();
     }
 
-    // Invokable
-    apply(_: null, args: any[]) {
+    invoke(...args: any[]) {
         if (args.length !== 1)
             throw new Error("Keywords expect one and only one argument");
         if (isJSFn(args[0].apply)) {
             return args[0].apply(null, [this]);
         } else {
-            throw new Error("Symbols expect and argument this is invokable");
+            throw new Error("Keywords expect an argument this is invokable");
         }
     };
+
+    call(_: any, ...args: any[]) {
+        return this.invoke.apply(this, args);
+    }
+
+    apply(_: any, args: any[]) {
+        return this.invoke.apply(this, args);
+    }
 }
 
 export function isKeyword(x: any): boolean {
