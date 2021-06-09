@@ -5,7 +5,8 @@
    (list 'is body (list 'str "FAILURE: " (pr-str body) " is false")))
   ([body msg]
    (list 'cond
-         (list 'not body) (list 'println msg))))
+         (list 'not body) (list 'println msg)
+         :else (list 'prn body))))
 
 (defmacro is-not [body & args]
   (cons 'is (cons (list 'not body) args)))

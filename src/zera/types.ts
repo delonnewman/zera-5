@@ -4,19 +4,56 @@ export type ZeraObject = {
     $zera$protocols: object;
 }
 
-export class ZeraType extends Function {
+export interface ZeraTypelike extends Function {
     $zera$tag: string;
-    $zera$isProtocol?: false;
+    $zera$protocols?: ZeraProtocolMap;
+}
+
+export interface ZeraType extends ZeraTypelike {
     $zera$isType: true;
+    $zera$isProtocol?: false;
 }
 
-export class ZeraProtocol extends Function {
-    $zera$tag: string;
+export interface ZeraProtocol extends ZeraTypelike {
     $zera$isProtocol: true;
-    $zera$isType?: false;
+    $zera$isType?: true;
 }
 
-export type ZeraTypelike = ZeraType | ZeraProtocol;
+export type ZeraProtocolMap = {
+    [key: string]: ZeraProtocol;
+};
+
+function protocolMap(protocols: ZeraProtocol[]) {
+    let map: ZeraProtocolMap = {};
+    return protocols.reduce((mapping, proto) => {
+        mapping[proto.$zera$tag] = proto;
+        return mapping;
+    }, map);
+}
+
+// handle the common aspects of the zeraProtocol and zeraType decorators
+function typeTagger(tag: string, protocols: ZeraProtocol[], f: Function) {
+    return function(target: ZeraTypelike) {
+        f.call(target);
+        target.$zera$protocols = protocolMap(protocols);
+        target.$zera$tag = tag;
+        return target;
+    }
+}
+
+// protocol decorator
+export function zeraProtocol(tag: string, ...protocols: ZeraProtocol[]): Function {
+    return typeTagger(tag, protocols, (target: ZeraProtocol) => {
+        target.$zera$isProtocol = true;
+    })
+}
+
+// type decorator
+export function zeraType(tag: string, ...protocols: ZeraProtocol[]): Function {
+    return typeTagger(tag, protocols, (target: ZeraType) => {
+        target.$zera$isType = true;
+    });
+}
 
 export function isa(child: ZeraObject, parent: ZeraTypelike) {
     if (child == null) return false;
