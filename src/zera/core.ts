@@ -1,3 +1,6 @@
+import { Seq } from "./lang/Seq"
+import { PersistentList } from "./lang/PersistentList"
+
 export function isNil(x: any): boolean {
     return x == null;
 }
@@ -50,6 +53,206 @@ export function isZero(x: any): boolean {
     return x === 0;
 }
 
+export function isRegExp(x: any): boolean {
+    return Object.prototype.toString.call(x) === "[object RegExp]";
+}
+
+export function isDate(x: any): boolean {
+    return Object.prototype.toString.call(x) === "[object Date]";
+}
+
+export function isObject(x: any): boolean {
+    return Object.prototype.toString.call(x) === "[object Object]";
+}
+
+export function isEven(x: any): boolean {
+    return x % 2 === 0;
+}
+
+export function isOdd(x: any): boolean {
+    return Math.abs(x % 2) === 1;
+}
+
+// Collection interface
+
+export function count(col: any): number {
+    // nil
+    if (col == null) {
+        return 0;
+    } else if (isJSFn(col.count)) {
+        return col.count();
+    } else if (isSeq(col)) {
+        var n = 0,
+            s;
+        for (s = col; s != null; s = s.next()) {
+            n++;
+        }
+        return n;
+    }
+    // array-like
+    else if (col.length != null) {
+        return col.length;
+    } else {
+        throw new Error(
+            str("Don't know how to get the count of: ", prnStr(col))
+        );
+    }
+}
+
+export function conj(col: null | Seq, ...args: any[]) {
+    var xs = col == null ? PersistentList.EMPTY : col;
+    if (isJSFn(xs.conj)) return xs.conj(args);
+    else if (isArrayLike(xs)) {
+        let i = 0;
+        for (; i < args.length; i++) {
+            xs.push(args[i]);
+        }
+        return xs;
+    } else {
+        throw new Error(str("Don't know how to conj: ", prnStr(xs)));
+    }
+}
+
+export function first(xs: any) {
+    var s = seq(xs);
+    if (s != null) {
+        return s.first();
+    }
+    return s;
+}
+
+export function next(xs: any) {
+    var s = seq(xs);
+    if (s != null) {
+        return s.next();
+    }
+    return s;
+}
+
+export function rest(xs: any) {
+    var x = next(xs);
+    if (x == null) {
+        return PersistentList.EMPTY;
+    }
+    return x;
+}
+
+export function second(xs: any) {
+    return first(rest(xs));
+}
+
+export function isEmpty(x: any): boolean {
+    if (x == null) return true;
+    else if (isSeq(x)) {
+        return x.next() == null && x.first() == null;
+    } else if (isJSFn(x.isEmpty)) return x.isEmpty();
+    else if (isJSFn(x.count)) return x.count() === 0;
+    else if (isArrayLike(x)) return x.length === 0;
+    else {
+        throw new Error(
+            str("Don't know hot to determine if: ", prnStr(x), " is empty")
+        );
+    }
+}
+
+export function reduce(f: Function) {
+    var x, init, xs;
+    if (arguments.length === 2) {
+        xs = arguments[1];
+        init = first(xs);
+        xs = rest(xs);
+    } else if (arguments.length === 3) {
+        init = arguments[1];
+        xs = arguments[2];
+    } else {
+        throw new Error(
+            str("Expected either 2 or 3 arguments, got: ", arguments.length)
+        );
+    }
+    while (!isEmpty(xs)) {
+        x = first(xs);
+        init = apply(f, list(init, x));
+        xs = rest(xs);
+    }
+    return init;
+}
+
+export function join(col: any, delimiter: string): string {
+    return reduce(function(s, x) {
+        if (s == null) return str(x);
+        return str(s, delimiter, x);
+    }, col);
+}
+
+// TODO: look into transducers
+export function map(f, xs) {
+    if (arguments.length === 2) {
+        return lazySeq(function() {
+            if (isEmpty(xs)) {
+                return null;
+            }
+            return cons(apply(f, list(first(xs))), map(f, rest(xs)));
+        });
+    } else {
+        throw new Error(
+            str("Expected 2 arguments, got: ", arguments.length)
+        );
+    }
+}
+
+export function filter(f, xs) {
+    if (arguments.length === 2) {
+        return lazySeq(function() {
+            if (isEmpty(xs)) {
+                return null;
+            }
+            var x = first(xs),
+                pred = apply(f, list(x));
+            if (isFalsy(pred)) {
+                return filter(f, rest(xs));
+            } else {
+                return cons(x, filter(f, rest(xs)));
+            }
+        });
+    } else {
+        throw new Error(
+            str("Expected 2 arguments, got: ", arguments.length)
+        );
+    }
+}
+
+export function remove(f, xs) {
+    if (arguments.length === 2) {
+        return lazySeq(function() {
+            if (isEmpty(xs)) {
+                return null;
+            }
+            var x = first(xs),
+                pred = apply(f, list(x));
+            if (!isFalsy(pred)) {
+                return remove(f, rest(xs));
+            } else {
+                return cons(x, remove(f, rest(xs)));
+            }
+        });
+    } else {
+        throw new Error(
+            str("Expected 2 arguments, got: ", arguments.length)
+        );
+    }
+}
+
+export function arrayToList(a: any[]): PersistentList {
+    if (a == null || a.length === 0) return PersistentList.EMPTY;
+    else if (a.length === 1) return cons(a[0], PersistentList.EMPTY);
+    var i;
+    var list = null;
+    for (i = a.length - 1; i >= 0; i--) {
+        list = cons(a[i], list);
+    }
+    return list;
+}
+
 export function pt(tag: string, val: any): void {
     console.log(str(tag, ": ", prnStr(val)));
 }
@@ -61,8 +264,6 @@ export function prnStr(x: any): string {
         return x ? "true" : "false";
     } else if (isString(x)) {
         return str('"', x, '"');
-    } else if (isEnv(x)) {
-        return "env";
     } else if (isLazySeq(x)) {
         return "(...)";
     } else if (isList(x)) {

@@ -1,6 +1,6 @@
 import { IMeta } from "./IMeta";
-import { apply, cons, isJSFn } from "./core";
-import { zeraProtocol } from "./types";
+import { apply, cons, isJSFn } from "../core";
+import { zeraProtocol } from "../types";
 
 
 @zeraProtocol('zera.lang.AReference')
@@ -9,7 +9,8 @@ class AReference extends IMeta {
 
     $zera$meta: any;
 
-    constructor(meta) {
+    constructor(meta: any) {
+        super();
         this.$zera$meta = meta;
     }
 
