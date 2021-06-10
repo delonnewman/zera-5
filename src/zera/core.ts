@@ -1,5 +1,8 @@
-import { ISeq, ISeqable, Seqable, Seq, isSeq, isSeqable } from "./lang/Seq"
-import { PersistentList } from "./lang/PersistentList"
+import { ISeq, Seq, isSeq, isSeqable } from "./lang/Seq";
+import { PersistentList } from "./lang/PersistentList";
+import { IFn, IJSFunction, IApplicable } from "./lang/AFn";
+
+export type Applicable = IFn | IJSFunction | IApplicable | any[];
 
 export type Env = { vars: { [key: string]: any } };
 
@@ -164,6 +167,15 @@ export function isEmpty(x: any): boolean {
         throw new Error(
             str("Don't know hot to determine if: ", prnStr(x), " is empty")
         );
+    }
+}
+
+export function apply(fn: any, args: ISeq): any {
+    if (isArray(fn)) return fn[first(args)];
+    if (isJSFn(fn.apply)) {
+        return fn.apply(null, intoArray(args));
+    } else {
+        throw new Error(`Not a valid function: ${prnStr(fn)}`);
     }
 }
 

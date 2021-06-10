@@ -40,6 +40,22 @@ Atom.prototype.toString = function() {
     return str("#<Atom value: ", prnStr(this.$zera$value), ">");
 };
 
+// TODO: complete ARef implementation
+function processWatchers(ref, old, knew) {
+    var s,
+        f,
+        watchers = ref.$zera$watchers;
+    if (isEmpty(watchers)) return;
+    for (s = watchers.entries(); s != null; s = s.next()) {
+        var kv = s.first();
+        f = kv.val();
+        if (f != null) apply(f, list(kv.key(), ref, old, knew));
+        else {
+            throw new Error("A watcher must be a function of 4 arguments");
+        }
+    }
+}
+
 function isAtom(x) {
     return x instanceof Atom;
 }

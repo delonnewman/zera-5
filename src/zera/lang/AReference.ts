@@ -1,35 +1,27 @@
-import { IMeta } from "./IMeta";
-import { apply, cons, isJSFn } from "../core";
+import { AMeta, IMeta, MetaData } from "./IMeta";
+import { apply, cons, isJSFn, Applicable } from "../core";
 import { zeraProtocol } from "../types";
+import { ISeq } from "./Seq";
 
+export interface IReference {
+    alterMeta(f: Applicable, args: ISeq): MetaData | null;
+    resetMeta(m: MetaData): MetaData;
+}
 
-@zeraProtocol('zera.lang.AReference')
-class AReference extends IMeta {
-    static $zera$protocols: { "zera.lang.IMeta": IMeta };
-
-    $zera$meta: any;
-
-    constructor(meta: any) {
-        super();
-        this.$zera$meta = meta;
-    }
-
-    meta(): any {
-        return this.$zera$meta;
-    }
-
-    alterMeta(f, args) {
+@zeraProtocol('zera.lang.AReference', AMeta)
+export class AReference extends AMeta implements IMeta, IReference {
+    alterMeta(f: Applicable, args: ISeq): MetaData | null {
         this.$zera$meta = apply(f, cons(this.$zera$meta, args));
         return this.$zera$meta;
     }
 
-    resetMeta(m: any) {
+    resetMeta(m: MetaData): MetaData {
         this.$zera$meta = m;
         return this.$zera$meta;
     }
 }
 
-export function alterMeta(x: AReference, f: Function, args: any) {
+export function alterMeta(x: AReference, f: Applicable, args: ISeq) {
     if (x == null) return null;
     else if (isJSFn(x.alterMeta)) {
         return x.alterMeta(f, args);
@@ -38,7 +30,7 @@ export function alterMeta(x: AReference, f: Function, args: any) {
     }
 }
 
-export function resetMeta(x: AReference, newM: any) {
+export function resetMeta(x: AReference, newM: MetaData) {
     if (x == null) return null;
     else if (isJSFn(x.resetMeta)) {
         return x.resetMeta(newM);
