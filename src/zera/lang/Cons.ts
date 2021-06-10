@@ -2,16 +2,21 @@ import { Seq, ISeq } from "./Seq";
 import { zeraType } from "../types";
 import { MetaData } from "./IMeta";
 import { count } from "../core";
+import { PersistentList } from "./PersistentList";
 
-@zeraType('zera.lang.Cons', List)
+@zeraType('zera.lang.Cons', Seq)
 export class Cons extends Seq implements ISeq {
     private _first: any;
     private _more: ISeq;
 
-    constructor(meta: MetaData, first: any, more: ISeq) {
+    constructor(meta: MetaData | null, first: any, more: ISeq) {
         super(meta);
         this._first = first;
         this._more = more;
+    }
+
+    cons(value: any): Cons {
+        return new Cons(this.meta(), value, this);
     }
 
     // ISeq
@@ -32,11 +37,6 @@ export class Cons extends Seq implements ISeq {
 
     count() {
         return 1 + count(this._more);
-    }
-
-    // Seqable
-    seq() {
-        return this;
     }
 
     // IMeta
