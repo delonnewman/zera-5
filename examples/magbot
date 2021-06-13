@@ -10,7 +10,7 @@
 (js.node/npm-install "js-yaml")
 
 ;; Dependencies
-;; TODO: add :install directive that can be added to import, to idempotetly install npm packages
+;; TODO: add :install directive that can be added to import, to idempotently install npm packages
 (js.node/import
   ["js-yaml" :as yaml]
   ["https" :as https]
