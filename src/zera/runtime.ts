@@ -1,3 +1,19 @@
+import {
+    Symbol,
+    symbol,
+    keyword,
+    isKeyword,
+    isSeq,
+    ISeq,
+    isSeqable,
+    ArrayLike,
+    PersistentList,
+    isList,
+    lazySeq,
+    isLazySeq,
+    Applicable
+} from "./lang";
+
 // Global Symbols
 export const NIL_SYM = Symbol.intern("nil");
 export const TRUE_SYM = Symbol.intern("true");
@@ -167,7 +183,7 @@ export function conj(col: any, ...args: any[]) {
     }
 }
 
-export function first(xs: any) {
+export function first(xs: any): any {
     var s = seq(xs);
     if (s != null) {
         return s.first();
@@ -175,7 +191,7 @@ export function first(xs: any) {
     return s;
 }
 
-export function next(xs: any) {
+export function next(xs: any): ISeq | null {
     var s = seq(xs);
     if (s != null) {
         return s.next();
@@ -183,7 +199,7 @@ export function next(xs: any) {
     return s;
 }
 
-export function rest(xs: any) {
+export function rest(xs: any): ISeq {
     var x = next(xs);
     if (x == null) {
         return PersistentList.EMPTY;
@@ -191,7 +207,7 @@ export function rest(xs: any) {
     return x;
 }
 
-export function second(xs: any) {
+export function second(xs: any): any {
     return first(rest(xs));
 }
 
@@ -209,16 +225,18 @@ export function isEmpty(x: any): boolean {
     }
 }
 
-export function apply(fn: any, args: ISeq = PersistentList.EMPTY): any {
-    if (isArray(fn)) return fn[first(args)];
-    if (isJSFn(fn.apply)) {
+export function apply(fn: any, args: ISeq | null = PersistentList.EMPTY): any {
+    if (isArrayLike(fn)) {
+        return fn[first(args)];
+    }
+    else if (isJSFn(fn.apply)) {
         return fn.apply(null, intoArray(args));
     } else {
         throw new Error(`Not a valid function: ${prnStr(fn)}`);
     }
 }
 
-export function reduce(f: Function, ...args: any[]) {
+export function reduce(f: Applicable, ...args: any[]): any {
     var x, init, xs;
 
     if (args.length === 2) {
@@ -263,28 +281,24 @@ export function map(f: Applicable, xs: ISeq | ArrayLike) {
     }
 }
 
-export function filter(f, xs) {
-    if (arguments.length === 2) {
-        return lazySeq(function() {
-            if (isEmpty(xs)) {
-                return null;
-            }
-            var x = first(xs),
-                pred = apply(f, list(x));
-            if (isFalsy(pred)) {
-                return filter(f, rest(xs));
-            } else {
-                return cons(x, filter(f, rest(xs)));
-            }
-        });
-    } else {
-        throw new Error(
-            str("Expected 2 arguments, got: ", arguments.length)
-        );
-    }
+export function filter(f: Applicable, xs: ISeq | ArrayLike) {
+    return lazySeq(() => {
+        if (isEmpty(xs)) {
+            return null;
+        }
+
+        var x = first(xs),
+            pred = apply(f, list(x));
+
+        if (isFalsy(pred)) {
+            return filter(f, rest(xs));
+        } else {
+            return cons(x, filter(f, rest(xs)));
+        }
+    });
 }
 
-export function remove(f, xs) {
+export function remove(f: Applicable, xs: ISeq | ArrayLike) {
     if (arguments.length === 2) {
         return lazySeq(function() {
             if (isEmpty(xs)) {
@@ -306,7 +320,9 @@ export function remove(f, xs) {
 }
 
 export function arrayToList(a: any[]): ISeq | null {
-    if (a == null || a.length === 0) return PersistentList.EMPTY;
+    if (a == null || a.length === 0) {
+        return PersistentList.EMPTY;
+    }
     else if (a.length === 1) {
         return cons(a[0], PersistentList.EMPTY);
     }
@@ -396,7 +412,6 @@ export function isFalse(x: any): boolean {
 export function isFalsy(x: any): boolean {
     return x === false || x == null;
 }
-
 
 // symbols can be quoted with ":", "'" or by surrounding in "'s
 export function isString(x: any): boolean {
@@ -566,7 +581,7 @@ export function cons(x: any, col: ISeq | null): ISeq {
     }
 }
 
-export function list(...args: any[]): PersistentList {
+export function list(...args: any[]): ISeq | null {
     if (args.length === 0) {
         return PersistentList.EMPTY;
     } else if (args.length === 1) {
@@ -579,18 +594,4 @@ export function list(...args: any[]): PersistentList {
         xs = cons(x, xs);
     }
     return xs;
-}
-
-function car(cons) {
-    if (cons == null) return null;
-    if (cons != null && isJSFn(cons.first)) return cons.first();
-    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
-}
-
-function cdr(cons) {
-    if (cons == null) return null;
-    if (isJSFn(cons.next)) {
-        return cons.next();
-    }
-    throw new Error(str("Not a valid Cons: ", prnStr(cons)));
 }

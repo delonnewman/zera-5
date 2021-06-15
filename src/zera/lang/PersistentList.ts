@@ -1,12 +1,13 @@
-import { Seq, ISeq } from "./Seq";
+import { ISeq } from "./Seq";
+import { List } from "./List";
 import { Counted } from "./Counted";
 import { MetaData } from "./IMeta";
 import { zeraProtocol } from "../types";
 
 // TODO: add IPersistentList, IPersistentStack, IReduce
 
-@zeraProtocol('zera.lang.PersistentList', Seq)
-export class PersistentList extends Seq implements ISeq, Counted {
+@zeraProtocol('zera.lang.PersistentList', List)
+export class PersistentList extends List implements Counted {
     private $zera$car: any;
     private $zera$cdr: ISeq | null;
     private $zera$count: number;

@@ -17,6 +17,7 @@ export { PersistentList, isPersistentList } from "./PersistentList";
 export { Vector, nth, isVector, vector, vec } from "./Vector";
 export { LazySeq, isLazySeq, lazySeq, take, N, range, repeat } from "./LazySeq";
 export { Cons, isCons } from "./Cons";
+export { List, isList } from "./List";
 
 // Maps
 export {

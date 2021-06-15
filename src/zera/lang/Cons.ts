@@ -1,11 +1,12 @@
-import { Seq, ISeq } from "./Seq";
+import { List } from "./List";
+import { ISeq } from "./Seq";
 import { zeraType } from "../types";
 import { MetaData } from "./IMeta";
-import { count } from "../core";
+import { count } from "../runtime";
 import { PersistentList } from "./PersistentList";
 
-@zeraType('zera.lang.Cons', Seq)
-export class Cons extends Seq implements ISeq {
+@zeraType('zera.lang.Cons', List)
+export class Cons extends List {
     private _first: any;
     private _more: ISeq;
 
