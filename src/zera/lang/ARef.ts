@@ -1,7 +1,7 @@
 import { AReference, IReference } from "./AReference";
 import { zeraProtocol } from "../types";
 import { arrayMap, ArrayMap } from "./ArrayMap";
-import { Applicable, apply, list } from "../core";
+import { Applicable, apply, list, isEmpty } from "../core";
 import { MetaData } from "./IMeta";
 
 @zeraProtocol('zera.lang.ARef', AReference)
@@ -41,6 +41,22 @@ export class ARef extends AReference implements IReference {
     setValidator(f: Applicable) {
         this.$zera$validator = f;
         return this;
+    }
+
+    // TODO: complete ARef implementation
+    protected processWatchers(old: any, knew: any): void {
+        var s,
+            f,
+            watchers = this.$zera$watchers;
+        if (isEmpty(watchers)) return;
+        for (s = watchers.entries(); s != null; s = s.next()) {
+            var kv = s.first();
+            f = kv.val();
+            if (f != null) apply(f, list(kv.key(), this, old, knew));
+            else {
+                throw new Error("A watcher must be a function of 4 arguments");
+            }
+        }
     }
 }
 

@@ -2,7 +2,7 @@ import { MetaData } from "./IMeta"
 import { AMap, IMap } from "./AMap"
 import { MapEntry, isMapEntry, mapEntry } from "./MapEntry"
 import { zeraType } from "../types";
-import { isArray, str, prnStr, equals } from "../core";
+import { isArray, str, prnStr, equals, list } from "../core";
 import { PersistentList } from "./PersistentList"
 import { IFn } from "./AFn"
 
@@ -85,7 +85,7 @@ export class ArrayMap extends AMap implements IFn, IMap {
     }
 
     seq(): PersistentList {
-        this.entries();
+        return this.entries();
     }
 
     keys(): PersistentList {

@@ -3,6 +3,7 @@ import { zeraType } from "../types";
 import { isJSFn } from "../core";
 import { Symbol } from "./Symbol";
 import { IFn, AFn } from "./AFn";
+import { MetaData } from "./IMeta";
 
 @zeraType('zera.lang.Keyword', Named, AFn)
 export class Keyword extends Named implements IFn {
@@ -10,8 +11,8 @@ export class Keyword extends Named implements IFn {
 
     private $zera$sym: Symbol;
 
-    constructor(sym: Symbol) {
-        super();
+    constructor(sym: Symbol, meta: MetaData | null = null) {
+        super(meta);
         this.$zera$sym = sym;
     }
 
@@ -21,11 +22,11 @@ export class Keyword extends Named implements IFn {
         return kw;
     }
 
-    name() {
+    name(): string {
         return this.$zera$sym.name();
     }
 
-    namespace() {
+    namespace(): string | null {
         return this.$zera$sym.namespace();
     }
 

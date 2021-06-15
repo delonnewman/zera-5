@@ -3,18 +3,18 @@ import { ISeq, Seq } from "./Seq";
 import { prnStr, str, isJSFn } from "../core";
 
 export interface IMap {
-    entries(): any[];
+    entries(): ISeq;
     find(key: any): any;
     assoc(key: any, value: any): IMap;
     dissoc(key: any): IMap;
-    keys(): any[];
-    vals(): any[];
+    keys(): ISeq;
+    vals(): ISeq;
     containsKey(key: any): boolean;
 }
 
 @zeraProtocol('zera.lang.AMap', Seq)
 export class AMap extends Seq implements ISeq, IMap {
-    entries(): any[] {
+    entries(): ISeq {
         throw new Error('unimplemented');
     }
 
@@ -30,11 +30,11 @@ export class AMap extends Seq implements ISeq, IMap {
         throw new Error('unimplemented');
     }
 
-    keys(): any[] {
+    keys(): ISeq {
         throw new Error('unimplemented');
     }
 
-    vals(): any[] {
+    vals(): ISeq {
         throw new Error('unimplemented');
     }
 
@@ -57,76 +57,39 @@ export function isAMap(x: any): boolean {
     return x instanceof AMap;
 }
 
-export function entries(m: IMap): any[] {
-    if (isJSFn(m.entries)) return m.entries();
-    else {
-        throw new Error(
-            str("Don't know how to get the entries of: ", prnStr(m))
-        );
-    }
+export function entries(m: IMap): ISeq {
+    return m.entries();
 }
 
 export function find(m: IMap, key: any): any {
-    if (isJSFn(m.find)) {
-        return m.find(key);
-    } else {
-        throw new Error(
-            str("Don't know how to find value by key in: ", prnStr(m))
-        );
-    }
+    return m.find(key);
 }
 
 export function get(m: IMap, key: any, alt: any = null): any {
-    if (isJSFn(m.find)) {
-        var val = m.find(key);
-        if (alt == null) {
-            return val ? val : null;
-        } else {
-            return val ? val : alt;
-        }
+    var val = m.find(key);
+    if (alt == null) {
+        return val ? val : null;
     } else {
-        throw new Error(
-            str("Don't know how to get value by key from: ", prnStr(m))
-        );
+        return val ? val : alt;
     }
 }
 
 // TODO: add variable number of key-value pairs
 export function assoc(m: IMap, key: any, value: any): IMap {
-    if (isJSFn(m.assoc)) {
-        return m.assoc(key, value);
-    } else {
-        throw new Error(str("Don't know how to assoc: ", prnStr(m)));
-    }
+    return m.assoc(key, value);
 }
 
 // TODO: add variable number of keys
 export function dissoc(m: IMap, k: any): IMap {
-    if (isJSFn(m.dissoc)) {
-        return m.dissoc(k);
-    } else {
-        throw new Error(str("Don't know how to dissoc: ", prnStr(m)));
-    }
+    return m.dissoc(k);
 }
 
-export function keys(m: IMap): any[] {
-    if (isJSFn(m.keys)) {
-        return m.keys();
-    } else {
-        throw new Error(
-            str("Don't know how to get keys from: ", prnStr(m))
-        );
-    }
+export function keys(m: IMap): ISeq {
+    return m.keys();
 }
 
-export function vals(m: IMap): any[] {
-    if (isJSFn(m.vals)) {
-        return m.vals();
-    } else {
-        throw new Error(
-            str("Don't know how to get vals from: ", prnStr(m))
-        );
-    }
+export function vals(m: IMap): ISeq {
+    return m.vals();
 }
 
 export function containsKey(m: any, k: any): boolean {

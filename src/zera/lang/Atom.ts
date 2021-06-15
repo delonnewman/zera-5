@@ -1,7 +1,6 @@
 import { ARef } from "./ARef";
 import { zeraType } from "../types";
-import { Applicable, apply, cons, equals, prnStr, str, isEmpty, list, seq } from "../core";
-import { ISeq } from "./Seq";
+import { Applicable, apply, cons, equals, prnStr, str, seq } from "../core";
 
 @zeraType('zera.lang.Atom', ARef)
 export class Atom extends ARef {
@@ -34,23 +33,6 @@ export class Atom extends ARef {
     toString() {
         return str("#<Atom value: ", prnStr(this.$zera$value), ">");
     }
-
-    // TODO: complete ARef implementation
-    private processWatchers(old: any, knew: any): void {
-        var s,
-            f,
-            watchers = this.$zera$watchers;
-        if (isEmpty(watchers)) return;
-        for (s = watchers.entries(); s != null; s = s.next()) {
-            var kv = s.first();
-            f = kv.val();
-            if (f != null) apply(f, list(kv.key(), this, old, knew));
-            else {
-                throw new Error("A watcher must be a function of 4 arguments");
-            }
-        }
-    }
-
 }
 
 export function isAtom(x: any): boolean {

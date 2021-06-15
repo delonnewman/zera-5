@@ -4,7 +4,7 @@ import { prnStr } from "../core";
 
 export interface INamed {
     name(): string;
-    namespace(): string;
+    namespace(): string | null;
 }
 
 @zeraProtocol('zera.lang.Named', AObj)
@@ -13,7 +13,7 @@ export class Named extends AObj implements INamed {
         throw new Error("unimplemented");
     }
 
-    namespace(): string {
+    namespace(): string | null {
         throw new Error("unimplemented");
     }
 }
