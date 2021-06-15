@@ -1,34 +1,36 @@
 import { ARef } from "./ARef";
-import { zeraType } from "../types";
 import { MetaData } from "./IMeta";
-import { Namespace } from "./Namespace";
+import { Namespace, isNamespace } from "./Namespace";
 import { Symbol } from "./Symbol";
 import { Keyword } from "./Keyword";
 import { arrayMap } from "./ArrayMap";
+import { zeraType } from "../types";
+import { str } from "../core";
 
 const KW_DYNAMIC = Keyword.intern(Symbol.intern("dynamic"));
+const KW_MACRO = Keyword.intern(Symbol.intern("macro"));
 
 // TODO: complete Var implementation
 @zeraType('zera.lang.Var', ARef)
 export class Var extends ARef {
-    private $zera$ns: string;
-    private $zera$name: string;
+    private $zera$ns: Namespace;
+    private $zera$name: Symbol;
 
-    constructor(meta: MetaData, namespace: string, name: string) {
+    constructor(meta: MetaData | null, namespace: Namespace, name: Symbol) {
         super(meta, null, null);
         this.$zera$ns = namespace;
         this.$zera$name = name;
     }
 
-    static intern(ns: Namespace | Symbol | string, sym: Symbol, init: any): Var {
-        var ns_ = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
+    static intern(ns: any, sym: Symbol, init: any): Var {
+        var ns_: Namespace = isNamespace(ns) ? ns : Namespace.findOrCreate(ns);
         var v = ns_.intern(sym);
         if (init != null) v.set(init);
         v.resetMeta(sym.meta() || arrayMap());
         return v;
     }
 
-    get() {
+    get(): any {
         return this.$zera$value;
     }
 
@@ -44,7 +46,7 @@ export class Var extends ARef {
         }
     }
 
-    setDynamic() {
+    setDynamic(): Var {
         if (this.$zera$meta == null) {
             this.$zera$meta = arrayMap();
         }
@@ -52,42 +54,44 @@ export class Var extends ARef {
         return this;
     }
 
-    isDynamic() {
+    isDynamic(): boolean {
         if (this.$zera$meta == null) return false;
 
         return !!this.$zera$meta.find(KW_DYNAMIC);
     }
 
-    setMacro() {
-        this.$zera$meta = this.$zera$meta.assoc([
-            Keyword.intern("macro"),
-            true,
-        ]);
+    setMacro(): Var {
+        if (this.$zera$meta == null) {
+            this.$zera$meta = arrayMap();
+        }
+
+        this.$zera$meta = this.$zera$meta.assoc(KW_MACRO, true);
         return this;
     }
 
-    Var.prototype.isMacro = function() {
-        return !!this.$zera$meta.find(Keyword.intern("macro"));
-    };
+    isMacro(): boolean {
+        if (this.$zera$meta == null) return false;
 
-    Var.prototype.toString = function() {
+        return !!this.$zera$meta.find(KW_MACRO);
+    }
+
+    toString() {
         return str("#'", this.$zera$ns.name(), "/", this.$zera$name);
-    };
-
-function define(ns, name, init) {
-    return Var.intern(ns, Sym.intern(name), init);
+    }
 }
 
-function isVar(x) {
+export function define(ns: Namespace | Symbol | string, name: string, init: any): Var {
+    return Var.intern(ns, Symbol.intern(name), init);
+}
+
+export function isVar(x: any): boolean {
     return x instanceof Var;
 }
 
-function varGet(v) {
-    if (isVar(v)) return v.get();
-    throw new Error("var-get can only be used on Vars");
+export function varGet(v: Var): any {
+    return v.get();
 }
 
-function varSet(v, value) {
-    if (isVar(v)) return v.set(value);
-    throw new Error("var-set can only be used on Vars");
+export function varSet(v: Var, value: any): Var {
+    return v.set(value);
 }

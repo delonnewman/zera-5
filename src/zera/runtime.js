@@ -79,18 +79,6 @@ var zera = (function () {
         ZERA_NS
     ).setDynamic();
 
-    function alias(sym, ns) {
-        return CURRENT_NS.get().addAlias(sym, ns);
-    }
-
-    function nsAliases(ns) {
-        return theNS(ns).getAliases();
-    }
-
-    function nsUnalias(ns, sym) {
-        return theNS(ns).removeAlias(sym);
-    }
-
     function env(parent) {
         if (parent) {
             return {
