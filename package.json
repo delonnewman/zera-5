@@ -1,5 +1,5 @@
 {
-    "name": "zera",
+    "name": "zera-5",
     "version": "0.0.1",
     "description": "",
     "main": "./index.js",
@@ -8,6 +8,7 @@
         "yargs": "^13.3.0"
     },
     "devDependencies": {
+        "jest": "^27.0.4",
         "prettier": "2.3.1"
     },
     "scripts": {
@@ -15,9 +16,9 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://drnewman@bitbucket.org/thesheepishlions/5.git"
+        "url": "https://github.com/delonnewman/zera-5.git"
     },
     "author": "Delon Newman",
     "license": "MIT",
-    "homepage": "https://bitbucket.org/thesheepishlions/5#readme"
+    "homepage": "https://github.com/delonnewman/zera-5#readme"
 }
