@@ -4,8 +4,10 @@ import { ISeqable, ISeq } from "./Seq";
 import { Counted } from "./Counted";
 import { IFn } from "./AFn";
 import { str, prnStr, arrayToList, equals, isArray, isJSFn, first, next, seq } from "../core";
+import { zeraType } from "../types";
 
 // TODO: make Vector an abstract interface for PersistentVector and TransientVector
+@zeraType('zera.lang.Vector', AObj)
 export class Vector extends AObj implements IObj, ISeqable, Counted, IFn {
     private _rep: any[];
 
