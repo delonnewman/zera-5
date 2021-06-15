@@ -1,13 +1,9 @@
-// Set
+import { IObj, AObj } from "./IObj";
+import { zeraProtocol } from "../types";
 
-function ASet(meta) {
-    this.$zera$meta = meta;
-}
-ASet.$zera$isProtocol = true;
-ASet.$zera$tag = "zera.lang.ASet";
-ASet.$zera$protocols = { "zera.lang.IObj": IObj };
-ASet.prototype = Object.create(IObj.prototype);
+@zeraProtocol('zera.lang.ASet', AObj)
+export class ASet extends AObj implements IObj { }
 
-function isSet(x) {
-    return x instanceof ASet; // || Object.prototype.toString.call('[object Set]');
+export function isSet(x: any): boolean {
+    return x instanceof ASet || Object.prototype.toString.call(x) === '[object Set]';
 }

@@ -1,6 +1,9 @@
 import { ISeq, Seq, isSeq, isSeqable } from "./lang/Seq";
 import { PersistentList } from "./lang/PersistentList";
 import { IFn, IJSFunction, IApplicable } from "./lang/AFn";
+import { ArrayMap } from "./lang/ArrayMap";
+
+export type Map = ArrayMap;
 
 export type Applicable = IFn | IJSFunction | IApplicable | any[];
 

@@ -1,58 +1,59 @@
-function APersistentSet(meta, map) {
-    this.$zera$rep = map || arrayMap();
-    ASet.call(this, meta);
+import { ASet } from "./ASet";
+import { ISeq } from "./Seq";
+import { MetaData } from "./IMeta";
+import { zeraProtocol } from "../types";
+import { str, intoArray, Map } from "../core";
+
+@zeraProtocol('zera.lang.APersistentSet', ASet)
+export class APersistentSet extends ASet {
+    protected $zera$rep: Map;
+
+    constructor(meta: MetaData | null, rep: Map) {
+        super(meta);
+        this.$zera$rep = rep;
+    }
+
+    toString() {
+        return str("#{", this.toArray().join(" "), "}");
+    }
+
+    toArray(): any[] {
+        return intoArray(this.seq());
+    }
+
+    get(key: any): any {
+        return this.$zera$rep.find(key);
+    }
+
+    count(): number {
+        return this.$zera$rep.count();
+    }
+
+    seq(): ISeq {
+        return this.$zera$rep.keys();
+    }
+
+    apply(_: any, args: any[]): any {
+        return this.get(args[0]);
+    }
+
+    equals(other: any): boolean {
+        return other instanceof ASet && this.$zera$rep.equals(other.$zera$rep);
+    }
+
+    contains(val: any): boolean {
+        return this.$zera$rep.containsKey(val);
+    }
+
+    first() {
+        return this.seq().first();
+    }
+
+    rest() {
+        return this.seq().rest();
+    }
+
+    next() {
+        return this.seq().next();
+    }
 }
-
-APersistentSet.$zera$isProtocol = true;
-APersistentSet.$zera$tag = "zera.lang.APersistentSet";
-APersistentSet.$zera$protocols = { "zera.lang.ASet": ASet };
-
-APersistentSet.prototype = Object.create(ASet.prototype);
-
-APersistentSet.prototype.toString = function() {
-    return str("#{", this.toArray().join(" "), "}");
-};
-
-APersistentSet.prototype.toArray = function() {
-    return intoArray(this.seq());
-};
-
-APersistentSet.prototype.get = function(key) {
-    return this.$zera$rep.find(key);
-};
-
-APersistentSet.prototype.count = function() {
-    return this.$zera$rep.count();
-};
-
-APersistentSet.prototype.seq = function() {
-    return this.$zera$rep.keys();
-};
-
-APersistentSet.prototype.apply = function(x, args) {
-    return this.get(args[0]);
-};
-
-APersistentSet.prototype.equals = function(o) {
-    return o instanceof ASet && this.$zera$rep.equals(o.$zera$rep);
-};
-
-APersistentSet.prototype.contains = function(val) {
-    return this.$zera$rep.containsKey(val);
-};
-
-APersistentSet.prototype.meta = function() {
-    return this.$zera$meta == null ? arrayMap() : this.$zera$meta;
-};
-
-APersistentSet.prototype.first = function() {
-    return this.seq().first();
-};
-
-APersistentSet.prototype.rest = function() {
-    return this.seq().rest();
-};
-
-APersistentSet.prototype.next = function() {
-    return this.seq().next();
-};
