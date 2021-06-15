@@ -173,7 +173,7 @@ export function isEmpty(x: any): boolean {
     }
 }
 
-export function apply(fn: any, args: ISeq): any {
+export function apply(fn: any, args: ISeq = PersistentList.EMPTY): any {
     if (isArray(fn)) return fn[first(args)];
     if (isJSFn(fn.apply)) {
         return fn.apply(null, intoArray(args));

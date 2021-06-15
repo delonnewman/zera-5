@@ -1,90 +1,90 @@
-/**
- * @constructor
- * @implements {Seq}
- */
-function LazySeq(seq, fn) {
-    this.fn = fn == null ? null : fn;
-    this._seq = seq == null ? null : seq;
-    this._sv = null;
-    this.$zera$typeName = LazySeq.$zera$tag;
-    ZeraType.call(this, LazySeq.$zera$typeName, null, LazySeq.$zera$protocols);
-}
+import { zeraType } from "../types";
+import { Seq, ISeq } from "./Seq";
+import { PersistentList } from "./PersistentList";
+import { Applicable, apply, cons } from "../core";
 
-LazySeq.$zera$isType = true;
-LazySeq.$zera$tag = Sym.intern('zera.lang.LazySeq');
-LazySeq.$zera$protocols = { 'zera.lang.Seq': Seq };
-LazySeq.prototype = Object.create(Seq.prototype);
+@zeraType('zera.lang.LazySeq', Seq)
+export class LazySeq {
+    private _fn: Applicable | null;
+    private _seq: ISeq | null;
+    private _sv: ISeq | null;
 
-LazySeq.prototype.sval = function() {
-    if (this.fn != null) {
-        this._sv = this.fn.call();
-        this.fn = null;
-    }
-    if (this._sv != null) {
-        return this._sv;
-    }
-    return this._seq;
-};
-
-// Sequable
-LazySeq.prototype.seq = function() {
-    this.sval();
-    if (this._sv != null) {
-        var ls = this._sv;
+    constructor(seq: ISeq | null, fn: Applicable | null) {
+        this._fn = fn == null ? null : fn;
+        this._seq = seq == null ? null : seq;
         this._sv = null;
-        while (ls instanceof LazySeq) {
-            ls = ls.sval();
+    }
+
+    sval() {
+        if (this._fn != null) {
+            this._sv = apply(this._fn);
+            this._fn = null;
         }
-        this._seq = ls;
+        if (this._sv != null) {
+            return this._sv;
+        }
+        return this._seq;
     }
-    return this._seq;
-};
 
-LazySeq.prototype.count = function() {
-    var c = 0, s;
-    for (s = this; s != null; s = s.next()) {
-        c++;
+    // Sequable
+    seq(): ISeq | null {
+        this.sval();
+        if (this._sv != null) {
+            var ls: ISeq | null = this._sv;
+            this._sv = null;
+            while (ls instanceof LazySeq) {
+                ls = ls.sval();
+            }
+            this._seq = ls;
+        }
+        return this._seq;
     }
-    return c;
-};
 
-LazySeq.prototype.cons = function(x) {
-    return cons(x, this.seq());
-};
-
-LazySeq.prototype.first = function() {
-    this.seq();
-    if (this._seq == null) {
-        return null;
+    count(): number {
+        var c = 0, s;
+        for (s = this; s != null; s = s.next()) {
+            c++;
+        }
+        return c;
     }
-    return this._seq.first();
-};
 
-LazySeq.prototype.next = function() {
-    this.seq();
-    if (this._seq == null) {
-        return null;
+    cons(x: any): ISeq {
+        return cons(x, this.seq());
     }
-    return this._seq.next();
-};
 
-LazySeq.prototype.rest = function() {
-    var val = this.next();
-    if (val == null) return Cons.EMPTY;
-    else return val;
-};
-
-LazySeq.prototype.isEmpty = function() {
-    return this.seq() === null;
-};
-
-LazySeq.prototype.toString = function() {
-    if (this.isEmpty()) return '()';
-    var buff = [];
-    var seq = this.seq();
-    while (seq != null) {
-        p(first(seq));
-        seq = seq.next();
+    first(): any {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.first();
     }
-    return '(' + buff.join(' ') + ')';
-};
+
+    next(): ISeq | null {
+        this.seq();
+        if (this._seq == null) {
+            return null;
+        }
+        return this._seq.next();
+    }
+
+    rest(): ISeq {
+        var val = this.next();
+        if (val == null) return PersistentList.EMPTY;
+        else return val;
+    }
+
+    isEmpty(): boolean {
+        return this.seq() === null;
+    }
+
+    toString() {
+        if (this.isEmpty()) return '()';
+        var buff: any[] = [];
+        var seq: ISeq | null = this.seq();
+        while (seq != null) {
+            seq = seq.next();
+        }
+        return '(' + buff.join(' ') + ')';
+    }
+}
