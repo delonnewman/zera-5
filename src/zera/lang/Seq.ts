@@ -4,7 +4,7 @@ import { zeraProtocol } from "../types"
 import { equals, isJSFn, isArrayLike, ArrayLike } from "../core"
 
 export interface ISeqable {
-    seq(): ISeq;
+    seq(): ISeq | null;
 }
 
 export interface ISeq extends ISeqable {
@@ -17,7 +17,7 @@ export interface ISeq extends ISeqable {
 
 @zeraProtocol('zera.lang.Seq', AObj)
 export class Seq extends AObj implements IObj, IMeta, ISeq {
-    seq(): ISeq {
+    seq(): ISeq | null {
         return this;
     }
 
