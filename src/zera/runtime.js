@@ -9,53 +9,6 @@ var zera = (function () {
         typeof module !== "undefined" && typeof module.exports !== "undefined";
     var isBrowser = typeof window !== "undefined";
 
-    // Symbols
-    var NIL_SYM = Sym.intern("nil");
-    var TRUE_SYM = Sym.intern("true");
-    var FALSE_SYM = Sym.intern("false");
-    var QUOTE_SYM = Sym.intern("quote");
-    var DEREF_SYM = Sym.intern("deref");
-    var DO_SYM = Sym.intern("do");
-    var DEF_SYM = Sym.intern("def");
-    var SET_SYM = Sym.intern("set!");
-    var FN_SYM = Sym.intern("fn");
-    var LET_SYM = Sym.intern("let");
-    var COND_SYM = Sym.intern("cond");
-    var LOOP_SYM = Sym.intern("loop");
-    var RECUR_SYM = Sym.intern("recur");
-    var THROW_SYM = Sym.intern("throw");
-    var NEW_SYM = Sym.intern("new");
-    var DOT_SYM = Sym.intern(".");
-    var MACRO_SYM = Sym.intern("defmacro");
-    var AMP_SYM = Sym.intern("&");
-    var THE_VAR = Sym.intern("var");
-
-    var SPECIAL_FORMS = {
-        nil: true,
-        true: true,
-        false: true,
-        quote: true,
-        def: true,
-        "set!": true,
-        fn: true,
-        cond: true,
-        loop: true,
-        recur: true,
-        throw: true,
-        new: true,
-        ".": true,
-        defmacro: true,
-        var: true,
-        do: true,
-        let: true,
-    };
-
-
-    var DOC_KEY = keyword("doc");
-    var MACRO_KEY = keyword("macro");
-
-    var p = console.log.bind(console.log);
-
     function evalQuote(form) {
         return car(cdr(form));
     }

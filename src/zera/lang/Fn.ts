@@ -1,13 +1,14 @@
-import { AFn, IFn } from "./AFn"
+import { AFn, IFn, IJSFunction, IApplicable } from "./AFn"
 import { MetaData } from "./IMeta"
 import { zeraType } from "../types"
 
 import {
     Env, prnStr, calculateArity, count, str,
     bindArguments, intoArray, defineLexically,
-    RecursionPoint
+    RecursionPoint, first, next
 } from "../core"
 
+export type Applicable = IFn | IJSFunction | IApplicable | any[];
 export type ArgList = any;
 export type Body = any;
 
@@ -104,12 +105,12 @@ export class Fn extends AFn implements IFn {
                 }
 
                 // evaluate body
-                var exp = car(body),
-                    exprs = cdr(body);
+                var exp = first(body),
+                    exprs = next(body);
                 while (exp != null) {
                     ret = evaluate(exp, env);
-                    exp = car(exprs);
-                    exprs = cdr(exprs);
+                    exp = first(exprs);
+                    exprs = next(exprs);
                 }
                 break;
             } catch (e) {

@@ -1,15 +1,51 @@
-import { ISeq, Seq, isSeq, isSeqable } from "./lang/Seq";
-import { PersistentList } from "./lang/PersistentList";
-import { IFn, IJSFunction, IApplicable } from "./lang/AFn";
-import { ArrayMap } from "./lang/ArrayMap";
+// Global Symbols
+export const NIL_SYM = Symbol.intern("nil");
+export const TRUE_SYM = Symbol.intern("true");
+export const FALSE_SYM = Symbol.intern("false");
+export const QUOTE_SYM = Symbol.intern("quote");
+export const DEREF_SYM = Symbol.intern("deref");
+export const DO_SYM = Symbol.intern("do");
+export const DEF_SYM = Symbol.intern("def");
+export const SET_SYM = Symbol.intern("set!");
+export const FN_SYM = Symbol.intern("fn");
+export const LET_SYM = Symbol.intern("let");
+export const COND_SYM = Symbol.intern("cond");
+export const LOOP_SYM = Symbol.intern("loop");
+export const RECUR_SYM = Symbol.intern("recur");
+export const THROW_SYM = Symbol.intern("throw");
+export const NEW_SYM = Symbol.intern("new");
+export const DOT_SYM = Symbol.intern(".");
+export const MACRO_SYM = Symbol.intern("defmacro");
+export const AMP_SYM = Symbol.intern("&");
+export const THE_VAR = Symbol.intern("var");
 
-export type Map = ArrayMap;
+export const SPECIAL_FORMS = {
+    nil: true,
+    true: true,
+    false: true,
+    quote: true,
+    def: true,
+    "set!": true,
+    fn: true,
+    cond: true,
+    loop: true,
+    recur: true,
+    throw: true,
+    new: true,
+    ".": true,
+    defmacro: true,
+    var: true,
+    do: true,
+    let: true,
+};
 
-export type Applicable = IFn | IJSFunction | IApplicable | any[];
+
+export const DOC_KEY = keyword("doc");
+export const MACRO_KEY = keyword("macro");
+
+export const p = console.log.bind(console.log);
 
 export type Env = { vars: { [key: string]: any } };
-
-export type ArrayLike = { length: number, 0: any };
 
 export class RecursionPoint {
     public args: any[];
@@ -117,7 +153,7 @@ export function count(col: any): number {
     }
 }
 
-export function conj(col: null | Seq, ...args: any[]) {
+export function conj(col: any, ...args: any[]) {
     var xs = col == null ? PersistentList.EMPTY : col;
     if (isJSFn(xs.conj)) return xs.conj(args);
     else if (isArrayLike(xs)) {
@@ -182,37 +218,37 @@ export function apply(fn: any, args: ISeq = PersistentList.EMPTY): any {
     }
 }
 
-export function reduce(f: Function) {
+export function reduce(f: Function, ...args: any[]) {
     var x, init, xs;
-    if (arguments.length === 2) {
-        xs = arguments[1];
+
+    if (args.length === 2) {
+        xs = args[1];
         init = first(xs);
         xs = rest(xs);
-    } else if (arguments.length === 3) {
-        init = arguments[1];
-        xs = arguments[2];
+    } else if (args.length === 3) {
+        init = args[1];
+        xs = args[2];
     } else {
         throw new Error(
             str("Expected either 2 or 3 arguments, got: ", arguments.length)
         );
     }
+
     while (!isEmpty(xs)) {
         x = first(xs);
         init = apply(f, list(init, x));
         xs = rest(xs);
     }
+
     return init;
 }
 
 export function join(col: any, delimiter: string): string {
-    return reduce(function(s, x) {
-        if (s == null) return str(x);
-        return str(s, delimiter, x);
-    }, col);
+    return reduce((s: any, x: any) => s == null ? str(x) : str(s, delimiter, x), col);
 }
 
 // TODO: look into transducers
-export function map(f, xs) {
+export function map(f: Applicable, xs: ISeq | ArrayLike) {
     if (arguments.length === 2) {
         return lazySeq(function() {
             if (isEmpty(xs)) {
@@ -269,14 +305,18 @@ export function remove(f, xs) {
     }
 }
 
-export function arrayToList(a: any[]): PersistentList {
+export function arrayToList(a: any[]): ISeq | null {
     if (a == null || a.length === 0) return PersistentList.EMPTY;
-    else if (a.length === 1) return cons(a[0], PersistentList.EMPTY);
+    else if (a.length === 1) {
+        return cons(a[0], PersistentList.EMPTY);
+    }
+
     var i;
     var list = null;
     for (i = a.length - 1; i >= 0; i--) {
         list = cons(a[i], list);
     }
+
     return list;
 }
 

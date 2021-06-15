@@ -186,6 +186,8 @@ export class ArrayMap extends AMap implements IFn, IMap {
     }
 }
 
+export type Map = ArrayMap;
+
 export function isArrayMap(x: any): boolean {
     return x instanceof ArrayMap;
 }

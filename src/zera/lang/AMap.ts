@@ -44,7 +44,7 @@ export class AMap extends Seq implements ISeq, IMap {
 }
 
 export type JSMap = { has: (key: any) => any };
-export type Maplike = IMap | JSMap;
+export type MapLike = IMap | JSMap;
 
 export function isMap(x: any): boolean {
     return (

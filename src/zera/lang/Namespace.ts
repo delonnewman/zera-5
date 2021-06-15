@@ -161,4 +161,3 @@ export function nsAliases(ns: Namespace): IMap {
 export function nsUnalias(ns: Namespace, sym: Symbol): Namespace {
     return theNS(ns).removeAlias(sym);
 }
-

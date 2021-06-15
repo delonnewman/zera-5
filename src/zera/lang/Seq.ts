@@ -71,6 +71,7 @@ export class Seq extends AObj implements IObj, IMeta, ISeq {
     }
 }
 
+export type ArrayLike = { length: number, 0: any };
 export type Seqable = ISeqable | null | ArrayLike;
 
 export function isSeq(value: any): boolean {
