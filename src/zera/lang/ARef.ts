@@ -1,16 +1,16 @@
 import { AReference, IReference } from "./AReference";
 import { zeraProtocol } from "../types";
 import { arrayMap, ArrayMap } from "./ArrayMap";
-import { Applicable, apply, list, isEmpty } from "../core";
+import { Applicable, apply, list } from "../core";
 import { MetaData } from "./IMeta";
 
 @zeraProtocol('zera.lang.ARef', AReference)
 export class ARef extends AReference implements IReference {
-    private $zera$watchers: ArrayMap;
-    private $zera$validator: Applicable;
-    private $zera$value: any;
+    protected $zera$watchers: ArrayMap;
+    protected $zera$validator: Applicable | null;
+    protected $zera$value: any;
 
-    constructor(meta: MetaData, value: any, validator: Applicable) {
+    constructor(meta: MetaData | null, value: any, validator: Applicable | null) {
         super(meta);
         this.$zera$watchers = arrayMap();
         this.$zera$validator = validator;
@@ -23,6 +23,7 @@ export class ARef extends AReference implements IReference {
 
     validate(value: any) {
         var v = this.$zera$validator;
+        if (v == null) return null;
         if (!apply(v, list(value ? value : this.$zera$value)))
             throw new Error("Not a valid value for this reference");
     }

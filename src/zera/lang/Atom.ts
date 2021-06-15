@@ -1,81 +1,74 @@
-function Atom(meta, value, validator) {
-    ARef.call(this, meta, value, validator);
-    ZeraType.call(this, Atom.$zera$tag, null, Atom.$zera$protocols);
-}
+import { ARef } from "./ARef";
+import { zeraType } from "../types";
+import { Applicable, apply, cons, equals, prnStr, str, isEmpty, list, seq } from "../core";
+import { ISeq } from "./Seq";
 
-Atom.$zera$tag = Sym.intern("zera.lang.Atom");
-Atom.$zera$isType = true;
-Atom.$zera$protocols = { "zera.lang.ARef": ARef };
-Atom.prototype = Object.create(ARef.prototype);
+@zeraType('zera.lang.Atom', ARef)
+export class Atom extends ARef {
+    reset(newVal: any): Atom {
+        this.validate(newVal);
+        var oldVal = this.$zera$value;
+        this.$zera$value = newVal;
+        this.processWatchers(oldVal, newVal);
+        return this;
+    }
 
-Atom.prototype.reset = function(newVal) {
-    this.validate(newVal);
-    var oldVal = this.$zera$value;
-    this.$zera$value = newVal;
-    processWatchers(this, oldVal, newVal);
-    return this;
-};
-
-Atom.prototype.swap = function(f, args) {
-    if (!isFn(f) && !isInvocable(f))
-        throw new Error("Can only swap atomic value with a function");
-    var oldVal = this.$zera$value,
-        newVal = apply(f, cons(oldVal, args));
-    this.validate(newVal);
-    this.$zera$value = newVal;
-    processWatchers(this, oldVal, newVal);
-    return this;
-};
-
-Atom.prototype.compareAndSet = function(oldVal, newVal) {
-    if (equals(this.$zera$value, oldVal)) {
+    swap(f: Applicable, args: any[]): Atom {
+        var oldVal = this.$zera$value,
+            newVal = apply(f, cons(oldVal, seq(args)));
         this.validate(newVal);
         this.$zera$value = newVal;
-        processWatchers(this, oldVal, newVal);
+        this.processWatchers(oldVal, newVal);
+        return this;
     }
-    return this;
-};
 
-Atom.prototype.toString = function() {
-    return str("#<Atom value: ", prnStr(this.$zera$value), ">");
-};
+    compareAndSet(oldVal: any, newVal: any): Atom {
+        if (equals(this.$zera$value, oldVal)) {
+            this.validate(newVal);
+            this.$zera$value = newVal;
+            this.processWatchers(oldVal, newVal);
+        }
+        return this;
+    }
 
-// TODO: complete ARef implementation
-function processWatchers(ref, old, knew) {
-    var s,
-        f,
-        watchers = ref.$zera$watchers;
-    if (isEmpty(watchers)) return;
-    for (s = watchers.entries(); s != null; s = s.next()) {
-        var kv = s.first();
-        f = kv.val();
-        if (f != null) apply(f, list(kv.key(), ref, old, knew));
-        else {
-            throw new Error("A watcher must be a function of 4 arguments");
+    toString() {
+        return str("#<Atom value: ", prnStr(this.$zera$value), ">");
+    }
+
+    // TODO: complete ARef implementation
+    private processWatchers(old: any, knew: any): void {
+        var s,
+            f,
+            watchers = this.$zera$watchers;
+        if (isEmpty(watchers)) return;
+        for (s = watchers.entries(); s != null; s = s.next()) {
+            var kv = s.first();
+            f = kv.val();
+            if (f != null) apply(f, list(kv.key(), this, old, knew));
+            else {
+                throw new Error("A watcher must be a function of 4 arguments");
+            }
         }
     }
+
 }
 
-function isAtom(x) {
+export function isAtom(x: any): boolean {
     return x instanceof Atom;
 }
 
-function atom(x) {
-    return new Atom(null, x);
+export function atom(x: any): Atom {
+    return new Atom(null, x, null);
 }
 
-function reset(atom, value) {
-    if (isAtom(atom)) return atom.reset(value);
-    throw new Error("Can only reset the value of Atoms");
+export function reset(atom: Atom, value: any) {
+    return atom.reset(value);
 }
 
-function swap(atom, f) {
-    var args = Array.prototype.slice.call(arguments, 2);
-    if (isAtom(atom)) return atom.swap(f, args);
-    throw new Error("Can only reset the value of Atoms");
+export function swap(atom: Atom, f: Applicable, ...args: any[]) {
+    return atom.swap(f, args);
 }
 
-function compareAndSet(atom, oldVal, newVal) {
-    if (isAtom(atom)) return atom.compareAndSet(oldVal, newVal);
-    throw new Error("Can only compare and set the value of Atoms");
+export function compareAndSet(atom: Atom, oldVal: any, newVal: any) {
+    return atom.compareAndSet(oldVal, newVal);
 }
