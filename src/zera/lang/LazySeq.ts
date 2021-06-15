@@ -20,23 +20,29 @@ export class LazySeq {
             this._sv = apply(this._fn);
             this._fn = null;
         }
+
         if (this._sv != null) {
             return this._sv;
         }
+
         return this._seq;
     }
 
     // Sequable
     seq(): ISeq | null {
         this.sval();
+
         if (this._sv != null) {
             var ls: ISeq | null = this._sv;
             this._sv = null;
+
             while (ls instanceof LazySeq) {
                 ls = ls.sval();
             }
+
             this._seq = ls;
         }
+
         return this._seq;
     }
 
@@ -54,24 +60,33 @@ export class LazySeq {
 
     first(): any {
         this.seq();
+
         if (this._seq == null) {
             return null;
         }
+
         return this._seq.first();
     }
 
     next(): ISeq | null {
         this.seq();
+
         if (this._seq == null) {
             return null;
         }
+
         return this._seq.next();
     }
 
     rest(): ISeq {
         var val = this.next();
-        if (val == null) return PersistentList.EMPTY;
-        else return val;
+
+        if (val == null) {
+            return PersistentList.EMPTY;
+        }
+        else {
+            return val;
+        }
     }
 
     isEmpty(): boolean {
@@ -80,11 +95,14 @@ export class LazySeq {
 
     toString() {
         if (this.isEmpty()) return '()';
+
         var buff: any[] = [];
         var seq: ISeq | null = this.seq();
+
         while (seq != null) {
             seq = seq.next();
         }
+
         return '(' + buff.join(' ') + ')';
     }
 }
