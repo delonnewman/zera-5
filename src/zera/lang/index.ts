@@ -25,6 +25,8 @@ export {
     find, get, assoc, dissoc, keys, vals, containsKey, contains
 } from "./AMap";
 
+export { MapEntry, key, val } from "./MapEntry";
+
 export { ArrayMap, isArrayMap, arrayMap, Map } from "./ArrayMap";
 
 // Sets

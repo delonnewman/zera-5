@@ -8,11 +8,20 @@ import {
     isSeqable,
     ArrayLike,
     PersistentList,
+    List,
     isList,
     lazySeq,
     isLazySeq,
-    Applicable
+    Applicable,
+    atom,
+    swap,
+    Seqable,
+    Vector,
+    vector,
+    ArrayMap
 } from "./lang";
+
+export * from "./lang";
 
 // Global Symbols
 export const NIL_SYM = Symbol.intern("nil");
@@ -83,6 +92,14 @@ export function equals(a: any, b: any): boolean {
     } else {
         return a === b;
     }
+}
+
+export function isIdentical(a: any, b: any): boolean {
+    return a === b;
+}
+
+export function isEquiv(a: any, b: any): boolean {
+    return a == b;
 }
 
 export function isJSFn(x: any): boolean {
@@ -225,7 +242,7 @@ export function isEmpty(x: any): boolean {
     }
 }
 
-export function apply(fn: any, args: ISeq | null = PersistentList.EMPTY): any {
+export function apply(fn: any, args: Seqable = PersistentList.EMPTY): any {
     if (isArrayLike(fn)) {
         return fn[first(args)];
     }
@@ -567,7 +584,7 @@ export function seq(value: any): ISeq | null {
 }
 
 
-export function cons(x: any, col: ISeq | null): ISeq {
+export function cons(x: any, col: ISeq | null): any {
     if (col == null) {
         return new PersistentList(null, x, null, 1);
     } else if (isSeq(col)) {
@@ -581,7 +598,7 @@ export function cons(x: any, col: ISeq | null): ISeq {
     }
 }
 
-export function list(...args: any[]): ISeq | null {
+export function list(...args: any[]): any {
     if (args.length === 0) {
         return PersistentList.EMPTY;
     } else if (args.length === 1) {
@@ -594,4 +611,82 @@ export function list(...args: any[]): ISeq | null {
         xs = cons(x, xs);
     }
     return xs;
+}
+
+
+const symN = atom(1);
+function inc(x: number): number {
+    return x + 1;
+}
+
+export function gensym(prefix = "G__") {
+    var s = Symbol.intern([prefix, symN.deref()].join(""));
+    swap(symN, inc);
+    return s;
+}
+
+
+export function pair(xs: Seqable): any {
+    if (isNil(xs)) {
+        return Vector.EMPTY;
+    } else if (count(xs) === 1) {
+        return xs;
+    } else {
+        var xs_ = xs,
+            x = first(xs_),
+            y = first(rest(xs_)),
+            v = Vector.EMPTY;
+        while (xs_ !== null) {
+            v = v.conj(vector(x, y));
+            xs_ = next(rest(xs_));
+            x = first(xs_);
+            y = first(rest(xs_));
+        }
+        return v;
+    }
+}
+
+export function objectToMap(obj: any, keyFn: Applicable = keyword): ArrayMap | null {
+    if (obj == null) return ArrayMap.EMPTY;
+
+    var keys = Object.getOwnPropertyNames(obj);
+    if (keys.length === 0) return null;
+
+    var i, entries = [];
+    for (i = 0; i < keys.length; i++) {
+        entries.push(apply(keyFn, [keys[i]]));
+        entries.push(obj[keys[i]]);
+    }
+
+    return new ArrayMap(null, entries);
+}
+
+// TODO: add a toTrasient method to all Seq's
+export function into(to: ISeq, from: Seqable): ISeq {
+    while (first(from) != null) {
+        to = conj(to, first(from));
+        from = rest(from);
+    }
+    return to;
+}
+
+export function array(...args: any[]): any[] {
+    return args;
+}
+
+export function alast(array: any[]): any {
+    if (array.length === 0) return null;
+    else if (array.length === 1) return array[0];
+    else {
+        return array[array.length - 1];
+    }
+}
+
+export function ahead(array: any[]): any {
+    if (array.length === 0 || array.length === 1) {
+        return [];
+    }
+    else {
+        return array.slice(0, array.length - 1);
+    }
 }
