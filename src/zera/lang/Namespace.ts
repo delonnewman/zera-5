@@ -37,12 +37,14 @@ export class Namespace extends AReference implements IMeta {
         return ns;
     }
 
-    static findOrDie(name: Symbol) {
+    static findOrDie(name: Symbol | null) {
+        if (name == null)
+            throw new Error("nil is not a valid namespace");
+
         var ns = Namespace.namespaces[name.toString()];
         if (ns != null) return ns;
-        else {
-            throw new Error(str("Can't find the namespace: ", name));
-        }
+
+        throw new Error("Can't find the namespace: " + name);
     }
 
     name() {

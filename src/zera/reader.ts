@@ -23,10 +23,6 @@ import {
 
 import { PushBackReader } from "./reader/PushBackReader";
 
-const TAG_KEY = Keyword.intern(Symbol.intern("tag"));
-const LINE_KEY = Keyword.intern(Symbol.intern("line"));
-const COLUMN_KEY = Keyword.intern(Symbol.intern("colunm"));
-
 type Options = { [key: string]: any };
 
 function stringReader(r: PushBackReader): string {

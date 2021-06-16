@@ -44,6 +44,13 @@ export const MACRO_SYM = Symbol.intern("defmacro");
 export const AMP_SYM = Symbol.intern("&");
 export const THE_VAR = Symbol.intern("var");
 
+export const DOC_KEY = keyword("doc");
+export const MACRO_KEY = keyword("macro");
+export const TAG_KEY = keyword("tag");
+export const LINE_KEY = keyword("line");
+export const COLUMN_KEY = keyword("colunm");
+
+
 export const SPECIAL_FORMS = {
     nil: true,
     true: true,
@@ -63,10 +70,6 @@ export const SPECIAL_FORMS = {
     do: true,
     let: true,
 };
-
-
-export const DOC_KEY = keyword("doc");
-export const MACRO_KEY = keyword("macro");
 
 export const p = console.log.bind(console.log);
 
