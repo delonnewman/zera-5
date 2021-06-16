@@ -1,21 +1,62 @@
 import {
     isJSFn,
     Var,
+    isMap,
+    isVector,
+    isArray,
+    isSet,
+    isSymbol,
+    isList,
+    isEmpty,
+    isError,
+    isString,
+    isBoolean,
+    isNumber,
+    isKeyword,
+    str,
+    intoArray,
+    into,
+    first,
+    ASet,
+    Map,
+    ArrayMap,
+    MapEntry,
+    key,
+    val,
+    map,
     Vector,
     vector,
     keyword,
-    CURRENT_NS
+    CURRENT_NS,
+    NIL_SYM
 } from "./runtime";
 
 import { env, Env } from "./evaluator/Env";
+import { macroexpand } from "./evaluator/macroexpand";
 
-function ZeraError(msg, stack, parent) {
-    this.msg = msg;
-    this.stack = stack;
-    this.parent = parent;
+class ZeraError {
+    public msg: string;
+    public stack: Vector;
+    public parent: object;
+
+    constructor(msg: string, stack: Vector, parent: object) {
+        this.msg = msg;
+        this.stack = stack;
+        this.parent = parent;
+    }
 }
 
-function isSelfEvaluating(form) {
+function isAtomic(x: any): boolean {
+    return (
+        isBoolean(x) ||
+        isNumber(x) ||
+        isString(x) ||
+        isKeyword(x) ||
+        x == null
+    );
+}
+
+function isSelfEvaluating(form: any): boolean {
     return isAtomic(form) || isJSFn(form);
 }
 
@@ -25,13 +66,34 @@ const FN_KEY = keyword("fn");
 const FILE_KEY = keyword("file");
 const LINE_KEY = keyword("line");
 
+function evalArray(form: any[], env: Env): any[] {
+    return form.map((x) => evaluate(x, env));
+}
+
+function evalVector(form: Vector, env: Env): Vector {
+    return new Vector(form.meta(), evalArray(form.toArray(), env));
+}
+
+function evalMap(form: Map, env: Env): Map {
+    var seq = map((x: MapEntry) => [evaluate(key(x), env), evaluate(val(x), env)], form),
+        m: Map = into(ArrayMap.EMPTY, seq);
+
+    if (form.meta()) return m.withMeta(form.meta());
+    return m;
+}
+
+function evalSet(form: ASet, env: Env) {
+    var seq = map((x) => evaluate(x, env), form),
+        s = into(HashSet.EMPTY, seq);
+    if (form.meta()) return s.withMeta(form.meta());
+    return s;
+}
 // TODO: add try, catch, finally
-export function evaluate(form_: any, env_: Env = top, stack_: Vector = vector()) {
-    var stack, env, recur, ret, form;
+export function evaluate(form_: any, env: Env = top, stack: Vector = vector()) {
     try {
-        recur = true;
-        ret = null;
-        form = macroexpand(form_, env_, stack);
+        let recur = true;
+        let ret = null;
+        let form = macroexpand(form_, env, stack);
         while (recur) {
             recur = false;
             if (form == null || NIL_SYM.equals(form)) {
@@ -50,7 +112,7 @@ export function evaluate(form_: any, env_: Env = top, stack_: Vector = vector())
                 ret = evalSymbol(form, env);
             } else if (isList(form)) {
                 if (isEmpty(form)) return form;
-                var tag = str(car(form));
+                var tag = str(first(form));
                 switch (tag) {
                     case "quote":
                         ret = evalQuote(form);

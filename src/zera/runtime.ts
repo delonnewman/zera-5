@@ -51,24 +51,24 @@ export const LINE_KEY = keyword("line");
 export const COLUMN_KEY = keyword("colunm");
 
 
-export const SPECIAL_FORMS = {
-    nil: true,
-    true: true,
-    false: true,
-    quote: true,
-    def: true,
-    "set!": true,
-    fn: true,
-    cond: true,
-    loop: true,
-    recur: true,
-    throw: true,
-    new: true,
-    ".": true,
-    defmacro: true,
-    var: true,
-    do: true,
-    let: true,
+export const SPECIAL_FORMS: { [key: string]: true } = {
+    'nil': true,
+    'true': true,
+    'false': true,
+    'quote': true,
+    'def': true,
+    'set!': true,
+    'fn': true,
+    'cond': true,
+    'loop': true,
+    'recur': true,
+    'throw': true,
+    'new': true,
+    '.': true,
+    'defmacro': true,
+    'var': true,
+    'do': true,
+    'let': true,
 };
 
 export const p = console.log.bind(console.log);
@@ -286,7 +286,7 @@ export function join(col: any, delimiter: string): string {
 }
 
 // TODO: look into transducers
-export function map(f: Applicable, xs: ISeq | ArrayLike) {
+export function map(f: Applicable, xs: Seqable) {
     if (arguments.length === 2) {
         return lazySeq(function() {
             if (isEmpty(xs)) {
@@ -446,16 +446,6 @@ export function str(...args: Array<any>): string {
     return args.join("");
 }
 
-export function isAtomic(x: any): boolean {
-    return (
-        isBoolean(x) ||
-        isNumber(x) ||
-        isString(x) ||
-        isKeyword(x) ||
-        x == null
-    );
-}
-
 export function isArray(x: any): boolean {
     return Object.prototype.toString.call(x) === "[object Array]";
 }
@@ -532,16 +522,6 @@ export function bindArguments(names: any[], values: any[]): any[] {
         if (equals(names[i], AMP_SYM)) capture = true;
     }
     return args;
-}
-
-export function defineLexically(env: Env, name: any, value: any) {
-    if (typeof value !== "undefined") {
-        env.vars[name] = value;
-        return null;
-    } else {
-        env.vars[name] = null;
-        return null;
-    }
 }
 
 export function intoArray(from: any): any[] {
@@ -665,7 +645,7 @@ export function objectToMap(obj: any, keyFn: Applicable = keyword): ArrayMap | n
 }
 
 // TODO: add a toTrasient method to all Seq's
-export function into(to: ISeq, from: Seqable): ISeq {
+export function into(to: ISeq, from: Seqable): any {
     while (first(from) != null) {
         to = conj(to, first(from));
         from = rest(from);

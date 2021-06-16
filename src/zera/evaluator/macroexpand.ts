@@ -15,7 +15,7 @@ import {
     NEW_SYM
 } from "../runtime";
 
-import { Env, env } from "./Env";
+import { Env, env, defineLexically } from "./Env";
 import { findVar } from "./findVar";
 
 const AMP_FORM = symbol("&form");
@@ -26,7 +26,7 @@ function isTaggedValue(x: any): boolean {
 }
 
 // TODO: set &form and &env in macro scope
-export function macroexpand(form: any, env_: Env, stack: Vector) {
+export function macroexpand(form: any, env_: Env, stack: Vector): any {
     var stack_;
     if (isTaggedValue(form)) {
         var sym = first(form);
