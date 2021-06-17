@@ -1,24 +1,55 @@
 import { zeraType } from "../types"
 import { MetaData, AFn, IFn, IJSFunction, IApplicable } from "./index"
 
-import { defineLexically } from "../evaluator"
+import { defineLexically, Env } from "../evaluator"
 
 import {
-    Env,
     prnStr,
-    calculateArity,
     count,
     str,
-    bindArguments,
     intoArray,
     RecursionPoint,
     first,
-    next
+    next,
+    equals,
+    AMP_SYM,
+    list
 } from "../runtime"
 
 export type Applicable = IFn | IJSFunction | IApplicable | any[];
 export type ArgList = any;
 export type Body = any;
+
+function isAmp(x: any): boolean {
+    return equals(x, AMP_SYM);
+}
+
+export function calculateArity(args: any[]): number {
+    var argc = args.length,
+        i = args.findIndex(isAmp);
+    if (i !== -1) {
+        argc = -1 * (argc - 1);
+    }
+    return argc;
+}
+
+export function bindArguments(names: any[], values: any[]): any[] {
+    var i,
+        xs,
+        capture = false,
+        args = [];
+    for (i = 0; i < names.length; i++) {
+        if (capture === true) {
+            xs = values.slice(i - 1, values.length);
+            args.push([names[i], list.apply(null, xs)]);
+            break;
+        } else {
+            args.push([names[i], values[i]]);
+        }
+        if (equals(names[i], AMP_SYM)) capture = true;
+    }
+    return args;
+}
 
 @zeraType('zera.lang.Fn', AFn)
 export class Fn extends AFn implements IFn {

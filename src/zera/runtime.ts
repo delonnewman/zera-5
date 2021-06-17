@@ -6,6 +6,7 @@ import {
     isSeq,
     ISeq,
     isSeqable,
+    ISeqable,
     ArrayLike,
     PersistentList,
     List,
@@ -493,37 +494,6 @@ export function floatArray(x: any): Float32Array {
     );
 }
 
-export function isAmp(x: any): boolean {
-    return equals(x, AMP_SYM);
-}
-
-export function calculateArity(args: any[]): number {
-    var argc = args.length,
-        i = args.findIndex(isAmp);
-    if (i !== -1) {
-        argc = -1 * (argc - 1);
-    }
-    return argc;
-}
-
-export function bindArguments(names: any[], values: any[]): any[] {
-    var i,
-        xs,
-        capture = false,
-        args = [];
-    for (i = 0; i < names.length; i++) {
-        if (capture === true) {
-            xs = values.slice(i - 1, values.length);
-            args.push([names[i], list.apply(null, xs)]);
-            break;
-        } else {
-            args.push([names[i], values[i]]);
-        }
-        if (equals(names[i], AMP_SYM)) capture = true;
-    }
-    return args;
-}
-
 export function intoArray(from: any): any[] {
     var a: any[] = [];
     if (from == null) {
@@ -645,7 +615,7 @@ export function objectToMap(obj: any, keyFn: Applicable = keyword): ArrayMap | n
 }
 
 // TODO: add a toTrasient method to all Seq's
-export function into(to: ISeq, from: Seqable): any {
+export function into(to: Seqable, from: Seqable): any {
     while (first(from) != null) {
         to = conj(to, first(from));
         from = rest(from);

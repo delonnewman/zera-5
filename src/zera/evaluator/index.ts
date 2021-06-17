@@ -89,9 +89,11 @@ function evalMap(form: Map, env: Env): any {
 }
 
 function evalSet(form: ASet, env: Env) {
-    var seq = map((x) => evaluate(x, env), form),
+    var seq = map((x: any) => evaluate(x, env), form),
         s = into(HashSet.EMPTY, seq);
+
     if (form.meta()) return s.withMeta(form.meta());
+
     return s;
 }
 // TODO: add try, catch, finally
