@@ -1,7 +1,6 @@
 import { zeraType } from "../types";
-import { ISeq } from "./Seq";
-import { IFn } from "./AFn";
-import { list, str, prnStr, isArray, isJSFn } from "../core";
+import { ISeq, IFn, isVector } from "./index";
+import { list, str, prnStr, isArray, isJSFn, nth } from "../runtime";
 
 @zeraType('zera.lang.MapEntry')
 export class MapEntry implements ISeq, IFn {
@@ -11,6 +10,10 @@ export class MapEntry implements ISeq, IFn {
     constructor(key: any, val: any) {
         this.$zera$key = key;
         this.$zera$val = val;
+    }
+
+    seq() {
+        return this;
     }
 
     key() {

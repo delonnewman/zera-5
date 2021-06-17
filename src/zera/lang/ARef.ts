@@ -1,8 +1,6 @@
-import { AReference, IReference } from "./AReference";
 import { zeraProtocol } from "../types";
-import { arrayMap, ArrayMap } from "./ArrayMap";
-import { Applicable, apply, list, isEmpty } from "../core";
-import { MetaData } from "./IMeta";
+import { Applicable, apply, list, isEmpty } from "../runtime";
+import { MetaData, arrayMap, ArrayMap, AReference, IReference } from "./index";
 
 @zeraProtocol('zera.lang.ARef', AReference)
 export class ARef extends AReference implements IReference {

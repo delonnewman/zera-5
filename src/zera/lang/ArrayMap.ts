@@ -1,10 +1,10 @@
-import { MetaData } from "./IMeta"
-import { AMap, IMap } from "./AMap"
-import { MapEntry, isMapEntry, mapEntry } from "./MapEntry"
+import {
+    MetaData, AMap, IMap, MapEntry, isMapEntry,
+    mapEntry, PersistentList, IFn
+} from "./index"
+
 import { zeraType } from "../types";
-import { isArray, str, prnStr, equals, list } from "../core";
-import { PersistentList } from "./PersistentList"
-import { IFn } from "./AFn"
+import { isArray, str, prnStr, equals, list } from "../runtime";
 
 // TODO: add IHashEq
 @zeraType('zera.lang.ArrayMap', AMap)

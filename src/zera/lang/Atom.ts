@@ -1,6 +1,5 @@
-import { ARef } from "./ARef";
 import { zeraType } from "../types";
-import { Applicable, apply, cons, equals, prnStr, str, seq } from "../core";
+import { Applicable, ARef, apply, cons, equals, prnStr, str, seq } from "../runtime";
 
 @zeraType('zera.lang.Atom', ARef)
 export class Atom extends ARef {

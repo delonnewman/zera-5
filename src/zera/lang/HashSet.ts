@@ -1,10 +1,8 @@
-import { APersistentSet } from "./APersistentSet";
-import { ArrayMap } from "./ArrayMap";
 import { zeraType } from "../types";
-import { isArrayLike } from "../core";
+import { isArrayLike, ArrayMap, APersistentSet, IPersistentSet } from "../runtime";
 
 @zeraType('zera.lang.HashSet', APersistentSet)
-export class HashSet extends APersistentSet {
+export class HashSet extends APersistentSet implements IPersistentSet {
 
     static createFromArray(a: any[]): HashSet {
         var i,
@@ -25,6 +23,10 @@ export class HashSet extends APersistentSet {
             a.push([vals[i], vals[i]]);
         }
         return new HashSet(this.meta(), this.$zera$rep.conj(a));
+    }
+
+    cons(x: any): HashSet {
+        return new HashSet(this.meta(), this.$zera$rep.conj([x, x]))
     }
 
     disjoin(key: any): HashSet {

@@ -1,6 +1,6 @@
 import { zeraProtocol } from "../types";
-import { ISeq, Seq } from "./Seq";
-import { prnStr, str, isJSFn } from "../core";
+import { ISeq, Seq } from "./index";
+import { prnStr, str, isJSFn } from "../runtime";
 
 export interface IMap {
     entries(): ISeq;

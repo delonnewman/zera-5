@@ -1,5 +1,5 @@
 import { IMeta, AMeta, MetaData } from "./IMeta"
-import { isJSFn } from "../core"
+import { isJSFn } from "../runtime"
 import { zeraProtocol } from "../types";
 
 export interface IObj extends IMeta {
@@ -13,8 +13,13 @@ export class AObj extends AMeta {
     }
 }
 
-export function withMeta(x: any, meta: MetaData): IObj | null {
-    if (x == null) return null;
+export function withMeta(x: any, meta: any): any {
+    if (x == null) {
+        return null;
+    }
+    else if (meta == null) {
+        return x;
+    }
     else if (isJSFn(x.withMeta)) {
         return x.withMeta(meta);
     } else {

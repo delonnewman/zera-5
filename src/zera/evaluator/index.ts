@@ -1,6 +1,5 @@
 import {
     isJSFn,
-    Var,
     isMap,
     isVector,
     isArray,
@@ -18,6 +17,7 @@ import {
     into,
     first,
     ASet,
+    HashSet,
     Map,
     ArrayMap,
     MapEntry,
@@ -27,12 +27,17 @@ import {
     Vector,
     vector,
     keyword,
-    CURRENT_NS,
+    withMeta,
     NIL_SYM
-} from "./runtime";
+} from "../runtime"
 
-import { env, Env } from "./evaluator/Env";
-import { macroexpand } from "./evaluator/macroexpand";
+import { env, Env } from "./Env"
+import { macroexpand } from "./macroexpand"
+import { findVar } from "./findVar"
+
+export * from "./Env"
+export * from "./macroexpand"
+export * from "./findVar"
 
 class ZeraError {
     public msg: string;
@@ -74,11 +79,12 @@ function evalVector(form: Vector, env: Env): Vector {
     return new Vector(form.meta(), evalArray(form.toArray(), env));
 }
 
-function evalMap(form: Map, env: Env): Map {
+function evalMap(form: Map, env: Env): any {
     var seq = map((x: MapEntry) => [evaluate(key(x), env), evaluate(val(x), env)], form),
         m: Map = into(ArrayMap.EMPTY, seq);
 
-    if (form.meta()) return m.withMeta(form.meta());
+    if (form.meta()) return withMeta(m, form.meta());
+
     return m;
 }
 

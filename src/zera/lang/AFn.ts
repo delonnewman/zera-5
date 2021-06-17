@@ -1,5 +1,5 @@
 import { zeraProtocol } from "../types"
-import { IObj, AObj } from "./IObj"
+import { IObj, AObj } from "./index"
 
 export interface IInvoke {
     invoke(...args: any[]): any;

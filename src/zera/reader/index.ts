@@ -19,9 +19,9 @@ import {
     THE_VAR,
     QUOTE_SYM,
     DEREF_SYM
-} from "./runtime";
+} from "../runtime";
 
-import { PushBackReader } from "./reader/PushBackReader";
+import { PushBackReader } from "./PushBackReader";
 
 type Options = { [key: string]: any };
 

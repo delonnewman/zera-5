@@ -1,9 +1,5 @@
-import { List } from "./List";
-import { ISeq } from "./Seq";
 import { zeraType } from "../types";
-import { MetaData } from "./IMeta";
-import { count } from "../runtime";
-import { PersistentList } from "./PersistentList";
+import { count, List, ISeq, MetaData, PersistentList } from "../runtime";
 
 @zeraType('zera.lang.Cons', List)
 export class Cons extends List {

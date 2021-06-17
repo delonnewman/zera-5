@@ -1,4 +1,4 @@
-import { IObj, AObj } from "./IObj";
+import { IObj, AObj } from "./index";
 import { zeraProtocol } from "../types";
 
 @zeraProtocol('zera.lang.ASet', AObj)

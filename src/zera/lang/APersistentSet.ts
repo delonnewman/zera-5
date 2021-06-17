@@ -1,8 +1,12 @@
-import { ASet } from "./ASet";
-import { ISeq } from "./Seq";
-import { MetaData } from "./IMeta";
+import { MetaData, ISeq, ASet, IPersistentCollection, Counted } from "./index";
+import { str, intoArray, Map } from "../runtime";
 import { zeraProtocol } from "../types";
-import { str, intoArray, Map } from "../core";
+
+export interface IPersistentSet extends IPersistentCollection, Counted {
+    disjoin(key: any): IPersistentSet
+    contains(key: any): boolean
+    get(key: any): any
+}
 
 @zeraProtocol('zera.lang.APersistentSet', ASet)
 export class APersistentSet extends ASet {
@@ -38,7 +42,7 @@ export class APersistentSet extends ASet {
     }
 
     equals(other: any): boolean {
-        return other instanceof ASet && this.$zera$rep.equals(other.$zera$rep);
+        return other instanceof APersistentSet && this.$zera$rep.equals(other.$zera$rep);
     }
 
     contains(val: any): boolean {

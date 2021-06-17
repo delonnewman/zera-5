@@ -1,7 +1,6 @@
-import { AMeta, IMeta, MetaData } from "./IMeta";
-import { apply, cons, isJSFn, Applicable } from "../core";
 import { zeraProtocol } from "../types";
-import { ISeq } from "./Seq";
+import { AMeta, IMeta, MetaData, ISeq } from "./index";
+import { apply, cons, isJSFn, Applicable } from "../runtime";
 
 export interface IReference {
     alterMeta(f: Applicable, args: ISeq): MetaData | null;

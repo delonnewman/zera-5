@@ -1,12 +1,20 @@
-import { AFn, IFn, IJSFunction, IApplicable } from "./AFn"
-import { MetaData } from "./IMeta"
 import { zeraType } from "../types"
+import { MetaData, AFn, IFn, IJSFunction, IApplicable } from "./index"
+
+import { defineLexically } from "../evaluator"
 
 import {
-    Env, prnStr, calculateArity, count, str,
-    bindArguments, intoArray, defineLexically,
-    RecursionPoint, first, next
-} from "../core"
+    Env,
+    prnStr,
+    calculateArity,
+    count,
+    str,
+    bindArguments,
+    intoArray,
+    RecursionPoint,
+    first,
+    next
+} from "../runtime"
 
 export type Applicable = IFn | IJSFunction | IApplicable | any[];
 export type ArgList = any;
