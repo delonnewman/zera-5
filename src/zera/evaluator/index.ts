@@ -33,18 +33,32 @@ import {
 
 import { env, Env } from "./Env"
 import { macroexpand } from "./macroexpand"
-import { findVar } from "./findVar"
+import { evalSymbol } from "./evalSymbol"
+import { evalQuote } from "./evalQuote"
+import { evalAssignment } from "./evalAssignment"
+import { evalDefinition } from "./evalDefinition"
+import { evalDoBlock } from "./evalDoBlock"
+import { evalVar } from "./evalVar"
+import { evalLoop } from "./evalLoop"
+import { evalRecursionPoint } from "./evalRecursionPoint"
+import { evalThrownException } from "./evalThrownException"
+import { evalClassInstantiation } from "./evalClassInstantiation"
+import { evalMemberAccess } from "./evalMemberAccess"
+import { evalApplication } from "./evalApplication"
+import { evalLetBlock } from "./evalLetBlock"
+import { evalConditional } from "./evalConditional"
+import { evalFunction } from "./evalFunction"
+import { evalMacroDefinition } from "./evalMacroDefinition"
 
 export * from "./Env"
 export * from "./macroexpand"
-export * from "./findVar"
 
 class ZeraError {
     public msg: string;
-    public stack: Vector;
+    public stack: any[];
     public parent: object;
 
-    constructor(msg: string, stack: Vector, parent: object) {
+    constructor(msg: string, stack: any[], parent: object) {
         this.msg = msg;
         this.stack = stack;
         this.parent = parent;

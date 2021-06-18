@@ -1,9 +1,5 @@
-import { Named } from "./Named";
-import { zeraType } from "../types";
-import { isJSFn } from "../core";
-import { Symbol } from "./Symbol";
-import { IFn, AFn } from "./AFn";
-import { MetaData } from "./IMeta";
+import { zeraType } from "../types"
+import { isJSFn, Named, Symbol, IFn, AFn, MetaData } from "../runtime"
 
 @zeraType('zera.lang.Keyword', Named, AFn)
 export class Keyword extends Named implements IFn {

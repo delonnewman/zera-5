@@ -20,9 +20,9 @@ import {
     Vector,
     vector,
     ArrayMap
-} from "./lang";
+} from "./lang/index"
 
-export * from "./lang";
+export * from "./lang/index"
 
 // Global Symbols
 export const NIL_SYM = Symbol.intern("nil");
@@ -642,4 +642,48 @@ export function ahead(array: any[]): any {
     else {
         return array.slice(0, array.length - 1);
     }
+}
+
+var names: { [key: string]: string } = {
+    "=": "eq",
+    "not=": "noteq",
+    "<": "lt",
+    ">": "gt",
+    "<=": "lteq",
+    ">=": "gteq",
+    "+": "add",
+    "-": "sub",
+    "*": "mult",
+    "/": "div",
+};
+
+export function zeraNameToJS(x: string): string {
+    if (names[x]) return names[x];
+
+    var prefix = null,
+        parts;
+
+    if (x.endsWith("?")) {
+        prefix = "is";
+        x = x.slice(0, x.length - 1);
+    } else if (x.endsWith("!")) {
+        x = x.slice(0, x.length - 1);
+    } else if (x.startsWith("*") && x.endsWith("*")) {
+        return x
+            .slice(0, x.length - 1)
+            .slice(1)
+            .split("-")
+            .map(function(s) {
+                return s.toUpperCase();
+            })
+            .join("_");
+    }
+
+    if (x.indexOf("->") !== -1) {
+        parts = x.split("->").reduce((a, x) => [].concat(a, "to", x));
+    } else {
+        parts = prefix ? [].concat(prefix, x.split("-")) : x.split("-");
+    }
+
+    return [].concat(parts[0], parts.slice(1).map(cap)).join("");
 }

@@ -1,11 +1,15 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
+        "module": "amd",
         "target": "es5",
         "experimentalDecorators": true,
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
-    }
+        "forceConsistentCasingInFileNames": true,
+        "outFile": "out/zera5.js"
+    },
+
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"]
 }

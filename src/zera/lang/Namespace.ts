@@ -1,12 +1,11 @@
-import { AReference } from "./AReference";
-import { IMeta } from "./IMeta";
-import { IMap, assoc, dissoc } from "./AMap";
-import { Symbol } from "./Symbol";
-import { arrayMap } from "./ArrayMap";
-import { atom, Atom, swap } from "./Atom";
-import { Var } from "./Var";
-import { str, list } from "../core";
+import {
+    str, list, Var, atom, Atom, swap, arrayMap, reduce, MapEntry, key, val,
+    Symbol, IMap, assoc, dissoc, IMeta, AReference, zeraNameToJS
+} from "../runtime";
+
 import { zeraType } from "../types";
+
+type JSModule = { [key: string]: any };
 
 @zeraType('zera.lang.Namespace', AReference)
 export class Namespace extends AReference implements IMeta {
@@ -27,7 +26,7 @@ export class Namespace extends AReference implements IMeta {
         return list.apply(null, Object.values(Namespace.namespaces));
     }
 
-    static findOrCreate(name: Symbol) {
+    static findOrCreate(name: Symbol): Namespace {
         var ns = Namespace.namespaces[name.toString()];
         if (ns != null) return ns;
         else {
@@ -37,7 +36,7 @@ export class Namespace extends AReference implements IMeta {
         return ns;
     }
 
-    static findOrDie(name: Symbol | null) {
+    static findOrDie(name: Symbol | string | null): Namespace {
         if (name == null)
             throw new Error("nil is not a valid namespace");
 
@@ -104,15 +103,12 @@ export class Namespace extends AReference implements IMeta {
         return this;
     }
 
-    // This will need to be rewritten
     toJSModule() {
-        return mapO(
-            function(v, k) {
-                return v.get();
-            },
-            this.$zera$mappings,
-            zeraNameToJS
-        );
+        let mod: JSModule = {};
+        return reduce((mod: JSModule, entry: MapEntry) => {
+            mod[zeraNameToJS(key(entry))] = val(entry)
+            return mod
+        }, this.mappings(), mod);
     }
 }
 

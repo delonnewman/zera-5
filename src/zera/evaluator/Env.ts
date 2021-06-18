@@ -1,6 +1,6 @@
-import { CURRENT_NS, Var } from "../runtime";
+import { CURRENT_NS, ZERA_NS, Symbol, symbol, Namespace } from "../runtime";
 
-export type Env = { vars: { [key: string]: Var | null }, parent: null | Env };
+export type Env = { vars: { [key: string]: any }, parent: null | Env };
 
 export function env(parent: null | Env = null): Env {
     if (parent) {
@@ -37,6 +37,31 @@ export function lookup(env: Env, name: string): any {
     }
 }
 
+export function findVar(sym: Symbol, returnNull: boolean = false) {
+    var ERROR_UNDEFINED_VAR = new Error("Undefined variable: " + sym);
+    var name = symbol(sym.name());
+
+    if (sym.isQualified()) {
+        let ns = CURRENT_NS.get().lookupAlias(sym.namespace());
+        ns = ns == null ? Namespace.findOrDie(sym.namespace()) : ns;
+        let v = ns.mapping(name);
+        if (!v) {
+            if (!returnNull) throw ERROR_UNDEFINED_VAR;
+            return null;
+        }
+        return v;
+    } else {
+        let v = CURRENT_NS.get().mapping(name);
+        if (v) return v;
+        else {
+            v = ZERA_NS.mapping(name);
+            if (v) return v;
+            if (returnNull) return null;
+            throw ERROR_UNDEFINED_VAR;
+        }
+    }
+}
+
 export function isEnv(x: any): boolean {
     return x != null && x.vars !== void 0;
 }
@@ -49,4 +74,16 @@ export function defineLexically(env: Env, name: any, value: any): null {
         env.vars[name] = null;
         return null;
     }
+}
+
+export function set(env: Env, name: Symbol, value: any): any {
+    if (!name.isQualified()) {
+        var scope = lookup(env, name.toString());
+        if (scope) {
+            scope.vars[name.toString()] = value;
+            return scope.vars[name.toString()];
+        }
+    }
+    var v = findVar(name);
+    return v.set(value);
 }
