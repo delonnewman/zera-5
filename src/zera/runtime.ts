@@ -25,31 +25,35 @@ import {
 export * from "./lang/index"
 
 // Global Symbols
-export const NIL_SYM = Symbol.intern("nil");
-export const TRUE_SYM = Symbol.intern("true");
-export const FALSE_SYM = Symbol.intern("false");
-export const QUOTE_SYM = Symbol.intern("quote");
-export const DEREF_SYM = Symbol.intern("deref");
-export const DO_SYM = Symbol.intern("do");
-export const DEF_SYM = Symbol.intern("def");
-export const SET_SYM = Symbol.intern("set!");
-export const FN_SYM = Symbol.intern("fn");
-export const LET_SYM = Symbol.intern("let");
-export const COND_SYM = Symbol.intern("cond");
-export const LOOP_SYM = Symbol.intern("loop");
-export const RECUR_SYM = Symbol.intern("recur");
-export const THROW_SYM = Symbol.intern("throw");
-export const NEW_SYM = Symbol.intern("new");
-export const DOT_SYM = Symbol.intern(".");
-export const MACRO_SYM = Symbol.intern("defmacro");
-export const AMP_SYM = Symbol.intern("&");
-export const THE_VAR = Symbol.intern("var");
+export const NIL_SYM = symbol("nil");
+export const TRUE_SYM = symbol("true");
+export const FALSE_SYM = symbol("false");
+export const QUOTE_SYM = symbol("quote");
+export const DEREF_SYM = symbol("deref");
+export const DO_SYM = symbol("do");
+export const DEF_SYM = symbol("def");
+export const SET_SYM = symbol("set!");
+export const FN_SYM = symbol("fn");
+export const LET_SYM = symbol("let");
+export const COND_SYM = symbol("cond");
+export const LOOP_SYM = symbol("loop");
+export const RECUR_SYM = symbol("recur");
+export const THROW_SYM = symbol("throw");
+export const NEW_SYM = symbol("new");
+export const DOT_SYM = symbol(".");
+export const MACRO_SYM = symbol("defmacro");
+export const AMP_SYM = symbol("&");
+export const THE_VAR = symbol("var");
 
 export const DOC_KEY = keyword("doc");
 export const MACRO_KEY = keyword("macro");
 export const TAG_KEY = keyword("tag");
 export const LINE_KEY = keyword("line");
 export const COLUMN_KEY = keyword("colunm");
+export const MSG_KEY = keyword("msg");
+export const FN_KEY = keyword("fn");
+export const FILE_KEY = keyword("file");
+
 
 
 export const SPECIAL_FORMS: { [key: string]: true } = {

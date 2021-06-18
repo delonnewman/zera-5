@@ -18,7 +18,8 @@ import {
     val,
     THE_VAR,
     QUOTE_SYM,
-    DEREF_SYM
+    DEREF_SYM,
+    LINE_KEY
 } from "../runtime";
 
 import { PushBackReader } from "./PushBackReader";

@@ -80,10 +80,6 @@ function isSelfEvaluating(form: any): boolean {
 }
 
 const top = env();
-const MSG_KEY = keyword("msg");
-const FN_KEY = keyword("fn");
-const FILE_KEY = keyword("file");
-const LINE_KEY = keyword("line");
 
 function evalArray(form: any[], env: Env): any[] {
     return form.map((x) => evaluate(x, env));
